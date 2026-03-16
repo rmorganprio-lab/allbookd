@@ -71,12 +71,46 @@ function App() {
         .select('*, organizations(*)')
         .eq('id', authId)
         .single()
-      
-      if (error) throw error
-      if (data) setUser(data)
+
+      if (!error && data) {
+        setUser(data)
+        setLoading(false)
+        return
+      }
+
+      // No user found by auth ID — check if this is a first-time OTP login
+      // by looking up the phone number from the auth session
+      const { data: { user: authUser } } = await supabase.auth.getUser()
+      const phone = authUser?.phone
+      if (!phone) throw new Error('No phone on auth user')
+
+      const { data: existing, error: phoneErr } = await supabase
+        .from('users')
+        .select('*, organizations(*)')
+        .eq('phone', phone)
+        .single()
+
+      if (phoneErr || !existing) throw new Error('No matching user for phone')
+
+      // Update the user row: set id to auth UUID and mark as linked
+      const { error: updateErr } = await supabase
+        .from('users')
+        .update({ id: authId, auth_linked: true })
+        .eq('phone', phone)
+
+      if (updateErr) throw updateErr
+
+      // Re-fetch the now-linked row
+      const { data: linked, error: refetchErr } = await supabase
+        .from('users')
+        .select('*, organizations(*)')
+        .eq('id', authId)
+        .single()
+
+      if (refetchErr || !linked) throw new Error('Failed to re-fetch linked user')
+      setUser(linked)
     } catch (err) {
       console.error('Failed to load user:', err)
-      // If we can't load the user profile, sign out to reset
       await supabase.auth.signOut()
       setSession(null)
       setUser(null)
