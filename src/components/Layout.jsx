@@ -2,7 +2,8 @@ import { NavLink, Outlet } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useState } from 'react'
 
-const navItems = [
+// Full nav for CEO and Manager
+const ownerNav = [
   { to: '/', label: 'Dashboard', icon: 'dashboard' },
   { to: '/clients', label: 'Clients', icon: 'clients' },
   { to: '/workers', label: 'Workers', icon: 'workers' },
@@ -12,13 +13,19 @@ const navItems = [
   { to: '/payments', label: 'Payments', icon: 'payments' },
 ]
 
+// Simplified nav for workers — only what they need
+const workerNav = [
+  { to: '/', label: 'My Jobs', icon: 'schedule' },
+  { to: '/clients', label: 'Clients', icon: 'clients' },
+]
+
 function NavIcon({ name, size = 20 }) {
   const p = { width: size, height: size, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: '2', strokeLinecap: 'round', strokeLinejoin: 'round' }
   
   switch (name) {
     case 'dashboard': return <svg {...p}><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
     case 'clients': return <svg {...p}><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-    case 'workers': return <svg {...p}><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+    case 'workers': return <svg {...p}><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="23" y1="11" x2="17" y2="11"/><line x1="20" y1="8" x2="20" y2="14"/></svg>
     case 'schedule': return <svg {...p}><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
     case 'quotes': return <svg {...p}><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><line x1="10" y1="9" x2="8" y2="9"/></svg>
     case 'invoices': return <svg {...p}><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
@@ -30,13 +37,19 @@ function NavIcon({ name, size = 20 }) {
 export default function Layout({ user }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const orgName = user?.organizations?.name || 'AllBookd'
+  const role = user?.role || 'worker'
+  const isWorker = role === 'worker'
+  const navItems = isWorker ? workerNav : ownerNav
 
   async function handleSignOut() {
     await supabase.auth.signOut()
+    localStorage.clear()
+    window.location.reload()
   }
 
   return (
     <div className="min-h-screen bg-stone-50 flex">
+      {/* Mobile menu overlay */}
       {mobileMenuOpen && (
         <div 
           className="fixed inset-0 bg-black/30 z-40 md:hidden"
@@ -44,6 +57,7 @@ export default function Layout({ user }) {
         />
       )}
 
+      {/* Sidebar */}
       <aside className={`
         fixed md:static inset-y-0 left-0 z-50
         w-64 bg-white border-r border-stone-200
@@ -51,6 +65,7 @@ export default function Layout({ user }) {
         transform transition-transform duration-200
         ${mobileMenuOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
       `}>
+        {/* Brand */}
         <div className="p-5 border-b border-stone-200">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-emerald-700 rounded-xl flex items-center justify-center">
@@ -69,7 +84,8 @@ export default function Layout({ user }) {
           </div>
         </div>
 
-        <nav className="flex-1 p-3 space-y-1 overflow-y-auto">
+        {/* Navigation */}
+        <nav className="flex-1 p-3 space-y-1">
           {navItems.map(item => (
             <NavLink
               key={item.to}
@@ -89,11 +105,12 @@ export default function Layout({ user }) {
           ))}
         </nav>
 
+        {/* User / Sign Out */}
         <div className="p-4 border-t border-stone-200">
           <div className="flex items-center justify-between">
             <div>
               <div className="text-sm font-medium text-stone-700">{user?.name}</div>
-              <div className="text-xs text-stone-400 capitalize">{user?.role}</div>
+              <div className="text-xs text-stone-400 capitalize">{role === 'ceo' ? 'Owner' : role}</div>
             </div>
             <button
               onClick={handleSignOut}
@@ -110,7 +127,9 @@ export default function Layout({ user }) {
         </div>
       </aside>
 
+      {/* Main Content */}
       <div className="flex-1 flex flex-col min-h-screen">
+        {/* Mobile header */}
         <header className="md:hidden bg-white border-b border-stone-200 px-4 py-3 flex items-center justify-between">
           <button
             onClick={() => setMobileMenuOpen(true)}
@@ -126,6 +145,7 @@ export default function Layout({ user }) {
           <div className="w-10" />
         </header>
 
+        {/* Page Content */}
         <main className="flex-1 overflow-auto">
           <Outlet />
         </main>
