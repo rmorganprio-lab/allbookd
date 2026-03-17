@@ -21,9 +21,8 @@ function App() {
     const timeout = setTimeout(() => {
       if (loading) {
         supabase.auth.signOut()
-        setSession(null)
-        setUser(null)
-        setLoading(false)
+        localStorage.clear()
+        window.location.reload()
       }
     }, 5000)
 

@@ -158,6 +158,17 @@ export default function Login() {
             </form>
           )}
         </div>
+
+        <p className="text-center mt-4 text-xs text-stone-400">
+          Having trouble?{' '}
+          <button
+            type="button"
+            onClick={() => { localStorage.clear(); window.location.reload() }}
+            className="text-stone-500 hover:text-stone-700 underline"
+          >
+            Clear &amp; Reload
+          </button>
+        </p>
       </div>
     </div>
   )
