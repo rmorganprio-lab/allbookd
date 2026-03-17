@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { supabase } from '../lib/supabase'
 
 export default function Login() {
-  const [phone, setPhone] = useState('')
+  const [phone, setPhone] = useState(() => localStorage.getItem('allbookd_phone') || '')
   const [otp, setOtp] = useState('')
   const [step, setStep] = useState('phone') // 'phone' or 'verify'
   const [loading, setLoading] = useState(false)
@@ -29,6 +29,7 @@ export default function Login() {
       setLoading(false)
     } else {
       setPhone(formatted)
+      localStorage.setItem('allbookd_phone', formatted)
       setStep('verify')
       setLoading(false)
     }
