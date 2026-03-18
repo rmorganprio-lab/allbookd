@@ -29,6 +29,7 @@ export default function Clients({ user }) {
   const [deleteConfirm, setDeleteConfirm] = useState(null)
   const [tagInput, setTagInput] = useState('')
   const [showImport, setShowImport] = useState(false)
+  const [clientTimeline, setClientTimeline] = useState([])
 
   const orgId = user?.org_id
 
@@ -93,9 +94,17 @@ export default function Clients({ user }) {
     setModal('edit')
   }
 
-  function openView(client) {
+  async function openView(client) {
     setSelectedClient(client)
+    setClientTimeline([])
     setModal('view')
+    const { data: timeline } = await supabase
+      .from('client_timeline')
+      .select('*')
+      .eq('client_id', client.id)
+      .order('created_at', { ascending: false })
+      .limit(20)
+    setClientTimeline(timeline || [])
   }
 
   // Save client
@@ -434,6 +443,36 @@ export default function Clients({ user }) {
               <p className="text-sm text-stone-600 whitespace-pre-wrap">{selectedClient.notes}</p>
             </Section>
           )}
+
+          {/* Activity Timeline */}
+          <div className="mt-6 pt-4 border-t border-stone-200">
+            <h3 className="text-sm font-semibold text-stone-700 mb-3">Activity Timeline</h3>
+            {clientTimeline.length === 0 ? (
+              <p className="text-xs text-stone-400">No activity recorded yet.</p>
+            ) : (
+              <div className="space-y-3 max-h-64 overflow-y-auto">
+                {clientTimeline.map(event => (
+                  <div key={event.id} className="flex gap-3 items-start">
+                    <div className={`mt-1 w-2 h-2 rounded-full flex-shrink-0 ${
+                      event.event_type === 'payment' ? 'bg-emerald-500' :
+                      event.event_type === 'quote' ? 'bg-blue-500' :
+                      event.event_type === 'invoice' ? 'bg-amber-500' :
+                      event.event_type === 'job' ? 'bg-purple-500' :
+                      'bg-stone-400'
+                    }`} />
+                    <div className="flex-1 min-w-0">
+                      <div className="text-sm text-stone-700">{event.summary}</div>
+                      <div className="text-[10px] text-stone-400 mt-0.5">
+                        {new Date(event.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                        {' · '}
+                        {new Date(event.created_at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
 
           {/* Actions */}
           <div className="flex gap-3 mt-6 pt-4 border-t border-stone-200">

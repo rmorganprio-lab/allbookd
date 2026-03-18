@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react'
+import { Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { todayInTimezone, toDateStr, formatDateFull, formatTime, formatTimestamp, getTimezoneAbbr, nowInTimezone } from '../lib/timezone'
 
@@ -440,6 +441,11 @@ export default function Schedule({ user }) {
 
           {selectedJob.status === 'scheduled' && <button onClick={() => handleCheckIn(selectedJob, 'arrive')} className="w-full py-2.5 bg-blue-600 text-white text-sm font-medium rounded-xl hover:bg-blue-700 mb-2">Mark as Arrived</button>}
           {selectedJob.status === 'in_progress' && <button onClick={() => handleCheckIn(selectedJob, 'complete')} className="w-full py-2.5 bg-emerald-700 text-white text-sm font-medium rounded-xl hover:bg-emerald-800 mb-2">Mark as Completed</button>}
+          {selectedJob.status === 'completed' && (
+            <Link to="/invoices" className="w-full py-2.5 bg-blue-50 text-blue-700 text-sm font-medium rounded-xl hover:bg-blue-100 transition-colors text-center block mt-2">
+              Create Invoice →
+            </Link>
+          )}
 
           <div className="flex gap-3 mt-4 pt-4 border-t border-stone-200">
             <button onClick={() => openEdit(selectedJob)} className="flex-1 py-2.5 bg-emerald-700 text-white text-sm font-medium rounded-xl hover:bg-emerald-800">Edit Job</button>
