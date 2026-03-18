@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { todayInTimezone, formatDate, getTimezoneAbbr } from '../lib/timezone'
+import { jsPDF } from 'jspdf'
 
 const statusColors = {
   draft: 'bg-stone-100 text-stone-600',
@@ -257,6 +258,28 @@ export default function Invoices({ user }) {
           await supabase.from('jobs').update({ invoice_id: invoiceId }).eq('id', jid)
         }
       }
+
+      // Check if jobs already have payments that cover this invoice
+      if (invoiceId && modal === 'add') {
+        if (jobIds.length > 0) {
+          const { data: existingPayments } = await supabase
+            .from('payments')
+            .select('amount')
+            .in('job_id', jobIds)
+          const totalPaid = (existingPayments || []).reduce((sum, p) => sum + Number(p.amount), 0)
+          if (totalPaid >= formTotal) {
+            const today = todayInTimezone(tz)
+            await supabase.from('invoices').update({
+              status: 'paid',
+              paid_date: today
+            }).eq('id', invoiceId)
+            // Link the existing payments to this invoice
+            for (const jid of jobIds) {
+              await supabase.from('payments').update({ invoice_id: invoiceId }).eq('job_id', jid).is('invoice_id', null)
+            }
+          }
+        }
+      }
     }
 
     setSaving(false)
@@ -329,6 +352,126 @@ export default function Invoices({ user }) {
     await supabase.from('invoices').delete().eq('id', id)
     setModal(null)
     loadAll()
+  }
+
+  function generatePDF(invoice) {
+    const doc = new jsPDF()
+    const orgName = user?.organizations?.name || 'AllBookd'
+    const pageWidth = doc.internal.pageSize.getWidth()
+
+    // Header
+    doc.setFontSize(24)
+    doc.setFont('helvetica', 'bold')
+    doc.setTextColor(45, 106, 79) // emerald
+    doc.text(orgName, 20, 25)
+
+    doc.setFontSize(28)
+    doc.setTextColor(28, 25, 23) // stone-900
+    doc.text('INVOICE', pageWidth - 20, 25, { align: 'right' })
+
+    // Invoice details
+    doc.setFontSize(10)
+    doc.setFont('helvetica', 'normal')
+    doc.setTextColor(120, 113, 108) // stone-500
+    doc.text(`Invoice #: ${invoice.invoice_number}`, pageWidth - 20, 35, { align: 'right' })
+    doc.text(`Date: ${invoice.issue_date || 'N/A'}`, pageWidth - 20, 41, { align: 'right' })
+    if (invoice.due_date) doc.text(`Due: ${invoice.due_date}`, pageWidth - 20, 47, { align: 'right' })
+    if (invoice.status === 'paid' && invoice.paid_date) {
+      doc.setTextColor(5, 150, 105) // emerald-600
+      doc.text(`PAID: ${invoice.paid_date}`, pageWidth - 20, 53, { align: 'right' })
+    }
+
+    // Bill To
+    doc.setTextColor(120, 113, 108)
+    doc.setFontSize(9)
+    doc.text('BILL TO', 20, 45)
+    doc.setFontSize(11)
+    doc.setTextColor(28, 25, 23)
+    doc.setFont('helvetica', 'bold')
+    doc.text(invoice.clients?.name || 'Client', 20, 52)
+    doc.setFont('helvetica', 'normal')
+    doc.setFontSize(10)
+    doc.setTextColor(68, 64, 60)
+    let billY = 58
+    if (invoice.clients?.address) { doc.text(invoice.clients.address, 20, billY); billY += 5 }
+    if (invoice.clients?.phone) { doc.text(invoice.clients.phone, 20, billY); billY += 5 }
+    if (invoice.clients?.email) { doc.text(invoice.clients.email, 20, billY); billY += 5 }
+
+    // Line items table
+    const tableTop = 80
+    doc.setFillColor(245, 245, 244) // stone-100
+    doc.rect(20, tableTop, pageWidth - 40, 8, 'F')
+    doc.setFontSize(9)
+    doc.setFont('helvetica', 'bold')
+    doc.setTextColor(120, 113, 108)
+    doc.text('Description', 24, tableTop + 5.5)
+    doc.text('Qty', 120, tableTop + 5.5, { align: 'center' })
+    doc.text('Price', 150, tableTop + 5.5, { align: 'right' })
+    doc.text('Total', pageWidth - 24, tableTop + 5.5, { align: 'right' })
+
+    doc.setFont('helvetica', 'normal')
+    doc.setTextColor(28, 25, 23)
+    doc.setFontSize(10)
+    let rowY = tableTop + 14
+    const lineItems = invoice.invoice_line_items || []
+    lineItems.forEach((li) => {
+      doc.text(li.description || '', 24, rowY)
+      doc.text(String(li.quantity), 120, rowY, { align: 'center' })
+      doc.text('$' + Number(li.unit_price).toFixed(2), 150, rowY, { align: 'right' })
+      doc.text('$' + Number(li.total).toFixed(2), pageWidth - 24, rowY, { align: 'right' })
+      doc.setDrawColor(229, 231, 235)
+      doc.line(20, rowY + 3, pageWidth - 20, rowY + 3)
+      rowY += 10
+    })
+
+    // Totals
+    rowY += 5
+    doc.setFontSize(10)
+    doc.setTextColor(120, 113, 108)
+    doc.text('Subtotal:', 140, rowY, { align: 'right' })
+    doc.setTextColor(28, 25, 23)
+    doc.text('$' + Number(invoice.subtotal).toFixed(2), pageWidth - 24, rowY, { align: 'right' })
+
+    if (Number(invoice.tax_amount) > 0) {
+      rowY += 7
+      doc.setTextColor(120, 113, 108)
+      doc.text('Tax:', 140, rowY, { align: 'right' })
+      doc.setTextColor(28, 25, 23)
+      doc.text('$' + Number(invoice.tax_amount).toFixed(2), pageWidth - 24, rowY, { align: 'right' })
+    }
+
+    rowY += 8
+    doc.setDrawColor(28, 25, 23)
+    doc.line(130, rowY - 2, pageWidth - 20, rowY - 2)
+    doc.setFontSize(14)
+    doc.setFont('helvetica', 'bold')
+    if (invoice.status === 'paid') {
+      doc.setTextColor(5, 150, 105)
+      doc.text('PAID', 140, rowY + 5, { align: 'right' })
+    } else {
+      doc.setTextColor(120, 113, 108)
+      doc.text('Total Due:', 140, rowY + 5, { align: 'right' })
+    }
+    doc.setTextColor(28, 25, 23)
+    doc.text('$' + Number(invoice.total).toFixed(2), pageWidth - 24, rowY + 5, { align: 'right' })
+
+    // Notes
+    if (invoice.notes) {
+      rowY += 20
+      doc.setFontSize(9)
+      doc.setFont('helvetica', 'normal')
+      doc.setTextColor(120, 113, 108)
+      doc.text('Notes:', 20, rowY)
+      doc.setTextColor(68, 64, 60)
+      doc.text(invoice.notes, 20, rowY + 6)
+    }
+
+    // Footer
+    doc.setFontSize(8)
+    doc.setTextColor(168, 162, 158)
+    doc.text('Generated by AllBookd', pageWidth / 2, 285, { align: 'center' })
+
+    doc.save(`${invoice.invoice_number}-${(invoice.clients?.name || 'invoice').replace(/\s+/g, '-')}.pdf`)
   }
 
   if (loading) return <div className="p-6 md:p-8 text-stone-400">Loading invoices...</div>
@@ -506,6 +649,11 @@ export default function Invoices({ user }) {
           </div>
 
           {selectedInvoice.notes && <div className="mb-4 p-3 bg-stone-50 rounded-xl text-sm text-stone-600">{selectedInvoice.notes}</div>}
+
+          <button onClick={() => generatePDF(selectedInvoice)} className="w-full py-2.5 bg-stone-100 text-stone-700 text-sm font-medium rounded-xl hover:bg-stone-200 transition-colors mb-2 flex items-center justify-center gap-2">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            Download PDF
+          </button>
 
           {/* ── Connected flow actions ── */}
           <div className="pt-4 border-t border-stone-200 space-y-2">
