@@ -36,7 +36,7 @@ function NavIcon({ name, size = 20 }) {
 
 export default function Layout({ user }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
-  const orgName = user?.organizations?.name || 'AllBookd'
+  const orgName = user?.organizations?.name || 'TimelyOps'
   const role = user?.role || 'worker'
   const isWorker = role === 'worker'
   const navItems = isWorker ? workerNav : ownerNav
@@ -81,7 +81,7 @@ export default function Layout({ user }) {
             </div>
             <div>
               <div className="font-bold text-stone-900 text-sm leading-tight">{orgName}</div>
-              <div className="text-xs text-stone-400">AllBookd</div>
+              <div className="text-xs text-stone-400">TimelyOps</div>
             </div>
           </div>
         </div>

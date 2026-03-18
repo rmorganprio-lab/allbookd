@@ -23,7 +23,7 @@ export default function CSVImport({ onClose, onImport, templateDef, validateRows
 
   function handleDownloadTemplate() {
     const csv = generateTemplate(templateDef.headers, templateDef.sample)
-    downloadCSV(`allbookd-${entityName}-template.csv`, csv)
+    downloadCSV(`timelyops-${entityName}-template.csv`, csv)
   }
 
   function handleFileSelect(e) {
