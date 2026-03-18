@@ -37,6 +37,9 @@ export default function Quotes({ user }) {
   const [formNotes, setFormNotes] = useState('')
   const [formValidUntil, setFormValidUntil] = useState('')
   const [formStatus, setFormStatus] = useState('draft')
+  const [isNewClient, setIsNewClient] = useState(false)
+  const [newClient, setNewClient] = useState({ name: '', phone: '', email: '', address: '' })
+  const [newProperty, setNewProperty] = useState({ property_type: 'residential', bedrooms: '', bathrooms: '', square_footage: '', alarm_code: '', key_info: '', pet_details: '', parking_instructions: '', supply_location: '', special_notes: '' })
 
   useEffect(() => { loadAll() }, [])
 
@@ -107,6 +110,9 @@ export default function Quotes({ user }) {
     setFormValidUntil(validStr)
     setFormStatus('draft')
     setSelectedQuote(null)
+    setIsNewClient(false)
+    setNewClient({ name: '', phone: '', email: '', address: '' })
+    setNewProperty({ property_type: 'residential', bedrooms: '', bathrooms: '', square_footage: '', alarm_code: '', key_info: '', pet_details: '', parking_instructions: '', supply_location: '', special_notes: '' })
     setModal('add')
   }
 
@@ -212,15 +218,75 @@ export default function Quotes({ user }) {
   const formTax = formSubtotal * (taxRate / 100)
   const formTotal = formSubtotal + formTax
 
+  // ── Auto-fill price for new client property inputs ──
+
+  function autoFillNewClientPrice(bedrooms, bathrooms) {
+    if (!bedrooms || !bathrooms || serviceTypes.length === 0) return
+    const st = formLines[0]?.service_type_id ? serviceTypes.find(s => s.id === formLines[0].service_type_id) : serviceTypes[0]
+    if (!st) return
+    const freq = formLines[0]?.frequency || 'one_time'
+    const price = lookupPrice(st.id, Number(bedrooms), Number(bathrooms), freq)
+    if (price) {
+      setFormLines(lines => {
+        const updated = [...lines]
+        updated[0] = { ...updated[0], unit_price: price, description: updated[0].description || st.name, service_type_id: updated[0].service_type_id || st.id }
+        return updated
+      })
+    }
+  }
+
   // ── Save ──
 
   async function handleSave() {
-    if (!formClient || formLines.length === 0) return
+    if ((!formClient && !isNewClient) || (isNewClient && !newClient.name.trim()) || formLines.length === 0) return
     setSaving(true)
+
+    let clientId = formClient
+
+    if (isNewClient) {
+      if (!newClient.name.trim()) return setSaving(false)
+
+      const { data: createdClient } = await supabase.from('clients').insert({
+        org_id: orgId,
+        name: newClient.name,
+        phone: newClient.phone || null,
+        email: newClient.email || null,
+        address: newClient.address || null,
+        status: 'active',
+        tags: ['quote'],
+      }).select().single()
+
+      if (!createdClient) { setSaving(false); return }
+      clientId = createdClient.id
+
+      const hasPropertyData = newProperty.bedrooms || newProperty.bathrooms || newProperty.pet_details || newProperty.parking_instructions || newProperty.square_footage
+      if (hasPropertyData) {
+        await supabase.from('client_properties').insert({
+          client_id: clientId,
+          org_id: orgId,
+          property_type: newProperty.property_type || 'residential',
+          bedrooms: newProperty.bedrooms ? Number(newProperty.bedrooms) : null,
+          bathrooms: newProperty.bathrooms ? Number(newProperty.bathrooms) : null,
+          square_footage: newProperty.square_footage ? Number(newProperty.square_footage) : null,
+          alarm_code: newProperty.alarm_code || null,
+          key_info: newProperty.key_info || null,
+          pet_details: newProperty.pet_details || null,
+          parking_instructions: newProperty.parking_instructions || null,
+          supply_location: newProperty.supply_location || null,
+          special_notes: newProperty.special_notes || null,
+        })
+      }
+
+      await supabase.from('client_timeline').insert({
+        org_id: orgId, client_id: clientId,
+        event_type: 'note', summary: 'Client created from quote',
+        created_by: user.id,
+      })
+    }
 
     const quoteData = {
       org_id: orgId,
-      client_id: formClient,
+      client_id: clientId,
       quote_number: selectedQuote?.quote_number || getNextQuoteNumber(),
       subtotal: formSubtotal,
       tax_amount: formTax,
@@ -238,7 +304,7 @@ export default function Quotes({ user }) {
       // Timeline entry
       if (quoteId) {
         await supabase.from('client_timeline').insert({
-          org_id: orgId, client_id: formClient,
+          org_id: orgId, client_id: clientId,
           event_type: 'quote', summary: `Quote ${quoteData.quote_number} created for $${formTotal.toFixed(2)}`,
           created_by: user.id,
         })
@@ -516,13 +582,46 @@ export default function Quotes({ user }) {
           </div>
 
           <div className="space-y-5 max-h-[65vh] overflow-y-auto pr-1">
-            {/* Client selector */}
+            {/* Client selector OR new client form */}
             <div>
-              <label className="block text-xs font-medium text-stone-500 mb-1.5">Client *</label>
-              <select value={formClient} onChange={e => handleClientChange(e.target.value)} className="w-full px-3 py-2.5 bg-stone-50 border border-stone-200 rounded-xl text-sm text-stone-900 focus:outline-none focus:ring-2 focus:ring-emerald-600">
-                <option value="">Select client...</option>
-                {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-              </select>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="text-xs font-medium text-stone-500">Client *</label>
+                <button type="button" onClick={() => { setIsNewClient(!isNewClient); setFormClient(''); setFormClientProperty(null) }} className="text-xs text-emerald-700 hover:text-emerald-800 font-medium">
+                  {isNewClient ? '← Select existing client' : '+ New client'}
+                </button>
+              </div>
+
+              {!isNewClient ? (
+                <select value={formClient} onChange={e => handleClientChange(e.target.value)} className="w-full px-3 py-2.5 bg-stone-50 border border-stone-200 rounded-xl text-sm text-stone-900 focus:outline-none focus:ring-2 focus:ring-emerald-600">
+                  <option value="">Select client...</option>
+                  {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                </select>
+              ) : (
+                <div className="space-y-3 p-4 bg-stone-50 border border-stone-200 rounded-xl">
+                  <div className="text-xs font-semibold text-stone-600 mb-2">New Client Details</div>
+                  <input type="text" value={newClient.name} onChange={e => setNewClient(nc => ({...nc, name: e.target.value}))} placeholder="Full name *" className="w-full px-3 py-2.5 bg-white border border-stone-200 rounded-xl text-sm text-stone-900 placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-emerald-600" />
+                  <div className="grid grid-cols-2 gap-2">
+                    <input type="tel" value={newClient.phone} onChange={e => setNewClient(nc => ({...nc, phone: e.target.value}))} placeholder="Phone" className="w-full px-3 py-2.5 bg-white border border-stone-200 rounded-xl text-sm text-stone-900 placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-emerald-600" />
+                    <input type="email" value={newClient.email} onChange={e => setNewClient(nc => ({...nc, email: e.target.value}))} placeholder="Email" className="w-full px-3 py-2.5 bg-white border border-stone-200 rounded-xl text-sm text-stone-900 placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-emerald-600" />
+                  </div>
+                  <input type="text" value={newClient.address} onChange={e => setNewClient(nc => ({...nc, address: e.target.value}))} placeholder="Address" className="w-full px-3 py-2.5 bg-white border border-stone-200 rounded-xl text-sm text-stone-900 placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-emerald-600" />
+
+                  <div className="text-xs font-semibold text-stone-600 mt-3 mb-2">Property Details</div>
+                  <div className="grid grid-cols-4 gap-2">
+                    <select value={newProperty.property_type} onChange={e => setNewProperty(np => ({...np, property_type: e.target.value}))} className="w-full px-2 py-2 bg-white border border-stone-200 rounded-xl text-xs text-stone-900 focus:outline-none focus:ring-2 focus:ring-emerald-600">
+                      <option value="residential">Residential</option>
+                      <option value="commercial">Commercial</option>
+                      <option value="office">Office</option>
+                      <option value="other">Other</option>
+                    </select>
+                    <input type="number" value={newProperty.bedrooms} onChange={e => { setNewProperty(np => ({...np, bedrooms: e.target.value})); autoFillNewClientPrice(e.target.value, newProperty.bathrooms) }} placeholder="BR" className="w-full px-2 py-2 bg-white border border-stone-200 rounded-xl text-sm text-center text-stone-900 placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-emerald-600" />
+                    <input type="number" value={newProperty.bathrooms} onChange={e => { setNewProperty(np => ({...np, bathrooms: e.target.value})); autoFillNewClientPrice(newProperty.bedrooms, e.target.value) }} placeholder="BA" className="w-full px-2 py-2 bg-white border border-stone-200 rounded-xl text-sm text-center text-stone-900 placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-emerald-600" />
+                    <input type="number" value={newProperty.square_footage} onChange={e => setNewProperty(np => ({...np, square_footage: e.target.value}))} placeholder="Sq ft" className="w-full px-2 py-2 bg-white border border-stone-200 rounded-xl text-sm text-center text-stone-900 placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-emerald-600" />
+                  </div>
+                  <input type="text" value={newProperty.pet_details} onChange={e => setNewProperty(np => ({...np, pet_details: e.target.value}))} placeholder="Pets? (e.g. 1 dog, friendly)" className="w-full px-3 py-2.5 bg-white border border-stone-200 rounded-xl text-sm text-stone-900 placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-emerald-600" />
+                  <input type="text" value={newProperty.parking_instructions} onChange={e => setNewProperty(np => ({...np, parking_instructions: e.target.value}))} placeholder="Parking instructions" className="w-full px-3 py-2.5 bg-white border border-stone-200 rounded-xl text-sm text-stone-900 placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-emerald-600" />
+                </div>
+              )}
             </div>
 
             {/* Property summary — shows auto-detected info */}
@@ -634,7 +733,7 @@ export default function Quotes({ user }) {
           {/* Actions */}
           <div className="flex gap-3 mt-6 pt-4 border-t border-stone-200">
             <button onClick={() => setModal(null)} className="flex-1 py-2.5 bg-stone-100 text-stone-600 text-sm font-medium rounded-xl hover:bg-stone-200 transition-colors">Cancel</button>
-            <button onClick={handleSave} disabled={saving || !formClient || formLines.every(l => !l.description)} className="flex-1 py-2.5 bg-emerald-700 text-white text-sm font-medium rounded-xl hover:bg-emerald-800 disabled:opacity-50 transition-colors">
+            <button onClick={handleSave} disabled={saving || (!formClient && !isNewClient) || (isNewClient && !newClient.name.trim()) || formLines.every(l => !l.description)} className="flex-1 py-2.5 bg-emerald-700 text-white text-sm font-medium rounded-xl hover:bg-emerald-800 disabled:opacity-50 transition-colors">
               {saving ? 'Saving...' : modal === 'add' ? 'Create Quote' : 'Save Changes'}
             </button>
           </div>
