@@ -373,9 +373,9 @@ export default function Schedule({ user }) {
       </div>
 
       {/* Views */}
-      {view === 'month' && <MonthView days={getMonthDays()} year={year} month={month} today={today} jobsOnDate={jobsOnDate} dateStr={dateStr} onDayClick={(d) => { setView('day'); setCurrentDate(new Date(year, month, d)) }} />}
-      {view === 'week' && <WeekView days={getWeekDays()} today={today} jobsOnDate={jobsOnDate} onJobClick={openView} onAddJob={(d) => openAdd(toDateStr(d))} />}
-      {view === 'day' && <DayView date={currentDate} today={today} jobs={jobsOnDate(toDateStr(currentDate))} onJobClick={openView} onAddJob={() => openAdd(toDateStr(currentDate))} workerName={workerName} clientName={clientName} onCheckIn={handleCheckIn} tz={tz} />}
+      {view === 'month' && <MonthView days={getMonthDays()} year={year} month={month} today={today} jobsOnDate={jobsOnDate} dateStr={dateStr} timeFormat={timeFormat} onDayClick={(d) => { setView('day'); setCurrentDate(new Date(year, month, d)) }} />}
+      {view === 'week' && <WeekView days={getWeekDays()} today={today} jobsOnDate={jobsOnDate} onJobClick={openView} onAddJob={(d) => openAdd(toDateStr(d))} timeFormat={timeFormat} />}
+      {view === 'day' && <DayView date={currentDate} today={today} jobs={jobsOnDate(toDateStr(currentDate))} onJobClick={openView} onAddJob={() => openAdd(toDateStr(currentDate))} workerName={workerName} clientName={clientName} onCheckIn={handleCheckIn} tz={tz} timeFormat={timeFormat} />}
 
       {/* ── Recurring Edit Choice Modal ── */}
       {modal === 'recurring_choose' && selectedJob && (
@@ -630,7 +630,7 @@ export default function Schedule({ user }) {
 
 // ── Views ──
 
-function MonthView({ days, year, month, today, jobsOnDate, dateStr, onDayClick }) {
+function MonthView({ days, year, month, today, jobsOnDate, dateStr, timeFormat, onDayClick }) {
   return (
     <div className="bg-white rounded-2xl border border-stone-200 overflow-hidden">
       <div className="grid grid-cols-7 border-b border-stone-200">{DAYS.map(d => <div key={d} className="py-2 text-center text-xs font-semibold text-stone-400 uppercase tracking-wider">{d}</div>)}</div>
@@ -656,7 +656,7 @@ function MonthView({ days, year, month, today, jobsOnDate, dateStr, onDayClick }
   )
 }
 
-function WeekView({ days, today, jobsOnDate, onJobClick, onAddJob }) {
+function WeekView({ days, today, jobsOnDate, onJobClick, onAddJob, timeFormat }) {
   return (
     <div className="bg-white rounded-2xl border border-stone-200 overflow-hidden">
       <div className="grid grid-cols-7 divide-x divide-stone-100">
@@ -685,7 +685,7 @@ function WeekView({ days, today, jobsOnDate, onJobClick, onAddJob }) {
   )
 }
 
-function DayView({ date, today, jobs, onJobClick, onAddJob, workerName, clientName, onCheckIn, tz }) {
+function DayView({ date, today, jobs, onJobClick, onAddJob, workerName, clientName, onCheckIn, tz, timeFormat }) {
   const ds = toDateStr(date); const isToday = ds === today
   const sorted = [...jobs].sort((a, b) => (a.start_time||'').localeCompare(b.start_time||''))
   return (
