@@ -83,21 +83,28 @@ export function formatDateFull(dateStr) {
 /**
  * Format a time string (HH:MM or HH:MM:SS) for display
  */
-export function formatTime(timeStr) {
+export function formatTime(timeStr, format = '12h') {
   if (!timeStr) return 'TBD'
-  return timeStr.slice(0, 5)
+  const [hours, minutes] = timeStr.slice(0, 5).split(':').map(Number)
+  if (format === '24h') {
+    return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`
+  }
+  const period = hours >= 12 ? 'PM' : 'AM'
+  const h = hours % 12 || 12
+  return `${h}:${String(minutes).padStart(2, '0')} ${period}`
 }
 
 /**
  * Format a UTC timestamp for display in the org's timezone
  * Used for things like arrived_at, completed_at which are stored as UTC timestamps
  */
-export function formatTimestamp(isoString, timezone) {
+export function formatTimestamp(isoString, timezone, format = '12h') {
   if (!isoString) return ''
   return new Date(isoString).toLocaleTimeString('en-US', {
     timeZone: timezone,
     hour: '2-digit',
     minute: '2-digit',
+    hour12: format === '12h',
   })
 }
 

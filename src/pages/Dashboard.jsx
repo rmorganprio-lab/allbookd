@@ -5,6 +5,7 @@ import { todayInTimezone, addDays, currentHourInTimezone, getTimezoneAbbr, forma
 
 export default function Dashboard({ user }) {
   const tz = user?.organizations?.settings?.timezone || 'America/Los_Angeles'
+  const timeFormat = user?.organizations?.settings?.time_format || '12h'
   const role = user?.role || 'worker'
   const isWorker = role === 'worker'
 
@@ -212,7 +213,7 @@ export default function Dashboard({ user }) {
                       'bg-blue-50 border border-blue-100'
                     }`}>
                       <div className="flex items-center justify-between">
-                        <div className="font-medium text-stone-800">{formatTime(job.start_time)}</div>
+                        <div className="font-medium text-stone-800">{formatTime(job.start_time, timeFormat)}</div>
                         <StatusDot status={job.status} />
                       </div>
                       <div className="text-stone-600 mt-0.5">{job.title}</div>
@@ -236,7 +237,7 @@ export default function Dashboard({ user }) {
                 <div className="p-2 space-y-1.5">
                   {unassigned.map(job => (
                     <div key={job.id} className="px-3 py-2.5 rounded-xl bg-amber-50/50 border border-amber-100 text-xs">
-                      <div className="font-medium text-stone-800">{formatTime(job.start_time)} — {job.title}</div>
+                      <div className="font-medium text-stone-800">{formatTime(job.start_time, timeFormat)} — {job.title}</div>
                       <div className="text-stone-500">{job.clients?.name}</div>
                     </div>
                   ))}
@@ -399,7 +400,7 @@ function JobCard({ job, isNext, tz, user, onUpdate }) {
           <div className="text-sm text-stone-500 mt-0.5">{job.clients?.name}</div>
         </div>
         <div className="text-right">
-          <div className="text-sm font-medium text-stone-700">{formatTime(job.start_time)}</div>
+          <div className="text-sm font-medium text-stone-700">{formatTime(job.start_time, timeFormat)}</div>
           <div className="text-xs text-stone-400">{job.duration_minutes}min</div>
         </div>
       </div>

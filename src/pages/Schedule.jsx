@@ -20,6 +20,7 @@ const emptyJob = {
 
 export default function Schedule({ user }) {
   const tz = user?.organizations?.settings?.timezone || 'America/Los_Angeles'
+  const timeFormat = user?.organizations?.settings?.time_format || '12h'
   const tzAbbr = getTimezoneAbbr(tz)
 
   const [view, setView] = useState('month')
@@ -420,14 +421,14 @@ export default function Schedule({ user }) {
 
           <div className="space-y-2 mb-4">
             <InfoRow label="Date" value={formatDateFull(selectedJob.date)} />
-            <InfoRow label="Time" value={`${formatTime(selectedJob.start_time)} ${tzAbbr}`} />
+            <InfoRow label="Time" value={`${formatTime(selectedJob.start_time, timeFormat)} ${tzAbbr}`} />
             <InfoRow label="Duration" value={`${selectedJob.duration_minutes} min`} />
             <InfoRow label="Status" value={<span className={`px-2 py-0.5 rounded-full text-xs font-medium capitalize ${statusColors[selectedJob.status]}`}>{selectedJob.status.replace('_',' ')}</span>} />
             {selectedJob.price && <InfoRow label="Price" value={`$${Number(selectedJob.price).toFixed(2)}`} />}
             {selectedJob.frequency && selectedJob.frequency !== 'one_time' && <InfoRow label="Frequency" value={selectedJob.frequency} />}
             {selectedJob.notes && <InfoRow label="Notes" value={selectedJob.notes} />}
-            {selectedJob.arrived_at && <InfoRow label="Arrived" value={formatTimestamp(selectedJob.arrived_at, tz)} />}
-            {selectedJob.completed_at && <InfoRow label="Completed" value={formatTimestamp(selectedJob.completed_at, tz)} />}
+            {selectedJob.arrived_at && <InfoRow label="Arrived" value={formatTimestamp(selectedJob.arrived_at, tz, timeFormat)} />}
+            {selectedJob.completed_at && <InfoRow label="Completed" value={formatTimestamp(selectedJob.completed_at, tz, timeFormat)} />}
           </div>
 
           {selectedJob.job_assignments?.length > 0 && (
@@ -608,7 +609,7 @@ export default function Schedule({ user }) {
             {conflicts.length > 0 && (
               <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl">
                 <div className="text-sm font-medium text-amber-800 mb-1">⚠️ Schedule Conflict</div>
-                {conflicts.map(c => <div key={c.id} className="text-xs text-amber-700">{c.title} for {clientName(c.client_id)} at {formatTime(c.start_time)} ({c.duration_minutes}min)</div>)}
+                {conflicts.map(c => <div key={c.id} className="text-xs text-amber-700">{c.title} for {clientName(c.client_id)} at {formatTime(c.start_time, timeFormat)} ({c.duration_minutes}min)</div>)}
               </div>
             )}
 
@@ -644,7 +645,7 @@ function MonthView({ days, year, month, today, jobsOnDate, dateStr, onDayClick }
                 {dayJobs.length > 0 && <span className="text-[10px] text-stone-400">{dayJobs.length}</span>}
               </div>
               <div className="space-y-0.5">
-                {dayJobs.slice(0,3).map(j => <div key={j.id} className={`px-1.5 py-0.5 rounded text-[10px] font-medium truncate ${j.status==='completed'?'bg-emerald-50 text-emerald-600':j.status==='in_progress'?'bg-amber-50 text-amber-600':j.status==='cancelled'?'bg-stone-50 text-stone-400 line-through':'bg-blue-50 text-blue-600'}`}>{formatTime(j.start_time)} {j.title}</div>)}
+                {dayJobs.slice(0,3).map(j => <div key={j.id} className={`px-1.5 py-0.5 rounded text-[10px] font-medium truncate ${j.status==='completed'?'bg-emerald-50 text-emerald-600':j.status==='in_progress'?'bg-amber-50 text-amber-600':j.status==='cancelled'?'bg-stone-50 text-stone-400 line-through':'bg-blue-50 text-blue-600'}`}>{formatTime(j.start_time, timeFormat)} {j.title}</div>)}
                 {dayJobs.length > 3 && <div className="text-[10px] text-stone-400 pl-1">+{dayJobs.length-3} more</div>}
               </div>
             </div>
@@ -670,7 +671,7 @@ function WeekView({ days, today, jobsOnDate, onJobClick, onAddJob }) {
               <div className="p-1 space-y-1">
                 {dayJobs.map(j => (
                   <div key={j.id} onClick={() => onJobClick(j)} className={`p-1.5 rounded-lg text-[10px] cursor-pointer hover:opacity-80 ${j.status==='completed'?'bg-emerald-50 border border-emerald-100':j.status==='in_progress'?'bg-amber-50 border border-amber-100':j.status==='cancelled'?'bg-stone-50 border border-stone-100':'bg-blue-50 border border-blue-100'}`}>
-                    <div className="font-medium truncate">{formatTime(j.start_time)} {j.title}</div>
+                    <div className="font-medium truncate">{formatTime(j.start_time, timeFormat)} {j.title}</div>
                     <div className="text-stone-500 truncate">{j.clients?.name}</div>
                   </div>
                 ))}
@@ -707,7 +708,7 @@ function DayView({ date, today, jobs, onJobClick, onAddJob, workerName, clientNa
                   <div className="text-stone-600 text-xs mt-0.5">{clientName(job.client_id)}</div>
                 </div>
                 <div className="text-right">
-                  <div className="text-sm font-medium text-stone-700">{formatTime(job.start_time)}</div>
+                  <div className="text-sm font-medium text-stone-700">{formatTime(job.start_time, timeFormat)}</div>
                   <div className="text-xs text-stone-400">{job.duration_minutes}min</div>
                 </div>
               </div>
@@ -716,8 +717,8 @@ function DayView({ date, today, jobs, onJobClick, onAddJob, workerName, clientNa
                 <div className="flex gap-2 mt-3" onClick={e => e.stopPropagation()}>
                   {job.status === 'scheduled' && <button onClick={() => onCheckIn(job, 'arrive')} className="px-3 py-1.5 bg-blue-600 text-white text-xs font-medium rounded-lg hover:bg-blue-700">Arrived</button>}
                   {job.status === 'in_progress' && <button onClick={() => onCheckIn(job, 'complete')} className="px-3 py-1.5 bg-emerald-700 text-white text-xs font-medium rounded-lg hover:bg-emerald-800">Completed</button>}
-                  {job.arrived_at && <span className="text-xs text-stone-400">Arrived {formatTimestamp(job.arrived_at, tz)}</span>}
-                  {job.completed_at && <span className="text-xs text-stone-400">Done {formatTimestamp(job.completed_at, tz)}</span>}
+                  {job.arrived_at && <span className="text-xs text-stone-400">Arrived {formatTimestamp(job.arrived_at, tz, timeFormat)}</span>}
+                  {job.completed_at && <span className="text-xs text-stone-400">Done {formatTimestamp(job.completed_at, tz, timeFormat)}</span>}
                 </div>
               )}
               {job.price && <div className="mt-2 text-xs font-medium text-stone-600">${Number(job.price).toFixed(2)}</div>}
