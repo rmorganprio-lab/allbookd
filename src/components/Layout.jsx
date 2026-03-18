@@ -71,12 +71,11 @@ export default function Layout({ user }) {
         <div className="p-5 border-b border-stone-200">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-emerald-700 rounded-xl flex items-center justify-center">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <rect x="3" y="4" width="18" height="18" rx="2"/>
-                <line x1="16" y1="2" x2="16" y2="6"/>
-                <line x1="8" y1="2" x2="8" y2="6"/>
-                <line x1="3" y1="10" x2="21" y2="10"/>
-                <path d="M9 16l2 2 4-4"/>
+              <svg width="20" height="20" viewBox="0 0 64 64" fill="none">
+                <circle cx="32" cy="32" r="20" stroke="white" strokeWidth="2.2" fill="none"/>
+                <line x1="32" y1="32" x2="25" y2="22" stroke="white" strokeWidth="2.5" strokeLinecap="round"/>
+                <line x1="32" y1="32" x2="41" y2="24" stroke="white" strokeWidth="1.8" strokeLinecap="round"/>
+                <circle cx="32" cy="32" r="2" fill="white"/>
               </svg>
             </div>
             <div>
