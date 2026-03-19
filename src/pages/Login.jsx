@@ -2,18 +2,26 @@ import { useState } from 'react'
 import { supabase } from '../lib/supabase'
 
 export default function Login() {
+  const [mode, setMode] = useState('phone') // 'phone' or 'email'
   const [phone, setPhone] = useState(() => localStorage.getItem('allbookd_phone') || '')
+  const [email, setEmail] = useState('')
   const [otp, setOtp] = useState('')
-  const [step, setStep] = useState('phone') // 'phone' or 'verify'
+  const [step, setStep] = useState('input') // 'input', 'verify', 'email_sent'
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
+
+  function switchMode(newMode) {
+    setMode(newMode)
+    setStep('input')
+    setOtp('')
+    setError(null)
+  }
 
   async function handleSendOtp(e) {
     e.preventDefault()
     setLoading(true)
     setError(null)
 
-    // Format phone: ensure it starts with +1
     let formatted = phone.trim()
     if (!formatted.startsWith('+')) {
       formatted = formatted.replace(/\D/g, '')
@@ -23,16 +31,15 @@ export default function Login() {
     }
 
     const { error } = await supabase.auth.signInWithOtp({ phone: formatted })
-    
+
     if (error) {
       setError(error.message)
-      setLoading(false)
     } else {
       setPhone(formatted)
       localStorage.setItem('allbookd_phone', formatted)
       setStep('verify')
-      setLoading(false)
     }
+    setLoading(false)
   }
 
   async function handleVerifyOtp(e) {
@@ -50,7 +57,22 @@ export default function Login() {
       setError(error.message)
       setLoading(false)
     }
-    // If successful, the onAuthStateChange in App.jsx handles the rest
+    // If successful, onAuthStateChange in App.jsx handles the rest
+  }
+
+  async function handleSendMagicLink(e) {
+    e.preventDefault()
+    setLoading(true)
+    setError(null)
+
+    const { error } = await supabase.auth.signInWithOtp({ email: email.trim() })
+
+    if (error) {
+      setError(error.message)
+    } else {
+      setStep('email_sent')
+    }
+    setLoading(false)
   }
 
   return (
@@ -67,12 +89,16 @@ export default function Login() {
             </svg>
           </div>
           <h1 className="text-2xl font-bold text-stone-900">TimelyOps</h1>
-          <p className="text-stone-500 text-sm mt-1">Sign in with your phone number</p>
+          <p className="text-stone-500 text-sm mt-1">
+            {mode === 'phone' ? 'Sign in with your phone number' : 'Sign in with your email'}
+          </p>
         </div>
 
         {/* Login Card */}
         <div className="bg-white rounded-2xl shadow-sm border border-stone-200 p-6">
-          {step === 'phone' ? (
+
+          {/* Phone: enter number */}
+          {mode === 'phone' && step === 'input' && (
             <form onSubmit={handleSendOtp}>
               <label className="block text-sm font-medium text-stone-600 mb-2">
                 Phone Number
@@ -89,7 +115,7 @@ export default function Login() {
               <p className="text-xs text-stone-400 mt-2">
                 We'll text you a 6-digit code to sign in.
               </p>
-              
+
               {error && (
                 <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-xl text-red-600 text-sm">
                   {error}
@@ -103,8 +129,22 @@ export default function Login() {
               >
                 {loading ? 'Sending code...' : 'Send code'}
               </button>
+
+              <p className="text-center mt-4 text-sm text-stone-400">
+                SMS not working?{' '}
+                <button
+                  type="button"
+                  onClick={() => switchMode('email')}
+                  className="text-emerald-700 hover:underline"
+                >
+                  Use email instead
+                </button>
+              </p>
             </form>
-          ) : (
+          )}
+
+          {/* Phone: verify OTP */}
+          {mode === 'phone' && step === 'verify' && (
             <form onSubmit={handleVerifyOtp}>
               <div className="text-center mb-4">
                 <p className="text-sm text-stone-600">
@@ -112,7 +152,7 @@ export default function Login() {
                 </p>
                 <button
                   type="button"
-                  onClick={() => { setStep('phone'); setOtp(''); setError(null); }}
+                  onClick={() => { setStep('input'); setOtp(''); setError(null); }}
                   className="text-emerald-700 text-sm hover:underline mt-1"
                 >
                   Change number
@@ -132,7 +172,7 @@ export default function Login() {
                 autoFocus
                 inputMode="numeric"
               />
-              
+
               {error && (
                 <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-xl text-red-600 text-sm">
                   {error}
@@ -155,7 +195,89 @@ export default function Login() {
               >
                 Resend code
               </button>
+
+              <p className="text-center mt-3 text-sm text-stone-400">
+                SMS not working?{' '}
+                <button
+                  type="button"
+                  onClick={() => switchMode('email')}
+                  className="text-emerald-700 hover:underline"
+                >
+                  Use email instead
+                </button>
+              </p>
             </form>
+          )}
+
+          {/* Email: enter address */}
+          {mode === 'email' && step === 'input' && (
+            <form onSubmit={handleSendMagicLink}>
+              <label className="block text-sm font-medium text-stone-600 mb-2">
+                Email Address
+              </label>
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="you@example.com"
+                className="w-full px-4 py-3 border border-stone-200 rounded-xl text-stone-900 placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-emerald-600 focus:border-transparent text-lg"
+                required
+                autoFocus
+              />
+              <p className="text-xs text-stone-400 mt-2">
+                We'll send you a magic link to sign in.
+              </p>
+
+              {error && (
+                <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-xl text-red-600 text-sm">
+                  {error}
+                </div>
+              )}
+
+              <button
+                type="submit"
+                disabled={loading || !email.trim()}
+                className="w-full mt-4 py-3 bg-emerald-700 text-white font-medium rounded-xl hover:bg-emerald-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                {loading ? 'Sending link...' : 'Send magic link'}
+              </button>
+
+              <p className="text-center mt-4 text-sm text-stone-400">
+                <button
+                  type="button"
+                  onClick={() => switchMode('phone')}
+                  className="text-emerald-700 hover:underline"
+                >
+                  Use phone instead
+                </button>
+              </p>
+            </form>
+          )}
+
+          {/* Email: sent confirmation */}
+          {mode === 'email' && step === 'email_sent' && (
+            <div className="text-center py-2">
+              <div className="inline-flex items-center justify-center w-12 h-12 bg-emerald-50 rounded-full mb-4">
+                <svg className="w-6 h-6 text-emerald-700" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                </svg>
+              </div>
+              <p className="font-medium text-stone-900 mb-1">Check your email</p>
+              <p className="text-sm text-stone-500 mb-1">
+                Magic link sent to
+              </p>
+              <p className="text-sm font-medium text-stone-700 mb-4">{email}</p>
+              <p className="text-xs text-stone-400">
+                Click the link in the email to sign in. You can close this tab.
+              </p>
+              <button
+                type="button"
+                onClick={() => { setStep('input'); setError(null); }}
+                className="mt-4 text-sm text-emerald-700 hover:underline"
+              >
+                Send again
+              </button>
+            </div>
           )}
         </div>
 
