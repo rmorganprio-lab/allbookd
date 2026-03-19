@@ -11,13 +11,19 @@ import Quotes from './pages/Quotes'
 import Payments from './pages/Payments'
 import Invoices from './pages/Invoices'
 
+// Sends unauthenticated visitors to the static landing page
+function LandingRedirect() {
+  useEffect(() => { window.location.replace('/landing.html') }, [])
+  return null
+}
+
 function App() {
   const [session, setSession] = useState(null)
   const [user, setUser] = useState(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    // If still loading after 5 seconds, give up and show the login page
+    // If still loading after 5 seconds, give up and show the landing page
     const timeout = setTimeout(() => {
       if (loading) {
         setSession(null)
@@ -47,7 +53,7 @@ function App() {
           setLoading(false)
           return
         }
-        
+
         setSession(session)
         if (session) await loadUser(session.user.id)
         else {
@@ -125,17 +131,13 @@ function App() {
     )
   }
 
-  if (!session) {
-    return <Login />
-  }
-
   if (session && !user) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-stone-50">
         <div className="text-center">
           <div className="text-stone-600 text-lg mb-2">Account not found</div>
           <p className="text-stone-400 text-sm">Your phone number is not linked to any organization.</p>
-          <button 
+          <button
             onClick={() => { const savedPhone = localStorage.getItem('allbookd_phone'); localStorage.clear(); if (savedPhone) localStorage.setItem('allbookd_phone', savedPhone); supabase.auth.signOut() }}
             className="mt-4 px-4 py-2 bg-stone-200 rounded-lg text-stone-600 hover:bg-stone-300"
           >
@@ -149,15 +151,27 @@ function App() {
   return (
     <BrowserRouter>
       <Routes>
-        <Route path="/" element={<Layout user={user} />}>
-          <Route index element={<Dashboard user={user} />} />
-          <Route path="clients" element={<Clients user={user} />} />
-          <Route path="workers" element={<Workers user={user} />} />
-          <Route path="schedule" element={<Schedule user={user} />} />
-          <Route path="quotes" element={<Quotes user={user} />} />
-          <Route path="payments" element={<Payments user={user} />} />
-          <Route path="invoices" element={<Invoices user={user} />} />
-        </Route>
+        {/* /login: redirect to dashboard if already authenticated */}
+        <Route
+          path="/login"
+          element={session ? <Navigate to="/" replace /> : <Login />}
+        />
+
+        {/* App routes: authenticated users get the full app, others go to landing */}
+        {session ? (
+          <Route path="/" element={<Layout user={user} />}>
+            <Route index element={<Dashboard user={user} />} />
+            <Route path="clients" element={<Clients user={user} />} />
+            <Route path="workers" element={<Workers user={user} />} />
+            <Route path="schedule" element={<Schedule user={user} />} />
+            <Route path="quotes" element={<Quotes user={user} />} />
+            <Route path="payments" element={<Payments user={user} />} />
+            <Route path="invoices" element={<Invoices user={user} />} />
+          </Route>
+        ) : (
+          <Route path="/" element={<LandingRedirect />} />
+        )}
+
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>
