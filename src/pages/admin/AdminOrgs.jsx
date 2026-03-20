@@ -268,10 +268,8 @@ function CreateOrgModal({ onClose, onCreated }) {
 
 // ─── Org Detail Panel ─────────────────────────────────────────
 
-function OrgDetailPanel({ org, onClose, onUpdated, realUser }) {
+function OrgDetailPanel({ org, onClose, onUpdated, onViewAs }) {
   const { showToast } = useToast()
-  const navigate = useNavigate()
-  const { startImpersonation } = useImpersonation()
   const [form, setForm] = useState({
     name:               org.name,
     tier:               org.subscription_tier,
@@ -334,18 +332,6 @@ function OrgDetailPanel({ org, onClose, onUpdated, realUser }) {
 
   const shortId = id => id ? id.slice(0, 8) + '…' : '—'
 
-  async function handleViewAs() {
-    const { data: ceo, error } = await supabase
-      .from('users')
-      .select('*, organizations(*)')
-      .eq('org_id', org.id)
-      .eq('role', 'ceo')
-      .maybeSingle()
-    if (error || !ceo) { showToast('No owner found for this org', 'error'); return }
-    startImpersonation(ceo, realUser)
-    navigate('/')
-  }
-
   return (
     <>
       <div className="fixed inset-0 bg-black/20 z-40" onClick={onClose} />
@@ -355,7 +341,7 @@ function OrgDetailPanel({ org, onClose, onUpdated, realUser }) {
           <h2 className="font-bold text-stone-900 text-lg truncate pr-4">{org.name}</h2>
           <div className="flex items-center gap-2 flex-shrink-0">
             <button
-              onClick={handleViewAs}
+              onClick={onViewAs}
               className="px-3 py-1.5 bg-emerald-700 text-white text-xs font-medium rounded-lg hover:bg-emerald-800"
             >
               View as owner
@@ -522,6 +508,9 @@ function OrgDetailPanel({ org, onClose, onUpdated, realUser }) {
 // ─── Main Page ────────────────────────────────────────────────
 
 export default function AdminOrgs({ user: realUser }) {
+  const navigate = useNavigate()
+  const { startImpersonation } = useImpersonation()
+  const { showToast } = useToast()
   const [orgs, setOrgs]           = useState([])
   const [loading, setLoading]     = useState(true)
   const [showCreate, setShowCreate] = useState(false)
@@ -536,6 +525,18 @@ export default function AdminOrgs({ user: realUser }) {
       .order('created_at', { ascending: false })
     setOrgs(data || [])
     setLoading(false)
+  }
+
+  async function handleViewAs(org) {
+    const { data: ceo, error } = await supabase
+      .from('users')
+      .select('*, organizations(*)')
+      .eq('org_id', org.id)
+      .eq('role', 'ceo')
+      .maybeSingle()
+    if (error || !ceo) { showToast('No owner found for this org', 'error'); return }
+    startImpersonation(ceo, realUser)
+    navigate('/')
   }
 
   async function handleOrgUpdated() {
@@ -623,7 +624,7 @@ export default function AdminOrgs({ user: realUser }) {
           org={selectedOrg}
           onClose={() => setSelectedOrg(null)}
           onUpdated={handleOrgUpdated}
-          realUser={realUser}
+          onViewAs={() => handleViewAs(selectedOrg)}
         />
       )}
     </div>

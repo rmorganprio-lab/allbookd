@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { supabase } from './lib/supabase'
 import { SubscriptionProvider } from './contexts/SubscriptionContext'
 import { ToastProvider } from './contexts/ToastContext'
+import { ImpersonationProvider, useImpersonation } from './contexts/ImpersonationContext'
 import Login from './pages/Login'
 import Layout from './components/Layout'
 import Dashboard from './pages/Dashboard'
@@ -29,16 +30,57 @@ function AdminGuard({ user, children }) {
   return children
 }
 
+// Inner router component — uses ImpersonationContext to compute effectiveUser
+function AppRoutes({ realUser, session }) {
+  const { impersonated } = useImpersonation()
+  const effectiveUser = impersonated?.user || realUser
+
+  return (
+    <SubscriptionProvider user={effectiveUser}>
+      <BrowserRouter>
+        <Routes>
+          {/* /login: redirect to dashboard if already authenticated */}
+          <Route
+            path="/login"
+            element={session ? <Navigate to="/" replace /> : <Login />}
+          />
+
+          {/* All app routes are always registered so React Router can match them.
+              The parent element guards auth: authenticated users get Layout,
+              unauthenticated users get LandingRedirect. */}
+          <Route
+            path="/"
+            element={session ? <Layout user={effectiveUser} realUser={realUser} /> : <LandingRedirect />}
+          >
+            <Route index element={<Dashboard user={effectiveUser} />} />
+            <Route path="clients" element={<Clients user={effectiveUser} />} />
+            <Route path="workers" element={<Workers user={effectiveUser} />} />
+            <Route path="schedule" element={<Schedule user={effectiveUser} />} />
+            <Route path="quotes" element={<Quotes user={effectiveUser} />} />
+            <Route path="payments" element={<Payments user={effectiveUser} />} />
+            <Route path="invoices" element={<Invoices user={effectiveUser} />} />
+            <Route path="reports" element={<Reports user={effectiveUser} />} />
+
+            {/* Platform admin routes — always check realUser, never effectiveUser */}
+            <Route path="admin" element={<AdminGuard user={realUser}><AdminDashboard /></AdminGuard>} />
+            <Route path="admin/orgs" element={<AdminGuard user={realUser}><AdminOrgs user={realUser} /></AdminGuard>} />
+            <Route path="admin/users" element={<AdminGuard user={realUser}><AdminUsers /></AdminGuard>} />
+          </Route>
+
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </BrowserRouter>
+    </SubscriptionProvider>
+  )
+}
+
 function App() {
   const [session, setSession] = useState(null)
   const [user, setUser] = useState(null)
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState(false)
 
-  // useRef so timeout and loadUser can check/set the real current value
-  // without stale closure bugs — this is what broke auth after 5 seconds
   const loadingRef = useRef(true)
-  // Tracks which userId is currently being fetched to prevent duplicate calls
   const loadingUserRef = useRef(null)
 
   function resolveLoading() {
@@ -47,9 +89,6 @@ function App() {
   }
 
   useEffect(() => {
-    // After 3 seconds with no resolution, show error + retry instead of
-    // spinning forever. Uses loadingRef (not the stale `loading` closure value)
-    // so it's a true no-op once auth resolves successfully.
     const timeout = setTimeout(() => {
       if (loadingRef.current) {
         loadingRef.current = false
@@ -58,10 +97,6 @@ function App() {
       }
     }, 3000)
 
-    // getSession() handles the initial auth check on page load / refresh.
-    // onAuthStateChange handles subsequent events (sign-in, sign-out).
-    // We use both but skip INITIAL_SESSION in onAuthStateChange to avoid
-    // calling loadUser() twice concurrently on mount.
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session) {
         setSession(session)
@@ -73,19 +108,11 @@ function App() {
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
-        // INITIAL_SESSION fires immediately on mount — already handled by
-        // getSession() above, skip it to avoid a duplicate loadUser call.
         if (event === 'INITIAL_SESSION') return
-
-        // TOKEN_REFRESHED is a background operation. The session token is
-        // updated but the user profile hasn't changed — just update the
-        // session reference and return. Calling loadUser here caused
-        // spurious re-fetches and, if they failed, unnecessary sign-outs.
         if (event === 'TOKEN_REFRESHED') {
           if (session) setSession(session)
           return
         }
-
         setSession(session)
         if (session) {
           loadUser(session.user.id)
@@ -104,9 +131,6 @@ function App() {
   }, [])
 
   async function loadUser(authId) {
-    // Skip if we're already loading (or have already loaded) this user.
-    // Prevents race conditions when getSession() and onAuthStateChange both
-    // fire on mount.
     if (loadingUserRef.current === authId) return
     loadingUserRef.current = authId
 
@@ -123,15 +147,13 @@ function App() {
         return
       }
 
-      // No user found by auth ID — first-time OTP login.
-      // Try to link the auth UUID to an existing user row via phone or email.
+      // First-time OTP login — link auth UUID to existing users row via phone or email
       const { data: { user: authUser } } = await supabase.auth.getUser()
       const phone = authUser?.phone
       const email = authUser?.email
 
       let existing = null
 
-      // Try phone first
       if (phone) {
         const { data: byPhone } = await supabase
           .from('users')
@@ -141,7 +163,6 @@ function App() {
         existing = byPhone
       }
 
-      // Fallback to email (covers admin-created users who sign in via OTP)
       if (!existing && email) {
         const { data: byEmail } = await supabase
           .from('users')
@@ -169,9 +190,6 @@ function App() {
       setUser(linked)
     } catch (err) {
       console.error('Failed to load user profile:', err)
-      // Do NOT sign the user out here. A transient DB error shouldn't end
-      // the session. The session stays valid; the "session && !user" guard
-      // below shows the "account not found" state if user is still null.
       loadingUserRef.current = null
     }
 
@@ -262,43 +280,9 @@ function App() {
 
   return (
     <ToastProvider>
-    <SubscriptionProvider user={user}>
-    <BrowserRouter>
-      <Routes>
-        {/* /login: redirect to dashboard if already authenticated */}
-        <Route
-          path="/login"
-          element={session ? <Navigate to="/" replace /> : <Login />}
-        />
-
-        {/* All app routes are always registered so React Router can match them.
-            The parent element guards auth: authenticated users get Layout,
-            unauthenticated users get LandingRedirect (which does window.location.replace).
-            Child routes are statically declared — never conditional — so /clients,
-            /workers, etc. always exist in the route tree and never fall through to *. */}
-        <Route
-          path="/"
-          element={session ? <Layout user={user} /> : <LandingRedirect />}
-        >
-          <Route index element={<Dashboard user={user} />} />
-          <Route path="clients" element={<Clients user={user} />} />
-          <Route path="workers" element={<Workers user={user} />} />
-          <Route path="schedule" element={<Schedule user={user} />} />
-          <Route path="quotes" element={<Quotes user={user} />} />
-          <Route path="payments" element={<Payments user={user} />} />
-          <Route path="invoices" element={<Invoices user={user} />} />
-          <Route path="reports" element={<Reports user={user} />} />
-
-          {/* Platform admin routes — redirect non-admins to / */}
-          <Route path="admin" element={<AdminGuard user={user}><AdminDashboard /></AdminGuard>} />
-          <Route path="admin/orgs" element={<AdminGuard user={user}><AdminOrgs /></AdminGuard>} />
-          <Route path="admin/users" element={<AdminGuard user={user}><AdminUsers /></AdminGuard>} />
-        </Route>
-
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
-    </BrowserRouter>
-    </SubscriptionProvider>
+      <ImpersonationProvider>
+        <AppRoutes realUser={user} session={session} />
+      </ImpersonationProvider>
     </ToastProvider>
   )
 }
