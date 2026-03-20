@@ -1,6 +1,7 @@
-import { NavLink, Outlet, useLocation } from 'react-router-dom'
+import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useState } from 'react'
+import { useImpersonation } from '../contexts/ImpersonationContext'
 
 // Full nav for CEO and Manager
 const ownerNav = [
@@ -46,6 +47,8 @@ const ADMIN_SUB_NAV = [
 export default function Layout({ user }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const location = useLocation()
+  const navigate = useNavigate()
+  const { impersonated, stopImpersonation } = useImpersonation()
   const isAdminArea = location.pathname.startsWith('/admin')
   const orgName = user?.organizations?.name || 'TimelyOps'
   const role = user?.role || 'worker'
@@ -62,8 +65,29 @@ export default function Layout({ user }) {
     window.location.reload()
   }
 
+  function handleExitImpersonation() {
+    stopImpersonation()
+    navigate('/admin/orgs')
+  }
+
   return (
-    <div className="min-h-screen bg-stone-50 flex">
+    <div className={`min-h-screen bg-stone-50 flex ${impersonated ? 'pt-10' : ''}`}>
+      {/* Impersonation banner */}
+      {impersonated && (
+        <div className="fixed top-0 left-0 right-0 z-[100] bg-stone-900 text-white text-sm px-4 py-2 flex items-center justify-between">
+          <span>
+            Viewing as <span className="font-semibold">{impersonated.user?.organizations?.name || 'Unknown Org'}</span>
+            {' — '}{impersonated.user?.name}
+          </span>
+          <button
+            onClick={handleExitImpersonation}
+            className="text-stone-300 hover:text-white font-medium text-xs border border-stone-600 rounded-lg px-3 py-1 hover:border-stone-400 transition-colors"
+          >
+            Exit
+          </button>
+        </div>
+      )}
+
       {/* Mobile menu overlay */}
       {mobileMenuOpen && (
         <div 
@@ -119,8 +143,8 @@ export default function Layout({ user }) {
           ))}
         </nav>
 
-        {/* Admin — platform admins only */}
-        {user?.is_platform_admin && (
+        {/* Admin — platform admins only, hidden while impersonating */}
+        {user?.is_platform_admin && !impersonated && (
           <>
             <div className="mx-2 my-2 border-t border-stone-100" />
             <NavLink

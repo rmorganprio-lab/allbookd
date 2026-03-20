@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
 import { useToast } from '../../contexts/ToastContext'
+import { useImpersonation } from '../../contexts/ImpersonationContext'
 import { ADD_ONS } from '../../lib/tiers'
 
 // ─── Shared UI ────────────────────────────────────────────────
@@ -103,7 +105,6 @@ function AddUserModal({ orgId, onClose, onAdded }) {
             <option value="ceo">Owner (CEO)</option>
             <option value="manager">Manager</option>
             <option value="worker">Worker</option>
-            <option value="support">Support</option>
           </select>
           <div className="flex gap-3 pt-1">
             <button type="button" onClick={onClose} className="flex-1 py-2 border border-stone-200 rounded-xl text-stone-600 text-sm hover:bg-stone-50">
@@ -267,8 +268,10 @@ function CreateOrgModal({ onClose, onCreated }) {
 
 // ─── Org Detail Panel ─────────────────────────────────────────
 
-function OrgDetailPanel({ org, onClose, onUpdated }) {
+function OrgDetailPanel({ org, onClose, onUpdated, realUser }) {
   const { showToast } = useToast()
+  const navigate = useNavigate()
+  const { startImpersonation } = useImpersonation()
   const [form, setForm] = useState({
     name:               org.name,
     tier:               org.subscription_tier,
@@ -331,6 +334,18 @@ function OrgDetailPanel({ org, onClose, onUpdated }) {
 
   const shortId = id => id ? id.slice(0, 8) + '…' : '—'
 
+  async function handleViewAs() {
+    const { data: ceo, error } = await supabase
+      .from('users')
+      .select('*, organizations(*)')
+      .eq('org_id', org.id)
+      .eq('role', 'ceo')
+      .maybeSingle()
+    if (error || !ceo) { showToast('No owner found for this org', 'error'); return }
+    startImpersonation(ceo, realUser)
+    navigate('/')
+  }
+
   return (
     <>
       <div className="fixed inset-0 bg-black/20 z-40" onClick={onClose} />
@@ -338,11 +353,19 @@ function OrgDetailPanel({ org, onClose, onUpdated }) {
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-stone-200 sticky top-0 bg-white">
           <h2 className="font-bold text-stone-900 text-lg truncate pr-4">{org.name}</h2>
-          <button onClick={onClose} className="flex-shrink-0 p-1.5 text-stone-400 hover:text-stone-600 rounded-lg hover:bg-stone-100">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-              <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-            </svg>
-          </button>
+          <div className="flex items-center gap-2 flex-shrink-0">
+            <button
+              onClick={handleViewAs}
+              className="px-3 py-1.5 bg-emerald-700 text-white text-xs font-medium rounded-lg hover:bg-emerald-800"
+            >
+              View as owner
+            </button>
+            <button onClick={onClose} className="p-1.5 text-stone-400 hover:text-stone-600 rounded-lg hover:bg-stone-100">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+              </svg>
+            </button>
+          </div>
         </div>
 
         <div className="flex-1 p-6 space-y-6">
@@ -455,7 +478,6 @@ function OrgDetailPanel({ org, onClose, onUpdated }) {
                       <option value="ceo">Owner</option>
                       <option value="manager">Manager</option>
                       <option value="worker">Worker</option>
-                      <option value="support">Support</option>
                     </select>
                     <button
                       onClick={() => setConfirm({ userId: u.id, userName: u.name })}
@@ -499,7 +521,7 @@ function OrgDetailPanel({ org, onClose, onUpdated }) {
 
 // ─── Main Page ────────────────────────────────────────────────
 
-export default function AdminOrgs() {
+export default function AdminOrgs({ user: realUser }) {
   const [orgs, setOrgs]           = useState([])
   const [loading, setLoading]     = useState(true)
   const [showCreate, setShowCreate] = useState(false)
@@ -601,6 +623,7 @@ export default function AdminOrgs() {
           org={selectedOrg}
           onClose={() => setSelectedOrg(null)}
           onUpdated={handleOrgUpdated}
+          realUser={realUser}
         />
       )}
     </div>

@@ -54,10 +54,26 @@ function UserDetailPanel({ user, onClose, onUpdated }) {
   function setField(k, v) { setForm(p => ({ ...p, [k]: v })) }
 
   const emailChanged = form.email.trim() !== (user.email || '')
+  const phoneChanged = form.phone.trim() !== (user.phone || '')
   const orgChanged   = form.orgId !== (user.org_id || '')
 
   async function saveChanges() {
     setSaving(true)
+
+    // Update auth.users credentials if linked and changed
+    if (user.auth_linked && (emailChanged || phoneChanged)) {
+      const body = { auth_user_id: user.id }
+      if (emailChanged) body.email = form.email.trim().toLowerCase() || null
+      if (phoneChanged) body.phone = form.phone.trim() || null
+      const { error: fnError } = await supabase.functions.invoke('admin-update-auth-user', { body })
+      if (fnError) {
+        showToast('Failed to update login credentials: ' + fnError.message, 'error')
+        setSaving(false)
+        setConfirm(null)
+        return
+      }
+    }
+
     const { error } = await supabase.from('users').update({
       name:   form.name.trim(),
       email:  form.email.trim().toLowerCase() || null,
@@ -69,10 +85,7 @@ function UserDetailPanel({ user, onClose, onUpdated }) {
     if (error) {
       showToast(error.message, 'error')
     } else {
-      const msg = emailChanged
-        ? 'Saved. Note: email OTP login uses auth.users — the new email only takes effect for OTP when manually synced.'
-        : 'User saved'
-      showToast(msg)
+      showToast('User saved')
       onUpdated()
     }
     setSaving(false)
@@ -126,11 +139,6 @@ function UserDetailPanel({ user, onClose, onUpdated }) {
               <div>
                 <label className="block text-xs text-stone-500 mb-1">Email</label>
                 <input type="email" value={form.email} onChange={e => setField('email', e.target.value)} className={INPUT} placeholder="email@example.com" />
-                {emailChanged && (
-                  <p className="text-xs text-amber-600 mt-1">
-                    Changing email updates the users table. OTP login will continue using the original auth email until manually synced.
-                  </p>
-                )}
               </div>
               <div>
                 <label className="block text-xs text-stone-500 mb-1">Phone</label>
@@ -149,7 +157,6 @@ function UserDetailPanel({ user, onClose, onUpdated }) {
                   <option value="ceo">Owner (CEO)</option>
                   <option value="manager">Manager</option>
                   <option value="worker">Worker</option>
-                  <option value="support">Support</option>
                 </select>
               </div>
             </div>
