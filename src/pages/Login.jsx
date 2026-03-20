@@ -92,15 +92,16 @@ export default function Login() {
       <div className="w-full max-w-sm">
         {/* Logo / Brand */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-emerald-700 rounded-2xl mb-4">
-            <svg width="44" height="44" viewBox="10 10 44 44" fill="none">
-              <circle cx="32" cy="32" r="20" stroke="white" strokeWidth="2.2" fill="none"/>
-              <line x1="32" y1="32" x2="25" y2="22" stroke="white" strokeWidth="2.5" strokeLinecap="round"/>
-              <line x1="32" y1="32" x2="41" y2="24" stroke="white" strokeWidth="1.8" strokeLinecap="round"/>
-              <circle cx="32" cy="32" r="2" fill="white"/>
+          <div className="inline-flex items-center justify-center mb-3" style={{ fontSize: '32px', fontWeight: 800, letterSpacing: '-0.03em', lineHeight: 1, color: '#1c1917' }}>
+            <span>Timely</span>
+            <svg style={{ width: '28px', height: '28px', color: '#047857', margin: '0 0.5px', position: 'relative', top: '-0.5px' }} viewBox="0 0 64 64" fill="none" stroke="currentColor">
+              <circle cx="32" cy="32" r="28" strokeWidth="5.5" fill="none"/>
+              <line x1="32" y1="32" x2="24" y2="17" strokeWidth="5.5" strokeLinecap="round"/>
+              <line x1="32" y1="32" x2="44" y2="23" strokeWidth="4" strokeLinecap="round"/>
+              <circle cx="32" cy="32" r="3" fill="currentColor" stroke="none"/>
             </svg>
+            <span style={{ fontWeight: 500, color: '#047857' }}>ps</span>
           </div>
-          <h1 className="text-2xl font-bold text-stone-900">TimelyOps</h1>
           <p className="text-stone-500 text-sm mt-1">
             {mode === 'phone' ? 'Sign in with your phone number' : 'Sign in with your email'}
           </p>
