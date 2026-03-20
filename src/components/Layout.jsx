@@ -1,4 +1,4 @@
-import { NavLink, Outlet } from 'react-router-dom'
+import { NavLink, Outlet, useLocation } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useState } from 'react'
 
@@ -37,8 +37,16 @@ function NavIcon({ name, size = 20 }) {
   }
 }
 
+const ADMIN_SUB_NAV = [
+  { to: '/admin',       label: 'Overview',       end: true  },
+  { to: '/admin/orgs',  label: 'Organizations',  end: false },
+  { to: '/admin/users', label: 'Users',           end: false },
+]
+
 export default function Layout({ user }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const location = useLocation()
+  const isAdminArea = location.pathname.startsWith('/admin')
   const orgName = user?.organizations?.name || 'TimelyOps'
   const role = user?.role || 'worker'
   const isWorker = role === 'worker'
@@ -117,10 +125,11 @@ export default function Layout({ user }) {
             <div className="mx-2 my-2 border-t border-stone-100" />
             <NavLink
               to="/admin"
+              end
               onClick={() => setMobileMenuOpen(false)}
               className={({ isActive }) => `
                 flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors
-                ${isActive
+                ${isAdminArea
                   ? 'bg-emerald-50 text-emerald-700'
                   : 'text-stone-500 hover:bg-stone-100 hover:text-stone-700'}
               `}
@@ -128,6 +137,26 @@ export default function Layout({ user }) {
               <NavIcon name="admin" />
               Admin
             </NavLink>
+            {isAdminArea && (
+              <div className="ml-3 pl-3 border-l border-stone-100 space-y-0.5">
+                {ADMIN_SUB_NAV.map(item => (
+                  <NavLink
+                    key={item.to}
+                    to={item.to}
+                    end={item.end}
+                    onClick={() => setMobileMenuOpen(false)}
+                    className={({ isActive }) => `
+                      block px-3 py-1.5 rounded-lg text-xs font-medium transition-colors
+                      ${isActive
+                        ? 'bg-emerald-50 text-emerald-700'
+                        : 'text-stone-400 hover:bg-stone-100 hover:text-stone-600'}
+                    `}
+                  >
+                    {item.label}
+                  </NavLink>
+                ))}
+              </div>
+            )}
           </>
         )}
 

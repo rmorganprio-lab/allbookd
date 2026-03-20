@@ -28,22 +28,55 @@ function ConfirmModal({ title, message, onConfirm, onCancel, danger = true }) {
 
 const fmtDate = d => d ? new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—'
 
+const INPUT = 'w-full px-3 py-2.5 border border-stone-200 rounded-xl text-sm text-stone-800 bg-white focus:outline-none focus:ring-2 focus:ring-emerald-600'
+
 // ─── User Detail Panel ────────────────────────────────────────
 
 function UserDetailPanel({ user, onClose, onUpdated }) {
   const { showToast } = useToast()
-  const [role, setRole]                 = useState(user.role)
-  const [isPlatformAdmin, setIsAdmin]   = useState(user.is_platform_admin)
-  const [confirm, setConfirm]           = useState(null)
-  const [saving, setSaving]             = useState(false)
+  const [form, setForm] = useState({
+    name:   user.name  || '',
+    email:  user.email || '',
+    phone:  user.phone || '',
+    orgId:  user.org_id || '',
+    role:   user.role  || 'worker',
+  })
+  const [orgs, setOrgs]               = useState([])
+  const [isPlatformAdmin, setIsAdmin] = useState(user.is_platform_admin)
+  const [confirm, setConfirm]         = useState(null) // 'toggleAdmin' | { type:'reassignOrg', orgId, orgName }
+  const [saving, setSaving]           = useState(false)
 
-  async function saveRole() {
-    if (role === user.role) return
+  useEffect(() => {
+    supabase.from('organizations').select('id, name').order('name')
+      .then(({ data }) => setOrgs(data || []))
+  }, [])
+
+  function setField(k, v) { setForm(p => ({ ...p, [k]: v })) }
+
+  const emailChanged = form.email.trim() !== (user.email || '')
+  const orgChanged   = form.orgId !== (user.org_id || '')
+
+  async function saveChanges() {
     setSaving(true)
-    const { error } = await supabase.from('users').update({ role }).eq('id', user.id)
-    if (error) showToast(error.message, 'error')
-    else { showToast('Role updated'); onUpdated() }
+    const { error } = await supabase.from('users').update({
+      name:   form.name.trim(),
+      email:  form.email.trim().toLowerCase() || null,
+      phone:  form.phone.trim() || null,
+      org_id: form.orgId || null,
+      role:   form.role,
+    }).eq('id', user.id)
+
+    if (error) {
+      showToast(error.message, 'error')
+    } else {
+      const msg = emailChanged
+        ? 'Saved. Note: email OTP login uses auth.users — the new email only takes effect for OTP when manually synced.'
+        : 'User saved'
+      showToast(msg)
+      onUpdated()
+    }
     setSaving(false)
+    setConfirm(null)
   }
 
   async function togglePlatformAdmin() {
@@ -58,10 +91,19 @@ function UserDetailPanel({ user, onClose, onUpdated }) {
     setConfirm(null)
   }
 
+  function handleSave() {
+    if (orgChanged) {
+      const orgName = orgs.find(o => o.id === form.orgId)?.name || 'new org'
+      setConfirm({ type: 'reassignOrg', orgName })
+    } else {
+      saveChanges()
+    }
+  }
+
   return (
     <>
       <div className="fixed inset-0 bg-black/20 z-40" onClick={onClose} />
-      <div className="fixed inset-y-0 right-0 w-full md:w-[420px] bg-white shadow-2xl z-50 overflow-y-auto">
+      <div className="fixed inset-y-0 right-0 w-full md:w-[440px] bg-white shadow-2xl z-50 overflow-y-auto">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-stone-200 sticky top-0 bg-white">
           <h2 className="font-bold text-stone-900 truncate pr-4">{user.name || 'User'}</h2>
@@ -73,47 +115,52 @@ function UserDetailPanel({ user, onClose, onUpdated }) {
         </div>
 
         <div className="p-6 space-y-5">
-          {/* Profile (read-only) */}
+          {/* Editable profile fields */}
           <section>
             <h3 className="text-xs font-semibold text-stone-400 uppercase tracking-wide mb-3">Profile</h3>
-            <div className="space-y-2 text-sm">
-              {[
-                ['Name',         user.name    || '—'],
-                ['Email',        user.email   || '—'],
-                ['Phone',        user.phone   || '—'],
-                ['Organization', user.organizations?.name || '—'],
-                ['Created',      fmtDate(user.created_at)],
-              ].map(([label, value]) => (
-                <div key={label} className="flex justify-between gap-4">
-                  <span className="text-stone-400 flex-shrink-0">{label}</span>
-                  <span className="text-stone-800 text-right truncate">{value}</span>
-                </div>
-              ))}
+            <div className="space-y-3">
+              <div>
+                <label className="block text-xs text-stone-500 mb-1">Name</label>
+                <input value={form.name} onChange={e => setField('name', e.target.value)} className={INPUT} placeholder="Full name" />
+              </div>
+              <div>
+                <label className="block text-xs text-stone-500 mb-1">Email</label>
+                <input type="email" value={form.email} onChange={e => setField('email', e.target.value)} className={INPUT} placeholder="email@example.com" />
+                {emailChanged && (
+                  <p className="text-xs text-amber-600 mt-1">
+                    Changing email updates the users table. OTP login will continue using the original auth email until manually synced.
+                  </p>
+                )}
+              </div>
+              <div>
+                <label className="block text-xs text-stone-500 mb-1">Phone</label>
+                <input type="tel" value={form.phone} onChange={e => setField('phone', e.target.value)} className={INPUT} placeholder="+1 650 000 0000" />
+              </div>
+              <div>
+                <label className="block text-xs text-stone-500 mb-1">Organization</label>
+                <select value={form.orgId} onChange={e => setField('orgId', e.target.value)} className={INPUT}>
+                  <option value="">— No organization —</option>
+                  {orgs.map(o => <option key={o.id} value={o.id}>{o.name}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs text-stone-500 mb-1">Role</label>
+                <select value={form.role} onChange={e => setField('role', e.target.value)} className={INPUT}>
+                  <option value="ceo">Owner (CEO)</option>
+                  <option value="manager">Manager</option>
+                  <option value="worker">Worker</option>
+                  <option value="support">Support</option>
+                </select>
+              </div>
             </div>
-          </section>
 
-          {/* Role */}
-          <section className="border-t border-stone-100 pt-4">
-            <label className="block text-xs font-semibold text-stone-400 uppercase tracking-wide mb-2">Role</label>
-            <div className="flex gap-2">
-              <select
-                value={role}
-                onChange={e => setRole(e.target.value)}
-                className="flex-1 px-3 py-2 border border-stone-200 rounded-xl text-sm bg-white focus:outline-none focus:ring-2 focus:ring-emerald-600"
-              >
-                <option value="ceo">Owner (CEO)</option>
-                <option value="manager">Manager</option>
-                <option value="worker">Worker</option>
-                <option value="support">Support</option>
-              </select>
-              <button
-                onClick={saveRole}
-                disabled={saving || role === user.role}
-                className="px-4 py-2 bg-emerald-700 text-white text-sm font-medium rounded-xl hover:bg-emerald-800 disabled:opacity-40"
-              >
-                Save
-              </button>
-            </div>
+            <button
+              onClick={handleSave}
+              disabled={saving}
+              className="mt-4 w-full py-2.5 bg-emerald-700 text-white text-sm font-medium rounded-xl hover:bg-emerald-800 disabled:opacity-50"
+            >
+              {saving ? 'Saving…' : 'Save Changes'}
+            </button>
           </section>
 
           {/* Platform admin toggle */}
@@ -132,10 +179,16 @@ function UserDetailPanel({ user, onClose, onUpdated }) {
             </div>
           </section>
 
-          {/* Auth ID */}
-          <section className="border-t border-stone-100 pt-4">
-            <p className="text-xs text-stone-400 mb-1">Auth ID</p>
-            <p className="text-xs font-mono text-stone-500 break-all">{user.id}</p>
+          {/* Meta */}
+          <section className="border-t border-stone-100 pt-4 space-y-1.5">
+            <div className="flex justify-between text-xs">
+              <span className="text-stone-400">Created</span>
+              <span className="text-stone-600">{fmtDate(user.created_at)}</span>
+            </div>
+            <div className="flex justify-between text-xs">
+              <span className="text-stone-400">Auth ID</span>
+              <span className="font-mono text-stone-500 truncate ml-4">{user.id}</span>
+            </div>
           </section>
         </div>
       </div>
@@ -150,6 +203,16 @@ function UserDetailPanel({ user, onClose, onUpdated }) {
           }
           danger={!isPlatformAdmin}
           onConfirm={togglePlatformAdmin}
+          onCancel={() => setConfirm(null)}
+        />
+      )}
+
+      {confirm?.type === 'reassignOrg' && (
+        <ConfirmModal
+          title="Reassign organization?"
+          message={`Move ${user.name || 'this user'} to ${confirm.orgName}? They will lose access to their current org's data.`}
+          danger={false}
+          onConfirm={saveChanges}
           onCancel={() => setConfirm(null)}
         />
       )}
