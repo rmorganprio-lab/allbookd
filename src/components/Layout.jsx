@@ -11,7 +11,7 @@ const ownerNav = [
   { to: '/quotes', label: 'Quotes', icon: 'quotes' },
   { to: '/invoices', label: 'Invoices', icon: 'invoices' },
   { to: '/payments', label: 'Payments', icon: 'payments' },
-  { to: '/reports', label: 'Reports', icon: 'reports' },
+  { to: '/reports', label: 'Reports', icon: 'reports', roles: ['ceo', 'manager', 'support'] },
 ]
 
 // Simplified nav for workers — only what they need
@@ -41,7 +41,9 @@ export default function Layout({ user }) {
   const orgName = user?.organizations?.name || 'TimelyOps'
   const role = user?.role || 'worker'
   const isWorker = role === 'worker'
-  const navItems = isWorker ? workerNav : ownerNav
+  const navItems = isWorker
+    ? workerNav
+    : ownerNav.filter(item => !item.roles || item.roles.includes(role))
 
   async function handleSignOut() {
     await supabase.auth.signOut()
