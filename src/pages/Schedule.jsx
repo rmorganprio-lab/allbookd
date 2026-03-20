@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { todayInTimezone, toDateStr, formatDateFull, formatTime, formatTimestamp, getTimezoneAbbr, nowInTimezone } from '../lib/timezone'
+import { useAdminOrg } from '../contexts/AdminOrgContext'
 
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December']
@@ -20,6 +21,8 @@ const emptyJob = {
 }
 
 export default function Schedule({ user }) {
+  const { adminViewOrg } = useAdminOrg()
+  const effectiveOrgId = adminViewOrg?.id ?? user?.org_id
   const tz = user?.organizations?.settings?.timezone || 'America/Los_Angeles'
   const timeFormat = user?.organizations?.settings?.time_format || '12h'
   const tzAbbr = getTimezoneAbbr(tz)
@@ -44,14 +47,14 @@ export default function Schedule({ user }) {
   const [payMethod, setPayMethod] = useState('cash')
   const [paymentSaving, setPaymentSaving] = useState(false)
 
-  useEffect(() => { loadAll() }, [])
+  useEffect(() => { loadAll() }, [effectiveOrgId])
 
   async function loadAll() {
     const [jobsRes, clientsRes, workersRes, typesRes] = await Promise.all([
-      supabase.from('jobs').select('*, clients(name), job_assignments(user_id)').order('date').order('start_time'),
-      supabase.from('clients').select('id, name').eq('status', 'active').order('name'),
-      supabase.from('users').select('id, name, availability').in('role', ['ceo', 'manager', 'worker']).order('name'),
-      supabase.from('service_types').select('*').eq('is_active', true).order('name'),
+      supabase.from('jobs').select('*, clients(name), job_assignments(user_id)').eq('org_id', effectiveOrgId).order('date').order('start_time'),
+      supabase.from('clients').select('id, name').eq('org_id', effectiveOrgId).eq('status', 'active').order('name'),
+      supabase.from('users').select('id, name, availability').eq('org_id', effectiveOrgId).in('role', ['ceo', 'manager', 'worker']).order('name'),
+      supabase.from('service_types').select('*').eq('org_id', effectiveOrgId).eq('is_active', true).order('name'),
     ])
     setJobs(jobsRes.data || [])
     setClients(clientsRes.data || [])
@@ -151,7 +154,7 @@ export default function Schedule({ user }) {
   async function handleSave() {
     setSaving(true)
     const jobData = {
-      org_id: user.org_id, client_id: form.client_id, service_type_id: form.service_type_id || null,
+      org_id: effectiveOrgId, client_id: form.client_id, service_type_id: form.service_type_id || null,
       title: form.title, date: form.date, start_time: form.start_time,
       duration_minutes: Number(form.duration_minutes), status: form.status, notes: form.notes,
       price: form.price ? Number(form.price) : null, frequency: form.frequency,
@@ -286,7 +289,7 @@ export default function Schedule({ user }) {
     setPaymentSaving(true)
     const tz_date = todayInTimezone(tz)
     await supabase.from('payments').insert({
-      org_id: user.org_id,
+      org_id: effectiveOrgId,
       client_id: paymentModal.client_id,
       job_id: paymentModal.id,
       amount: Number(payAmount),
@@ -295,7 +298,7 @@ export default function Schedule({ user }) {
       notes: `Payment for ${paymentModal.title}`,
     })
     await supabase.from('client_timeline').insert({
-      org_id: user.org_id,
+      org_id: effectiveOrgId,
       client_id: paymentModal.client_id,
       event_type: 'payment',
       summary: `$${Number(payAmount).toFixed(2)} received via ${payMethod}`,

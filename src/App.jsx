@@ -3,7 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { supabase } from './lib/supabase'
 import { SubscriptionProvider } from './contexts/SubscriptionContext'
 import { ToastProvider } from './contexts/ToastContext'
-import { ImpersonationProvider, useImpersonation } from './contexts/ImpersonationContext'
+import { AdminOrgProvider } from './contexts/AdminOrgContext'
 import Login from './pages/Login'
 import Layout from './components/Layout'
 import Dashboard from './pages/Dashboard'
@@ -17,6 +17,7 @@ import Reports from './pages/Reports'
 import AdminDashboard from './pages/admin/AdminDashboard'
 import AdminOrgs from './pages/admin/AdminOrgs'
 import AdminUsers from './pages/admin/AdminUsers'
+import AdminAudit from './pages/admin/AdminAudit'
 
 // Sends unauthenticated visitors to the static landing page
 function LandingRedirect() {
@@ -30,41 +31,33 @@ function AdminGuard({ user, children }) {
   return children
 }
 
-// Inner router component — uses ImpersonationContext to compute effectiveUser
-function AppRoutes({ realUser, session }) {
-  const { impersonated } = useImpersonation()
-  const effectiveUser = impersonated?.user || realUser
-
+function AppRoutes({ user, session }) {
   return (
-    <SubscriptionProvider user={effectiveUser}>
+    <SubscriptionProvider user={user}>
       <BrowserRouter>
         <Routes>
-          {/* /login: redirect to dashboard if already authenticated */}
           <Route
             path="/login"
             element={session ? <Navigate to="/" replace /> : <Login />}
           />
-
-          {/* All app routes are always registered so React Router can match them.
-              The parent element guards auth: authenticated users get Layout,
-              unauthenticated users get LandingRedirect. */}
           <Route
             path="/"
-            element={session ? <Layout user={effectiveUser} realUser={realUser} /> : <LandingRedirect />}
+            element={session ? <Layout user={user} /> : <LandingRedirect />}
           >
-            <Route index element={<Dashboard user={effectiveUser} />} />
-            <Route path="clients" element={<Clients user={effectiveUser} />} />
-            <Route path="workers" element={<Workers user={effectiveUser} />} />
-            <Route path="schedule" element={<Schedule user={effectiveUser} />} />
-            <Route path="quotes" element={<Quotes user={effectiveUser} />} />
-            <Route path="payments" element={<Payments user={effectiveUser} />} />
-            <Route path="invoices" element={<Invoices user={effectiveUser} />} />
-            <Route path="reports" element={<Reports user={effectiveUser} />} />
+            <Route index element={<Dashboard user={user} />} />
+            <Route path="clients" element={<Clients user={user} />} />
+            <Route path="workers" element={<Workers user={user} />} />
+            <Route path="schedule" element={<Schedule user={user} />} />
+            <Route path="quotes" element={<Quotes user={user} />} />
+            <Route path="payments" element={<Payments user={user} />} />
+            <Route path="invoices" element={<Invoices user={user} />} />
+            <Route path="reports" element={<Reports user={user} />} />
 
-            {/* Platform admin routes — always check realUser, never effectiveUser */}
-            <Route path="admin" element={<AdminGuard user={realUser}><AdminDashboard /></AdminGuard>} />
-            <Route path="admin/orgs" element={<AdminGuard user={realUser}><AdminOrgs user={realUser} /></AdminGuard>} />
-            <Route path="admin/users" element={<AdminGuard user={realUser}><AdminUsers /></AdminGuard>} />
+            {/* Platform admin routes */}
+            <Route path="admin" element={<AdminGuard user={user}><AdminDashboard /></AdminGuard>} />
+            <Route path="admin/orgs" element={<AdminGuard user={user}><AdminOrgs user={user} /></AdminGuard>} />
+            <Route path="admin/users" element={<AdminGuard user={user}><AdminUsers user={user} /></AdminGuard>} />
+            <Route path="admin/audit" element={<AdminGuard user={user}><AdminAudit /></AdminGuard>} />
           </Route>
 
           <Route path="*" element={<Navigate to="/" replace />} />
@@ -280,9 +273,9 @@ function App() {
 
   return (
     <ToastProvider>
-      <ImpersonationProvider>
-        <AppRoutes realUser={user} session={session} />
-      </ImpersonationProvider>
+      <AdminOrgProvider>
+        <AppRoutes user={user} session={session} />
+      </AdminOrgProvider>
     </ToastProvider>
   )
 }

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
 import { useToast } from '../../contexts/ToastContext'
+import { logAudit } from '../../lib/auditLog'
 
 // ─── Shared UI ────────────────────────────────────────────────
 
@@ -32,7 +33,7 @@ const INPUT = 'w-full px-3 py-2.5 border border-stone-200 rounded-xl text-sm tex
 
 // ─── User Detail Panel ────────────────────────────────────────
 
-function UserDetailPanel({ user, onClose, onUpdated }) {
+function UserDetailPanel({ user, onClose, onUpdated, adminUser }) {
   const { showToast } = useToast()
   const [form, setForm] = useState({
     name:   user.name  || '',
@@ -86,6 +87,14 @@ function UserDetailPanel({ user, onClose, onUpdated }) {
       showToast(error.message, 'error')
     } else {
       showToast('User saved')
+      const changes = {}
+      if (form.role !== user.role) changes.role = { from: user.role, to: form.role }
+      if (emailChanged) changes.email = { from: user.email, to: form.email.trim().toLowerCase() }
+      if (phoneChanged) changes.phone = { from: user.phone, to: form.phone.trim() }
+      if (orgChanged) changes.org_id = { from: user.org_id, to: form.orgId }
+      if (Object.keys(changes).length > 0 && adminUser) {
+        await logAudit({ supabase, user: adminUser, action: 'update', entityType: 'user', entityId: user.id, changes, metadata: { source: 'admin_panel' } })
+      }
       onUpdated()
     }
     setSaving(false)
@@ -95,10 +104,14 @@ function UserDetailPanel({ user, onClose, onUpdated }) {
   async function togglePlatformAdmin() {
     const newVal = !isPlatformAdmin
     const { error } = await supabase.from('users').update({ is_platform_admin: newVal }).eq('id', user.id)
-    if (error) showToast(error.message, 'error')
-    else {
+    if (error) {
+      showToast(error.message, 'error')
+    } else {
       setIsAdmin(newVal)
       showToast(newVal ? 'Platform admin granted' : 'Platform admin revoked')
+      if (adminUser) {
+        await logAudit({ supabase, user: adminUser, action: 'update', entityType: 'user', entityId: user.id, changes: { is_platform_admin: { from: isPlatformAdmin, to: newVal } }, metadata: { source: 'admin_panel' } })
+      }
       onUpdated()
     }
     setConfirm(null)
@@ -229,7 +242,7 @@ function UserDetailPanel({ user, onClose, onUpdated }) {
 
 // ─── Main Page ────────────────────────────────────────────────
 
-export default function AdminUsers() {
+export default function AdminUsers({ user: adminUser }) {
   const [users, setUsers]               = useState([])
   const [loading, setLoading]           = useState(true)
   const [search, setSearch]             = useState('')
@@ -316,6 +329,7 @@ export default function AdminUsers() {
           user={selectedUser}
           onClose={() => setSelectedUser(null)}
           onUpdated={() => { fetchUsers(); setSelectedUser(null) }}
+          adminUser={adminUser}
         />
       )}
     </div>

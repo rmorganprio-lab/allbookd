@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 import CSVImport from '../components/CSVImport'
 import { WORKER_TEMPLATE, validateWorkerRows, normalizePhone } from '../lib/csv'
+import { useAdminOrg } from '../contexts/AdminOrgContext'
 
 export default function Workers({ user }) {
   const [workers, setWorkers] = useState([])
@@ -15,16 +16,18 @@ export default function Workers({ user }) {
   const [showImport, setShowImport] = useState(false)
 
   const orgId = user?.org_id
+  const { adminViewOrg } = useAdminOrg()
+  const effectiveOrgId = adminViewOrg?.id ?? user?.org_id
 
   useEffect(() => {
     loadWorkers()
-  }, [])
+  }, [effectiveOrgId])
 
   async function loadWorkers() {
     const { data } = await supabase
       .from('users')
       .select('*')
-      .eq('org_id', orgId)
+      .eq('org_id', effectiveOrgId)
       .order('name')
     
     if (data) setWorkers(data)
@@ -74,7 +77,7 @@ export default function Workers({ user }) {
       const newId = crypto.randomUUID()
       await supabase.from('users').insert({
         id: newId,
-        org_id: orgId,
+        org_id: effectiveOrgId,
         name: form.name,
         phone: form.phone || null,
         email: form.email || null,
@@ -126,7 +129,7 @@ export default function Workers({ user }) {
         const { data: existing } = await supabase
           .from('users')
           .select('id')
-          .eq('org_id', orgId)
+          .eq('org_id', effectiveOrgId)
           .eq('phone', normalizePhone(row.phone))
           .limit(1)
         if (existing?.length > 0) { skipped++; continue }
@@ -135,7 +138,7 @@ export default function Workers({ user }) {
       const newId = crypto.randomUUID()
       const { error } = await supabase.from('users').insert({
         id: newId,
-        org_id: orgId,
+        org_id: effectiveOrgId,
         name: row.name,
         phone: normalizePhone(row.phone) || null,
         email: row.email || null,

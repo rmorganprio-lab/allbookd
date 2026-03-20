@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
+import { useAdminOrg } from '../contexts/AdminOrgContext'
 import { todayInTimezone, formatDate, getTimezoneAbbr } from '../lib/timezone'
 import { jsPDF } from 'jspdf'
 
@@ -17,6 +18,8 @@ export default function Invoices({ user }) {
   const tz = user?.organizations?.settings?.timezone || 'America/Los_Angeles'
   const taxRate = user?.organizations?.settings?.tax_rate || 0
   const orgId = user?.org_id
+  const { adminViewOrg } = useAdminOrg()
+  const effectiveOrgId = adminViewOrg?.id ?? user?.org_id
 
   const [invoices, setInvoices] = useState([])
   const [clients, setClients] = useState([])
@@ -41,13 +44,13 @@ export default function Invoices({ user }) {
   const [payMethod, setPayMethod] = useState('cash')
   const [paymentSaving, setPaymentSaving] = useState(false)
 
-  useEffect(() => { loadAll() }, [])
+  useEffect(() => { loadAll() }, [effectiveOrgId])
 
   async function loadAll() {
     const [invRes, clientsRes, jobsRes] = await Promise.all([
-      supabase.from('invoices').select('*, clients(name, phone, email, address), invoice_line_items(*)').order('created_at', { ascending: false }),
-      supabase.from('clients').select('id, name').eq('status', 'active').order('name'),
-      supabase.from('jobs').select('id, title, date, price, client_id, status, clients(name)').eq('status', 'completed').is('invoice_id', null).order('date', { ascending: false }),
+      supabase.from('invoices').select('*, clients(name, phone, email, address), invoice_line_items(*)').eq('org_id', effectiveOrgId).order('created_at', { ascending: false }),
+      supabase.from('clients').select('id, name').eq('org_id', effectiveOrgId).eq('status', 'active').order('name'),
+      supabase.from('jobs').select('id, title, date, price, client_id, status, clients(name)').eq('org_id', effectiveOrgId).eq('status', 'completed').is('invoice_id', null).order('date', { ascending: false }),
     ])
     setInvoices(invRes.data || [])
     setClients(clientsRes.data || [])
@@ -206,7 +209,7 @@ export default function Invoices({ user }) {
 
     const today = todayInTimezone(tz)
     const invoiceData = {
-      org_id: orgId,
+      org_id: effectiveOrgId,
       client_id: formClient,
       invoice_number: selectedInvoice?.invoice_number || getNextInvoiceNumber(),
       subtotal: formSubtotal,
@@ -225,7 +228,7 @@ export default function Invoices({ user }) {
 
       if (invoiceId) {
         await supabase.from('client_timeline').insert({
-          org_id: orgId, client_id: formClient,
+          org_id: effectiveOrgId, client_id: formClient,
           event_type: 'invoice',
           summary: `Invoice ${invoiceData.invoice_number} created for $${formTotal.toFixed(2)}`,
           created_by: user.id,
@@ -294,7 +297,7 @@ export default function Invoices({ user }) {
 
     if (newStatus === 'sent') {
       await supabase.from('client_timeline').insert({
-        org_id: orgId, client_id: invoice.client_id,
+        org_id: effectiveOrgId, client_id: invoice.client_id,
         event_type: 'invoice', summary: `Invoice ${invoice.invoice_number} sent`,
         created_by: user.id,
       })
@@ -313,7 +316,7 @@ export default function Invoices({ user }) {
     setPaymentSaving(true)
 
     await supabase.from('payments').insert({
-      org_id: orgId,
+      org_id: effectiveOrgId,
       client_id: selectedInvoice.client_id,
       invoice_id: selectedInvoice.id,
       amount: Number(payAmount),
@@ -331,7 +334,7 @@ export default function Invoices({ user }) {
     }
 
     await supabase.from('client_timeline').insert({
-      org_id: orgId, client_id: selectedInvoice.client_id,
+      org_id: effectiveOrgId, client_id: selectedInvoice.client_id,
       event_type: 'payment',
       summary: `$${Number(payAmount).toFixed(2)} received for invoice ${selectedInvoice.invoice_number}`,
       created_by: user.id,

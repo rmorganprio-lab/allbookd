@@ -2,7 +2,8 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
 import { useToast } from '../../contexts/ToastContext'
-import { useImpersonation } from '../../contexts/ImpersonationContext'
+import { useAdminOrg } from '../../contexts/AdminOrgContext'
+import { logAudit } from '../../lib/auditLog'
 import { ADD_ONS } from '../../lib/tiers'
 
 // ─── Shared UI ────────────────────────────────────────────────
@@ -62,7 +63,7 @@ const fmtDate = d => d ? new Date(d).toLocaleDateString('en-US', { month: 'short
 
 // ─── Add User Modal ───────────────────────────────────────────
 
-function AddUserModal({ orgId, onClose, onAdded }) {
+function AddUserModal({ orgId, onClose, onAdded, adminUser }) {
   const { showToast } = useToast()
   const [form, setForm] = useState({ name: '', email: '', phone: '', role: 'worker' })
   const [loading, setLoading] = useState(false)
@@ -72,8 +73,9 @@ function AddUserModal({ orgId, onClose, onAdded }) {
   async function handleSubmit(e) {
     e.preventDefault()
     setLoading(true)
+    const newId = crypto.randomUUID()
     const { error } = await supabase.from('users').insert({
-      id:          crypto.randomUUID(),
+      id:          newId,
       name:        form.name.trim(),
       email:       form.email.trim().toLowerCase(),
       phone:       form.phone.trim() || null,
@@ -83,6 +85,9 @@ function AddUserModal({ orgId, onClose, onAdded }) {
     })
     if (error) { showToast(error.message, 'error'); setLoading(false); return }
     showToast('User added')
+    if (adminUser) {
+      await logAudit({ supabase, user: adminUser, action: 'create', entityType: 'user', entityId: newId, changes: { name: form.name.trim(), email: form.email.trim().toLowerCase(), role: form.role, org_id: orgId }, metadata: { source: 'admin_panel' } })
+    }
     onAdded()
   }
 
@@ -122,7 +127,7 @@ function AddUserModal({ orgId, onClose, onAdded }) {
 
 // ─── Create Org Modal ─────────────────────────────────────────
 
-function CreateOrgModal({ onClose, onCreated }) {
+function CreateOrgModal({ onClose, onCreated, adminUser }) {
   const { showToast } = useToast()
   const [form, setForm] = useState({
     name: '', ownerName: '', ownerEmail: '', ownerPhone: '',
@@ -161,6 +166,9 @@ function CreateOrgModal({ onClose, onCreated }) {
       })
       if (userErr) throw userErr
 
+      if (adminUser) {
+        await logAudit({ supabase, user: adminUser, action: 'create', entityType: 'organization', entityId: org.id, changes: { name: form.name.trim(), subscription_tier: form.tier, subscription_status: form.status }, metadata: { source: 'admin_panel' } })
+      }
       setCreated(org)
       onCreated()
     } catch (err) {
@@ -268,7 +276,7 @@ function CreateOrgModal({ onClose, onCreated }) {
 
 // ─── Org Detail Panel ─────────────────────────────────────────
 
-function OrgDetailPanel({ org, onClose, onUpdated, onViewAs }) {
+function OrgDetailPanel({ org, onClose, onUpdated, onViewOrg, adminUser }) {
   const { showToast } = useToast()
   const [form, setForm] = useState({
     name:               org.name,
@@ -283,6 +291,8 @@ function OrgDetailPanel({ org, onClose, onUpdated, onViewAs }) {
   const [saving, setSaving]           = useState(false)
   const [showAddUser, setShowAddUser] = useState(false)
   const [confirm, setConfirm]         = useState(null)
+  const [auditEntries, setAuditEntries] = useState([])
+  const [auditLoading, setAuditLoading] = useState(true)
 
   function setField(k, v) { setForm(p => ({ ...p, [k]: v })) }
 
@@ -293,7 +303,19 @@ function OrgDetailPanel({ org, onClose, onUpdated, onViewAs }) {
     }))
   }
 
-  useEffect(() => { fetchUsers() }, [org.id])
+  useEffect(() => { fetchUsers(); fetchAudit() }, [org.id])
+
+  async function fetchAudit() {
+    setAuditLoading(true)
+    const { data } = await supabase
+      .from('audit_log')
+      .select('*')
+      .eq('org_id', org.id)
+      .order('created_at', { ascending: false })
+      .limit(10)
+    setAuditEntries(data || [])
+    setAuditLoading(false)
+  }
 
   async function fetchUsers() {
     setUsersLoading(true)
@@ -304,6 +326,11 @@ function OrgDetailPanel({ org, onClose, onUpdated, onViewAs }) {
 
   async function saveOrg() {
     setSaving(true)
+    const changes = {}
+    if (form.name.trim() !== org.name) changes.name = { from: org.name, to: form.name.trim() }
+    if (form.tier !== org.subscription_tier) changes.subscription_tier = { from: org.subscription_tier, to: form.tier }
+    if (form.status !== org.subscription_status) changes.subscription_status = { from: org.subscription_status, to: form.status }
+
     const { error } = await supabase.from('organizations').update({
       name:                 form.name.trim(),
       subscription_tier:   form.tier,
@@ -312,15 +339,31 @@ function OrgDetailPanel({ org, onClose, onUpdated, onViewAs }) {
       is_founding_customer: form.isFoundingCustomer,
       trial_ends_at:       form.trialEndsAt || null,
     }).eq('id', org.id)
-    if (error) showToast(error.message, 'error')
-    else { showToast('Organization saved'); onUpdated() }
+
+    if (error) {
+      showToast(error.message, 'error')
+    } else {
+      showToast('Organization saved')
+      if (Object.keys(changes).length > 0 && adminUser) {
+        await logAudit({ supabase, user: adminUser, action: 'update', entityType: 'organization', entityId: org.id, changes, metadata: { source: 'admin_panel' } })
+      }
+      onUpdated()
+    }
     setSaving(false)
   }
 
-  async function changeRole(userId, role) {
-    const { error } = await supabase.from('users').update({ role }).eq('id', userId)
-    if (error) showToast(error.message, 'error')
-    else { showToast('Role updated'); fetchUsers() }
+  async function changeRole(userId, newRole) {
+    const oldUser = users.find(u => u.id === userId)
+    const { error } = await supabase.from('users').update({ role: newRole }).eq('id', userId)
+    if (error) {
+      showToast(error.message, 'error')
+    } else {
+      showToast('Role updated')
+      if (adminUser) {
+        await logAudit({ supabase, user: adminUser, action: 'update', entityType: 'user', entityId: userId, changes: { role: { from: oldUser?.role, to: newRole } }, metadata: { source: 'admin_panel', org_id: org.id } })
+      }
+      fetchUsers()
+    }
   }
 
   async function removeUser(userId) {
@@ -341,10 +384,10 @@ function OrgDetailPanel({ org, onClose, onUpdated, onViewAs }) {
           <h2 className="font-bold text-stone-900 text-lg truncate pr-4">{org.name}</h2>
           <div className="flex items-center gap-2 flex-shrink-0">
             <button
-              onClick={onViewAs}
+              onClick={onViewOrg}
               className="px-3 py-1.5 bg-emerald-700 text-white text-xs font-medium rounded-lg hover:bg-emerald-800"
             >
-              View as owner
+              View org data
             </button>
             <button onClick={onClose} className="p-1.5 text-stone-400 hover:text-stone-600 rounded-lg hover:bg-stone-100">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
@@ -482,6 +525,47 @@ function OrgDetailPanel({ org, onClose, onUpdated, onViewAs }) {
               </div>
             )}
           </section>
+
+          {/* Recent audit log */}
+          <section className="border-t border-stone-100 pt-4">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-xs font-semibold text-stone-400 uppercase tracking-wide">Recent Activity</h3>
+              <a
+                href={`/admin/audit?org_id=${org.id}`}
+                className="text-xs text-emerald-700 font-medium hover:underline"
+              >
+                View all
+              </a>
+            </div>
+            {auditLoading ? (
+              <p className="text-sm text-stone-400">Loading…</p>
+            ) : auditEntries.length === 0 ? (
+              <p className="text-sm text-stone-400">No activity recorded yet.</p>
+            ) : (
+              <div className="space-y-2">
+                {auditEntries.map(entry => (
+                  <div key={entry.id} className="flex items-start gap-2 text-xs">
+                    <span className={`mt-0.5 px-1.5 py-0.5 rounded text-xs font-medium flex-shrink-0 ${
+                      entry.action === 'create' ? 'bg-emerald-100 text-emerald-700' :
+                      entry.action === 'delete' ? 'bg-red-100 text-red-700' :
+                      'bg-blue-100 text-blue-700'
+                    }`}>{entry.action}</span>
+                    <div className="flex-1 min-w-0">
+                      <span className="text-stone-600">{entry.user_name}</span>
+                      <span className="text-stone-400 mx-1">·</span>
+                      <span className="text-stone-500 capitalize">{entry.entity_type}</span>
+                      {entry.is_admin_action && (
+                        <span className="ml-1 text-purple-500">·admin</span>
+                      )}
+                    </div>
+                    <span className="text-stone-300 flex-shrink-0">
+                      {new Date(entry.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </section>
         </div>
       </div>
 
@@ -490,6 +574,7 @@ function OrgDetailPanel({ org, onClose, onUpdated, onViewAs }) {
           orgId={org.id}
           onClose={() => setShowAddUser(false)}
           onAdded={() => { setShowAddUser(false); fetchUsers() }}
+          adminUser={adminUser}
         />
       )}
 
@@ -507,9 +592,9 @@ function OrgDetailPanel({ org, onClose, onUpdated, onViewAs }) {
 
 // ─── Main Page ────────────────────────────────────────────────
 
-export default function AdminOrgs({ user: realUser }) {
+export default function AdminOrgs({ user }) {
   const navigate = useNavigate()
-  const { startImpersonation } = useImpersonation()
+  const { setAdminViewOrg } = useAdminOrg()
   const { showToast } = useToast()
   const [orgs, setOrgs]           = useState([])
   const [loading, setLoading]     = useState(true)
@@ -527,15 +612,8 @@ export default function AdminOrgs({ user: realUser }) {
     setLoading(false)
   }
 
-  async function handleViewAs(org) {
-    const { data: ceo, error } = await supabase
-      .from('users')
-      .select('*, organizations(*)')
-      .eq('org_id', org.id)
-      .eq('role', 'ceo')
-      .maybeSingle()
-    if (error || !ceo) { showToast('No owner found for this org', 'error'); return }
-    startImpersonation(ceo, realUser)
+  function handleViewOrg(org) {
+    setAdminViewOrg(org)
     navigate('/')
   }
 
@@ -616,6 +694,7 @@ export default function AdminOrgs({ user: realUser }) {
         <CreateOrgModal
           onClose={() => setShowCreate(false)}
           onCreated={fetchOrgs}
+          adminUser={user}
         />
       )}
 
@@ -624,7 +703,8 @@ export default function AdminOrgs({ user: realUser }) {
           org={selectedOrg}
           onClose={() => setSelectedOrg(null)}
           onUpdated={handleOrgUpdated}
-          onViewAs={() => handleViewAs(selectedOrg)}
+          onViewOrg={() => handleViewOrg(selectedOrg)}
+          adminUser={user}
         />
       )}
     </div>

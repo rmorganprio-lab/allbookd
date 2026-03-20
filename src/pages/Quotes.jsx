@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
+import { useAdminOrg } from '../contexts/AdminOrgContext'
 import { todayInTimezone, formatDate, getTimezoneAbbr } from '../lib/timezone'
 
 const statusColors = {
@@ -18,6 +19,8 @@ const emptyLine = { description: '', quantity: 1, unit_price: 0, frequency: 'one
 export default function Quotes({ user }) {
   const tz = user?.organizations?.settings?.timezone || 'America/Los_Angeles'
   const orgId = user?.org_id
+  const { adminViewOrg } = useAdminOrg()
+  const effectiveOrgId = adminViewOrg?.id ?? user?.org_id
 
   const [quotes, setQuotes] = useState([])
   const [clients, setClients] = useState([])
@@ -50,15 +53,15 @@ export default function Quotes({ user }) {
   const [newClient, setNewClient] = useState({ name: '', phone: '', email: '', address: '' })
   const [newProperty, setNewProperty] = useState({ property_type: 'residential', bedrooms: '', bathrooms: '', square_footage: '', alarm_code: '', key_info: '', pet_details: '', parking_instructions: '', supply_location: '', special_notes: '' })
 
-  useEffect(() => { loadAll() }, [])
+  useEffect(() => { loadAll() }, [effectiveOrgId])
 
   async function loadAll() {
     const [quotesRes, clientsRes, typesRes, matrixRes, workersRes] = await Promise.all([
-      supabase.from('quotes').select('*, clients(name, phone, email, address), quote_line_items(*)').order('created_at', { ascending: false }),
-      supabase.from('clients').select('*, client_properties(*)').eq('status', 'active').order('name'),
-      supabase.from('service_types').select('*').eq('is_active', true).order('name'),
-      supabase.from('pricing_matrix').select('*'),
-      supabase.from('users').select('id, name, availability').in('role', ['ceo', 'manager', 'worker']).eq('availability', 'available').order('name'),
+      supabase.from('quotes').select('*, clients(name, phone, email, address), quote_line_items(*)').eq('org_id', effectiveOrgId).order('created_at', { ascending: false }),
+      supabase.from('clients').select('*, client_properties(*)').eq('org_id', effectiveOrgId).eq('status', 'active').order('name'),
+      supabase.from('service_types').select('*').eq('org_id', effectiveOrgId).eq('is_active', true).order('name'),
+      supabase.from('pricing_matrix').select('*').eq('org_id', effectiveOrgId),
+      supabase.from('users').select('id, name, availability').eq('org_id', effectiveOrgId).in('role', ['ceo', 'manager', 'worker']).eq('availability', 'available').order('name'),
     ])
     setQuotes(quotesRes.data || [])
     setClients(clientsRes.data || [])
@@ -259,7 +262,7 @@ export default function Quotes({ user }) {
       if (!newClient.name.trim()) return setSaving(false)
 
       const { data: createdClient } = await supabase.from('clients').insert({
-        org_id: orgId,
+        org_id: effectiveOrgId,
         name: newClient.name,
         phone: newClient.phone || null,
         email: newClient.email || null,
@@ -275,7 +278,7 @@ export default function Quotes({ user }) {
       if (hasPropertyData) {
         await supabase.from('client_properties').insert({
           client_id: clientId,
-          org_id: orgId,
+          org_id: effectiveOrgId,
           property_type: newProperty.property_type || 'residential',
           bedrooms: newProperty.bedrooms ? Number(newProperty.bedrooms) : null,
           bathrooms: newProperty.bathrooms ? Number(newProperty.bathrooms) : null,
@@ -290,14 +293,14 @@ export default function Quotes({ user }) {
       }
 
       await supabase.from('client_timeline').insert({
-        org_id: orgId, client_id: clientId,
+        org_id: effectiveOrgId, client_id: clientId,
         event_type: 'note', summary: 'Client created from quote',
         created_by: user.id,
       })
     }
 
     const quoteData = {
-      org_id: orgId,
+      org_id: effectiveOrgId,
       client_id: clientId,
       quote_number: selectedQuote?.quote_number || getNextQuoteNumber(),
       subtotal: formSubtotal,
@@ -316,7 +319,7 @@ export default function Quotes({ user }) {
       // Timeline entry
       if (quoteId) {
         await supabase.from('client_timeline').insert({
-          org_id: orgId, client_id: clientId,
+          org_id: effectiveOrgId, client_id: clientId,
           event_type: 'quote', summary: `Quote ${quoteData.quote_number} created for $${formTotal.toFixed(2)}`,
           created_by: user.id,
         })
@@ -354,7 +357,7 @@ export default function Quotes({ user }) {
 
     if (newStatus === 'approved') {
       await supabase.from('client_timeline').insert({
-        org_id: orgId, client_id: quote.client_id,
+        org_id: effectiveOrgId, client_id: quote.client_id,
         event_type: 'quote', summary: `Quote ${quote.quote_number} approved`,
         created_by: user.id,
       })
@@ -376,7 +379,7 @@ export default function Quotes({ user }) {
     const perVisitPrice = firstLine ? Number(firstLine.unit_price) : Number(selectedQuote.total)
 
     const jobData = {
-      org_id: orgId,
+      org_id: effectiveOrgId,
       client_id: selectedQuote.client_id,
       title: firstLine?.description || 'Service',
       date: scheduleDate,
@@ -416,7 +419,7 @@ export default function Quotes({ user }) {
       }
 
       await supabase.from('client_timeline').insert({
-        org_id: orgId, client_id: selectedQuote.client_id,
+        org_id: effectiveOrgId, client_id: selectedQuote.client_id,
         event_type: 'job',
         summary: `Job${scheduleFrequency !== 'one_time' ? 's (12 recurring)' : ''} created from quote ${selectedQuote.quote_number}`,
         created_by: user.id,

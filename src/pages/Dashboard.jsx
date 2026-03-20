@@ -2,12 +2,15 @@ import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { todayInTimezone, addDays, currentHourInTimezone, getTimezoneAbbr, formatTime } from '../lib/timezone'
+import { useAdminOrg } from '../contexts/AdminOrgContext'
 
 export default function Dashboard({ user }) {
   const tz = user?.organizations?.settings?.timezone || 'America/Los_Angeles'
   const timeFormat = user?.organizations?.settings?.time_format || '12h'
   const role = user?.role || 'worker'
   const isWorker = role === 'worker'
+  const { adminViewOrg } = useAdminOrg()
+  const effectiveOrgId = adminViewOrg?.id ?? user?.org_id
 
   const [data, setData] = useState({
     todayJobs: [], weekJobs: [], workers: [],
@@ -16,19 +19,19 @@ export default function Dashboard({ user }) {
   })
   const [loading, setLoading] = useState(true)
 
-  useEffect(() => { loadDashboard() }, [])
+  useEffect(() => { loadDashboard() }, [effectiveOrgId])
 
   async function loadDashboard() {
     const today = todayInTimezone(tz)
     const weekEnd = addDays(today, 7)
 
     const queries = [
-      supabase.from('jobs').select('*, clients(name), job_assignments(user_id)').eq('date', today).neq('status', 'cancelled').order('start_time'),
-      supabase.from('jobs').select('*, clients(name)').gte('date', today).lte('date', weekEnd).neq('status', 'cancelled').order('date').order('start_time'),
-      supabase.from('users').select('id, name, role, availability').in('role', ['ceo', 'manager', 'worker']).order('name'),
-      supabase.from('invoices').select('*, clients(name)').eq('status', 'overdue'),
-      supabase.from('payments').select('*, clients(name)').order('date', { ascending: false }).limit(5),
-      supabase.from('clients').select('id', { count: 'exact', head: true }),
+      supabase.from('jobs').select('*, clients(name), job_assignments(user_id)').eq('org_id', effectiveOrgId).eq('date', today).neq('status', 'cancelled').order('start_time'),
+      supabase.from('jobs').select('*, clients(name)').eq('org_id', effectiveOrgId).gte('date', today).lte('date', weekEnd).neq('status', 'cancelled').order('date').order('start_time'),
+      supabase.from('users').select('id, name, role, availability').eq('org_id', effectiveOrgId).in('role', ['ceo', 'manager', 'worker']).order('name'),
+      supabase.from('invoices').select('*, clients(name)').eq('org_id', effectiveOrgId).eq('status', 'overdue'),
+      supabase.from('payments').select('*, clients(name)').eq('org_id', effectiveOrgId).order('date', { ascending: false }).limit(5),
+      supabase.from('clients').select('id', { count: 'exact', head: true }).eq('org_id', effectiveOrgId),
     ]
 
     const [jobsToday, jobsWeek, workers, overdue, payments, clients] = await Promise.all(queries)

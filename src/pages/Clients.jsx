@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 import CSVImport from '../components/CSVImport'
 import { CLIENT_TEMPLATE, validateClientRows, normalizePhone } from '../lib/csv'
+import { useAdminOrg } from '../contexts/AdminOrgContext'
 
 const emptyClient = {
   name: '', email: '', phone: '', address: '', notes: '', tags: [], status: 'active',
@@ -32,15 +33,18 @@ export default function Clients({ user }) {
   const [clientTimeline, setClientTimeline] = useState([])
 
   const orgId = user?.org_id
+  const { adminViewOrg } = useAdminOrg()
+  const effectiveOrgId = adminViewOrg?.id ?? user?.org_id
 
   useEffect(() => {
     loadClients()
-  }, [])
+  }, [effectiveOrgId])
 
   async function loadClients() {
     const { data, error } = await supabase
       .from('clients')
       .select('*, client_properties(*)')
+      .eq('org_id', effectiveOrgId)
       .order('name')
     
     if (data) setClients(data)
@@ -115,7 +119,7 @@ export default function Clients({ user }) {
       // Create client
       const { data: newClient, error } = await supabase
         .from('clients')
-        .insert({ ...form, org_id: orgId })
+        .insert({ ...form, org_id: effectiveOrgId })
         .select()
         .single()
 
@@ -123,12 +127,12 @@ export default function Clients({ user }) {
         await supabase.from('client_properties').insert({
           ...cleanProperty(),
           client_id: newClient.id,
-          org_id: orgId,
+          org_id: effectiveOrgId,
         })
 
         // Add timeline entry
         await supabase.from('client_timeline').insert({
-          org_id: orgId,
+          org_id: effectiveOrgId,
           client_id: newClient.id,
           event_type: 'note',
           summary: 'Client created',
@@ -154,7 +158,7 @@ export default function Clients({ user }) {
           await supabase.from('client_properties').insert({
             ...cleanProperty(),
             client_id: selectedClient.id,
-            org_id: orgId,
+            org_id: effectiveOrgId,
           })
         }
       }
@@ -204,14 +208,14 @@ export default function Clients({ user }) {
         const { data: existing } = await supabase
           .from('clients')
           .select('id')
-          .eq('org_id', orgId)
+          .eq('org_id', effectiveOrgId)
           .or(`phone.eq.${normalizePhone(row.phone)},email.eq.${row.email}`)
           .limit(1)
         if (existing?.length > 0) { skipped++; continue }
       }
 
       const { data: newClient } = await supabase.from('clients').insert({
-        org_id: orgId,
+        org_id: effectiveOrgId,
         name: row.name,
         phone: normalizePhone(row.phone) || null,
         email: row.email || null,
@@ -227,7 +231,7 @@ export default function Clients({ user }) {
         if (hasProperty) {
           await supabase.from('client_properties').insert({
             client_id: newClient.id,
-            org_id: orgId,
+            org_id: effectiveOrgId,
             property_type: (row.property_type || 'residential').toLowerCase(),
             bedrooms: row.bedrooms ? Number(row.bedrooms) : null,
             bathrooms: row.bathrooms ? Number(row.bathrooms) : null,
@@ -242,7 +246,7 @@ export default function Clients({ user }) {
         }
 
         await supabase.from('client_timeline').insert({
-          org_id: orgId, client_id: newClient.id,
+          org_id: effectiveOrgId, client_id: newClient.id,
           event_type: 'note', summary: 'Client imported via CSV',
           created_by: user.id,
         })

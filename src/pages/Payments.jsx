@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
+import { useAdminOrg } from '../contexts/AdminOrgContext'
 import { todayInTimezone, formatDate, getTimezoneAbbr } from '../lib/timezone'
 
 const METHODS = ['cash', 'venmo', 'zelle', 'card', 'bank_transfer', 'check', 'other']
@@ -26,6 +27,8 @@ const emptyPayment = {
 export default function Payments({ user }) {
   const tz = user?.organizations?.settings?.timezone || 'America/Los_Angeles'
   const tzAbbr = getTimezoneAbbr(tz)
+  const { adminViewOrg } = useAdminOrg()
+  const effectiveOrgId = adminViewOrg?.id ?? user?.org_id
 
   const [payments, setPayments] = useState([])
   const [clients, setClients] = useState([])
@@ -39,13 +42,13 @@ export default function Payments({ user }) {
   const [filter, setFilter] = useState({ method: 'all', client: 'all', period: 'all' })
   const [search, setSearch] = useState('')
 
-  useEffect(() => { loadAll() }, [])
+  useEffect(() => { loadAll() }, [effectiveOrgId])
 
   async function loadAll() {
     const [paymentsRes, clientsRes, invoicesRes] = await Promise.all([
-      supabase.from('payments').select('*, clients(name), invoices(invoice_number)').order('date', { ascending: false }),
-      supabase.from('clients').select('id, name').eq('status', 'active').order('name'),
-      supabase.from('invoices').select('id, invoice_number, total, status, client_id, clients(name)').in('status', ['sent', 'overdue']).order('created_at', { ascending: false }),
+      supabase.from('payments').select('*, clients(name), invoices(invoice_number)').eq('org_id', effectiveOrgId).order('date', { ascending: false }),
+      supabase.from('clients').select('id, name').eq('org_id', effectiveOrgId).eq('status', 'active').order('name'),
+      supabase.from('invoices').select('id, invoice_number, total, status, client_id, clients(name)').eq('org_id', effectiveOrgId).in('status', ['sent', 'overdue']).order('created_at', { ascending: false }),
     ])
     setPayments(paymentsRes.data || [])
     setClients(clientsRes.data || [])
@@ -138,7 +141,7 @@ export default function Payments({ user }) {
   async function handleSave() {
     setSaving(true)
     const paymentData = {
-      org_id: user.org_id,
+      org_id: effectiveOrgId,
       client_id: form.client_id,
       invoice_id: form.invoice_id || null,
       job_id: form.job_id || null,
@@ -163,7 +166,7 @@ export default function Payments({ user }) {
       // Log to client timeline
       if (!error) {
         await supabase.from('client_timeline').insert({
-          org_id: user.org_id,
+          org_id: effectiveOrgId,
           client_id: form.client_id,
           event_type: 'payment',
           summary: `Payment of $${Number(form.amount).toFixed(2)} received via ${methodLabels[form.method]}`,
