@@ -10,6 +10,7 @@ import Schedule from './pages/Schedule'
 import Quotes from './pages/Quotes'
 import Payments from './pages/Payments'
 import Invoices from './pages/Invoices'
+import Reports from './pages/Reports'
 
 // Sends unauthenticated visitors to the static landing page
 function LandingRedirect() {
@@ -222,6 +223,7 @@ function App() {
           <Route path="quotes" element={<Quotes user={user} />} />
           <Route path="payments" element={<Payments user={user} />} />
           <Route path="invoices" element={<Invoices user={user} />} />
+          <Route path="reports" element={<Reports user={user} />} />
         </Route>
 
         <Route path="*" element={<Navigate to="/" replace />} />
