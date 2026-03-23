@@ -302,7 +302,12 @@ serve(async (req) => {
     const { data: { user: authUser }, error: authError } = await anonClient.auth.getUser(
       authHeader.replace('Bearer ', '')
     )
-    if (authError || !authUser) throw new Error('Invalid JWT')
+    if (authError || !authUser) {
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
+    }
 
     // Fetch the caller's user row for org info
     const { data: callerUser } = await adminClient
