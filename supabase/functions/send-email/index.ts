@@ -287,7 +287,7 @@ serve(async (req) => {
   }
 
   try {
-    // Verify JWT
+    // Verify JWT manually (deployed with --no-verify-jwt)
     const authHeader = req.headers.get('Authorization')
     if (!authHeader) throw new Error('Missing Authorization header')
 
@@ -309,39 +309,129 @@ serve(async (req) => {
       })
     }
 
-    // Fetch the caller's user row for org info
-    const { data: callerUser } = await adminClient
-      .from('users')
-      .select('*, organizations(*)')
-      .eq('id', authUser.id)
-      .single()
-
     const body = await req.json()
-    const { type, to, org, data } = body
+    const { type } = body
+    if (!type) throw new Error('Missing required field: type')
 
-    if (!type || !to) throw new Error('Missing required fields: type, to')
-    if (!org?.name) throw new Error('Missing org.name')
-
-    // Build email
     let subject = ''
     let html = ''
+    let to = ''
+    let orgId: string | null = null
+    let orgName = ''
+    let orgEmail: string | null = null
 
     switch (type) {
-      case 'quote':
-        ;({ subject, html } = templateQuoteSent(org, data))
+      case 'quote': {
+        const { quote_id } = body
+        if (!quote_id) throw new Error('Missing quote_id')
+
+        const { data: quote, error } = await adminClient
+          .from('quotes')
+          .select('*, clients(name, email), organizations(name, email), quote_line_items(*)')
+          .eq('id', quote_id)
+          .single()
+        if (error || !quote) throw new Error('Quote not found')
+        if (!quote.clients?.email) throw new Error('Client has no email address')
+
+        to = quote.clients.email
+        orgId = quote.org_id
+        orgName = quote.organizations.name
+        orgEmail = quote.organizations.email || null
+
+        const lineItems = (quote.quote_line_items || [])
+          .sort((a: Record<string, unknown>, b: Record<string, unknown>) => (Number(a.sort_order) ?? 0) - (Number(b.sort_order) ?? 0))
+        ;({ subject, html } = templateQuoteSent({ name: orgName }, {
+          client_name: quote.clients.name,
+          quote_number: quote.quote_number,
+          quote_date: quote.created_at,
+          valid_until: quote.valid_until,
+          approval_token: quote.approval_token,
+          line_items: lineItems,
+          subtotal: quote.subtotal,
+          tax_amount: quote.tax_amount,
+          total: quote.total,
+          notes: quote.notes,
+        }))
         break
-      case 'invoice':
-        ;({ subject, html } = templateInvoiceSent(org, data))
+      }
+
+      case 'invoice': {
+        const { invoice_id } = body
+        if (!invoice_id) throw new Error('Missing invoice_id')
+
+        const { data: invoice, error } = await adminClient
+          .from('invoices')
+          .select('*, clients(name, email), organizations(name, email), invoice_line_items(*)')
+          .eq('id', invoice_id)
+          .single()
+        if (error || !invoice) throw new Error('Invoice not found')
+        if (!invoice.clients?.email) throw new Error('Client has no email address')
+
+        to = invoice.clients.email
+        orgId = invoice.org_id
+        orgName = invoice.organizations.name
+        orgEmail = invoice.organizations.email || null
+
+        const lineItems = (invoice.invoice_line_items || [])
+          .sort((a: Record<string, unknown>, b: Record<string, unknown>) => (Number(a.sort_order) ?? 0) - (Number(b.sort_order) ?? 0))
+        ;({ subject, html } = templateInvoiceSent({ name: orgName }, {
+          client_name: invoice.clients.name,
+          invoice_number: invoice.invoice_number,
+          issue_date: invoice.issue_date,
+          due_date: invoice.due_date,
+          view_token: invoice.view_token,
+          line_items: lineItems,
+          subtotal: invoice.subtotal,
+          tax_amount: invoice.tax_amount,
+          total: invoice.total,
+          notes: invoice.notes,
+        }))
         break
-      case 'payment_receipt':
-        ;({ subject, html } = templatePaymentReceipt(org, data))
+      }
+
+      case 'payment_receipt': {
+        const { payment_id } = body
+        if (!payment_id) throw new Error('Missing payment_id')
+
+        const { data: payment, error } = await adminClient
+          .from('payments')
+          .select('*, clients(name, email), invoices(invoice_number, total), organizations(name, email)')
+          .eq('id', payment_id)
+          .single()
+        if (error || !payment) throw new Error('Payment not found')
+        if (!payment.clients?.email) throw new Error('Client has no email address')
+
+        to = payment.clients.email
+        orgId = payment.org_id
+        orgName = payment.organizations.name
+        orgEmail = payment.organizations.email || null
+
+        ;({ subject, html } = templatePaymentReceipt({ name: orgName }, {
+          client_name: payment.clients.name,
+          invoice_number: payment.invoices?.invoice_number || null,
+          payment_amount: payment.amount,
+          invoice_total: payment.invoices?.total || 0,
+          payment_date: payment.date,
+          payment_method: payment.method,
+        }))
         break
+      }
+
+      // These types are triggered internally (e.g. quote-action function) and
+      // still receive {to, org, data} in the body.
       case 'quote_approved':
-        ;({ subject, html } = templateQuoteApproved(org, data))
+      case 'quote_declined': {
+        const { to: bodyTo, org, data } = body
+        if (!bodyTo || !org?.name) throw new Error('Missing required fields: to, org')
+        to = bodyTo
+        orgName = org.name
+        orgEmail = org.email || null
+        ;({ subject, html } = type === 'quote_approved'
+          ? templateQuoteApproved(org, data)
+          : templateQuoteDeclined(org, data))
         break
-      case 'quote_declined':
-        ;({ subject, html } = templateQuoteDeclined(org, data))
-        break
+      }
+
       default:
         throw new Error(`Unknown email type: ${type}`)
     }
@@ -354,8 +444,8 @@ serve(async (req) => {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        from: `${org.name} via TimelyOps <notifications@timelyops.com>`,
-        reply_to: org.email || undefined,
+        from: `${orgName} via TimelyOps <notifications@timelyops.com>`,
+        reply_to: orgEmail || undefined,
         to: [to],
         subject,
         html,
@@ -369,15 +459,12 @@ serve(async (req) => {
     }
 
     // Log to email_log
-    const orgId = callerUser?.org_id || null
     await adminClient.from('email_log').insert({
       org_id: orgId,
       sent_by: authUser.id,
       recipient_email: to,
       email_type: type,
       subject,
-      related_entity_type: data?.entity_type || null,
-      related_entity_id: data?.entity_id || null,
       resend_message_id: resendData.id || null,
       status: 'sent',
     })
