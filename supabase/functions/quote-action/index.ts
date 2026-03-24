@@ -130,15 +130,16 @@ serve(async (req) => {
       const { data: invoice, error } = await supabase
         .from('invoices')
         .select(`
-          id, invoice_number, status, issue_date, due_date, total, subtotal, tax_rate, tax_amount,
+          id, invoice_number, status, issue_date, due_date, total, subtotal, tax_amount,
           notes, view_token,
           clients(id, name, email, phone),
           organizations(id, name),
-          invoice_line_items(id, description, quantity, unit_price, amount, sort_order)
+          invoice_line_items(id, description, quantity, unit_price, total)
         `)
         .eq('view_token', token)
         .single()
 
+      console.log('[quote-action] get_invoice result:', JSON.stringify({ data: !!invoice, error }))
       if (error || !invoice) {
         return new Response(JSON.stringify({ error: 'Invoice not found' }), {
           status: 404,
@@ -156,15 +157,16 @@ serve(async (req) => {
       const { data: quote, error } = await supabase
         .from('quotes')
         .select(`
-          id, quote_number, status, issue_date, expiry_date, total, subtotal, tax_rate, tax_amount,
+          id, quote_number, status, created_at, valid_until, total, subtotal, tax_amount,
           notes, approval_token, approved_at, declined_at, decline_reason,
           clients(id, name, email, phone),
           organizations(id, name),
-          quote_line_items(id, description, quantity, unit_price, amount, sort_order)
+          quote_line_items(id, description, quantity, unit_price, total, sort_order)
         `)
         .eq('approval_token', token)
         .single()
 
+      console.log('[quote-action] get_quote result:', JSON.stringify({ data: !!quote, error }))
       if (error || !quote) {
         return new Response(JSON.stringify({ error: 'Quote not found' }), {
           status: 404,
@@ -190,6 +192,7 @@ serve(async (req) => {
         .eq('approval_token', token)
         .single()
 
+      console.log('[quote-action] approve_quote result:', JSON.stringify({ data: !!quote, error: fetchError }))
       if (fetchError || !quote) {
         return new Response(JSON.stringify({ error: 'Quote not found' }), {
           status: 404,
@@ -259,6 +262,7 @@ serve(async (req) => {
         .eq('approval_token', token)
         .single()
 
+      console.log('[quote-action] decline_quote result:', JSON.stringify({ data: !!quote, error: fetchError }))
       if (fetchError || !quote) {
         return new Response(JSON.stringify({ error: 'Quote not found' }), {
           status: 404,

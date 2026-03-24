@@ -154,8 +154,8 @@ export default function QuoteApproval() {
                   {client && <div className="text-sm text-stone-500 mt-1">Prepared for {client.name}</div>}
                 </div>
                 <div className="text-right text-sm text-stone-500 space-y-1">
-                  {quote.issue_date && <div>Issued {fmtDate(quote.issue_date)}</div>}
-                  {quote.expiry_date && <div className="text-amber-600">Expires {fmtDate(quote.expiry_date)}</div>}
+                  {quote.created_at && <div>Issued {fmtDate(quote.created_at)}</div>}
+                  {quote.valid_until && <div className="text-amber-600">Expires {fmtDate(quote.valid_until)}</div>}
                 </div>
               </div>
             </div>
@@ -177,7 +177,7 @@ export default function QuoteApproval() {
                       <td className="py-2 text-stone-800">{item.description}</td>
                       <td className="py-2 text-stone-500 text-right">{item.quantity}</td>
                       <td className="py-2 text-stone-500 text-right">{fmtCurrency(item.unit_price)}</td>
-                      <td className="py-2 text-stone-800 font-medium text-right">{fmtCurrency(item.amount)}</td>
+                      <td className="py-2 text-stone-800 font-medium text-right">{fmtCurrency(item.total)}</td>
                     </tr>
                   ))}
                 </tbody>
