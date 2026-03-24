@@ -334,7 +334,7 @@ serve(async (req) => {
         console.log('[send-email] Fetching quote:', quote_id)
         const { data: quote, error } = await adminClient
           .from('quotes')
-          .select('*, clients(name, email), organizations(name, email), quote_line_items(*)')
+          .select('*, clients(name, email), organizations(name), quote_line_items(*)')
           .eq('id', quote_id)
           .single()
         console.log('[send-email] Quote query result — data:', JSON.stringify(quote), 'error:', JSON.stringify(error))
@@ -344,7 +344,7 @@ serve(async (req) => {
         to = quote.clients.email
         orgId = quote.org_id
         orgName = quote.organizations.name
-        orgEmail = quote.organizations.email || null
+        // orgEmail resolved after switch via users table
 
         const lineItems = (quote.quote_line_items || [])
           .sort((a: Record<string, unknown>, b: Record<string, unknown>) => (Number(a.sort_order) ?? 0) - (Number(b.sort_order) ?? 0))
@@ -370,7 +370,7 @@ serve(async (req) => {
         console.log('[send-email] Fetching invoice:', invoice_id)
         const { data: invoice, error: invError } = await adminClient
           .from('invoices')
-          .select('*, clients(name, email), organizations(name, email), invoice_line_items(*)')
+          .select('*, clients(name, email), organizations(name), invoice_line_items(*)')
           .eq('id', invoice_id)
           .single()
         console.log('[send-email] Invoice query result — data:', JSON.stringify(invoice), 'error:', JSON.stringify(invError))
@@ -380,7 +380,7 @@ serve(async (req) => {
         to = invoice.clients.email
         orgId = invoice.org_id
         orgName = invoice.organizations.name
-        orgEmail = invoice.organizations.email || null
+        // orgEmail resolved after switch via users table
 
         const lineItems = (invoice.invoice_line_items || [])
           .sort((a: Record<string, unknown>, b: Record<string, unknown>) => (Number(a.sort_order) ?? 0) - (Number(b.sort_order) ?? 0))
@@ -406,7 +406,7 @@ serve(async (req) => {
         console.log('[send-email] Fetching payment:', payment_id)
         const { data: payment, error: payError } = await adminClient
           .from('payments')
-          .select('*, clients(name, email), invoices(invoice_number, total), organizations(name, email)')
+          .select('*, clients(name, email), invoices(invoice_number, total), organizations(name)')
           .eq('id', payment_id)
           .single()
         console.log('[send-email] Payment query result — data:', JSON.stringify(payment), 'error:', JSON.stringify(payError))
@@ -416,7 +416,7 @@ serve(async (req) => {
         to = payment.clients.email
         orgId = payment.org_id
         orgName = payment.organizations.name
-        orgEmail = payment.organizations.email || null
+        // orgEmail resolved after switch via users table
 
         ;({ subject, html } = templatePaymentReceipt({ name: orgName }, {
           client_name: payment.clients.name,
@@ -446,6 +446,17 @@ serve(async (req) => {
 
       default:
         throw new Error(`Unknown email type: ${type}`)
+    }
+
+    // Resolve org owner email from users table (organizations has no email column)
+    if (orgId && !orgEmail) {
+      const { data: owner } = await adminClient
+        .from('users')
+        .select('email')
+        .eq('org_id', orgId)
+        .eq('role', 'ceo')
+        .maybeSingle()
+      orgEmail = owner?.email || null
     }
 
     // Send via Resend
