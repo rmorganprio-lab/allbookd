@@ -133,7 +133,7 @@ serve(async (req) => {
           id, invoice_number, status, issue_date, due_date, total, subtotal, tax_rate, tax_amount,
           notes, view_token,
           clients(id, name, email, phone),
-          organizations(id, name, email, phone),
+          organizations(id, name),
           invoice_line_items(id, description, quantity, unit_price, amount, sort_order)
         `)
         .eq('view_token', token)
@@ -159,7 +159,7 @@ serve(async (req) => {
           id, quote_number, status, issue_date, expiry_date, total, subtotal, tax_rate, tax_amount,
           notes, approval_token, approved_at, declined_at, decline_reason,
           clients(id, name, email, phone),
-          organizations(id, name, email, phone),
+          organizations(id, name),
           quote_line_items(id, description, quantity, unit_price, amount, sort_order)
         `)
         .eq('approval_token', token)
@@ -185,7 +185,7 @@ serve(async (req) => {
         .select(`
           id, quote_number, status, total, approval_token, approved_at, declined_at,
           clients(name, email),
-          organizations(id, name, email)
+          organizations(id, name)
         `)
         .eq('approval_token', token)
         .single()
@@ -226,10 +226,16 @@ serve(async (req) => {
       // Notify org owner
       const org = quote.organizations as any
       const client = quote.clients as any
-      if (org?.email) {
+      const { data: owner } = await supabase
+        .from('users')
+        .select('email')
+        .eq('org_id', org.id)
+        .eq('role', 'ceo')
+        .maybeSingle()
+      if (owner?.email) {
         const html = templateQuoteApprovedNotification(org.name, quote.quote_number, client.name, quote.total)
         await sendEmail({
-          to: org.email,
+          to: owner.email,
           subject: `Quote #${quote.quote_number} approved by ${client.name}`,
           html,
           fromName: org.name,
@@ -248,7 +254,7 @@ serve(async (req) => {
         .select(`
           id, quote_number, status, total, approval_token, approved_at, declined_at,
           clients(name, email),
-          organizations(id, name, email)
+          organizations(id, name)
         `)
         .eq('approval_token', token)
         .single()
@@ -293,10 +299,16 @@ serve(async (req) => {
       // Notify org owner
       const org = quote.organizations as any
       const client = quote.clients as any
-      if (org?.email) {
+      const { data: owner } = await supabase
+        .from('users')
+        .select('email')
+        .eq('org_id', org.id)
+        .eq('role', 'ceo')
+        .maybeSingle()
+      if (owner?.email) {
         const html = templateQuoteDeclinedNotification(org.name, quote.quote_number, client.name, quote.total, reason)
         await sendEmail({
-          to: org.email,
+          to: owner.email,
           subject: `Quote #${quote.quote_number} declined by ${client.name}`,
           html,
           fromName: org.name,
