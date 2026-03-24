@@ -439,7 +439,11 @@ export default function Invoices({ user }) {
 
   async function confirmDelete() {
     if (!deleteTarget) return
-    await supabase.from('invoices').delete().eq('id', deleteTarget.id)
+    const { error } = await supabase.from('invoices').delete().eq('id', deleteTarget.id)
+    if (error) {
+      showToast('Delete failed: ' + error.message, 'error')
+      return
+    }
     setDeleteTarget(null)
     setDeleteLinkedPayments(0)
     setModal(null)

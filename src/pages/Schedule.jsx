@@ -255,15 +255,21 @@ export default function Schedule({ user }) {
   async function handleDelete(scope) {
     if (!selectedJob) return
 
+    let error
     if (scope === 'this' || !isRecurring(selectedJob)) {
-      await supabase.from('jobs').delete().eq('id', selectedJob.id)
+      ;({ error } = await supabase.from('jobs').delete().eq('id', selectedJob.id))
     } else if (scope === 'future') {
-      await supabase.from('jobs').delete()
+      ;({ error } = await supabase.from('jobs').delete()
         .eq('recurrence_group_id', selectedJob.recurrence_group_id)
-        .gte('date', selectedJob.date)
+        .gte('date', selectedJob.date))
     } else if (scope === 'all') {
-      await supabase.from('jobs').delete()
-        .eq('recurrence_group_id', selectedJob.recurrence_group_id)
+      ;({ error } = await supabase.from('jobs').delete()
+        .eq('recurrence_group_id', selectedJob.recurrence_group_id))
+    }
+
+    if (error) {
+      showToast('Delete failed: ' + error.message, 'error')
+      return
     }
 
     setModal(null)
