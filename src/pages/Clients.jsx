@@ -229,9 +229,7 @@ export default function Clients({ user }) {
         if (existing?.length > 0) { skipped++; continue }
       }
 
-      const csvPreferred = row.preferred_contact?.toLowerCase()
-      const validPreferred = ['email', 'sms', 'whatsapp', 'phone'].includes(csvPreferred) ? csvPreferred : null
-      const autoPreferred = row.email ? 'email' : (row.phone ? 'sms' : 'sms')
+      const autoPreferred = row.email ? 'email' : 'sms'
 
       const { data: newClient } = await supabase.from('clients').insert({
         org_id: effectiveOrgId,
@@ -239,21 +237,21 @@ export default function Clients({ user }) {
         last_name: row.last_name || null,
         phone: normalizePhone(row.phone) || null,
         email: row.email || null,
-        address_line_1: row.address_line_1 || null,
-        address_line_2: row.address_line_2 || null,
+        address_line_1: row.address_1 || null,
+        address_line_2: row.address_2 || null,
         city: row.city || null,
         state_province: row.state_province || null,
         postal_code: row.postal_code || null,
         country: row.country || defaultCountry,
         notes: row.notes || null,
         tags: row.tags ? row.tags.split(',').map(t => t.trim().toLowerCase()).filter(Boolean) : [],
-        status: (row.status || 'active').toLowerCase(),
-        preferred_contact: validPreferred || autoPreferred,
+        status: 'active',
+        preferred_contact: autoPreferred,
       }).select().single()
 
       if (newClient) {
         count++
-        const hasProperty = row.property_type || row.bedrooms || row.bathrooms || row.alarm_code || row.pet_details || row.parking || row.key_lockbox || row.supplies_location || row.special_notes
+        const hasProperty = row.property_type || row.bedrooms || row.bathrooms || row.alarm_code || row.pet_details || row.parking_instructions || row.key_info || row.supply_location || row.special_notes
         if (hasProperty) {
           await supabase.from('client_properties').insert({
             client_id: newClient.id,
@@ -263,10 +261,10 @@ export default function Clients({ user }) {
             bathrooms: row.bathrooms ? Number(row.bathrooms) : null,
             square_footage: row.square_footage ? Number(row.square_footage) : null,
             alarm_code: row.alarm_code || null,
-            key_info: row.key_lockbox || null,
+            key_info: row.key_info || null,
             pet_details: row.pet_details || null,
-            parking_instructions: row.parking || null,
-            supply_location: row.supplies_location || null,
+            parking_instructions: row.parking_instructions || null,
+            supply_location: row.supply_location || null,
             special_notes: row.special_notes || null,
           })
         }

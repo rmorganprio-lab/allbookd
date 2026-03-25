@@ -161,8 +161,14 @@ export default function Workers({ user }) {
         phone: normalizePhone(row.phone) || null,
         email: row.email || null,
         role: (row.role || 'worker').toLowerCase(),
-        availability: 'available',
+        availability: (row.availability || 'available').toLowerCase(),
         skills: row.skills ? row.skills.split(',').map(s => s.trim()).filter(Boolean) : [],
+        address_line_1: row.address_1 || null,
+        address_line_2: row.address_2 || null,
+        city: row.city || null,
+        state_province: row.state_province || null,
+        postal_code: row.postal_code || null,
+        country: row.country || null,
         auth_linked: false,
       })
 

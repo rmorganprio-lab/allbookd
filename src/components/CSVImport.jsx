@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react'
-import { parseCSV, downloadCSV, generateTemplate, normalizePhone } from '../lib/csv'
+import { parseCSV, downloadCSV, generateTemplate, downloadXLSXTemplate, normalizePhone } from '../lib/csv'
 
 /**
  * CSVImport - Reusable modal for importing CSV data
@@ -22,8 +22,12 @@ export default function CSVImport({ onClose, onImport, templateDef, validateRows
   const invalidRows = rows.filter(r => !r._valid)
 
   function handleDownloadTemplate() {
-    const csv = generateTemplate(templateDef.headers, templateDef.sample)
-    downloadCSV(`timelyops-${entityName}-template.csv`, csv)
+    if (templateDef.instructions) {
+      downloadXLSXTemplate(`TO${entityName.charAt(0).toUpperCase() + entityName.slice(1)}ImportTemplate.xlsx`, templateDef)
+    } else {
+      const csv = generateTemplate(templateDef.headers, templateDef.sample)
+      downloadCSV(`timelyops-${entityName}-template.csv`, csv)
+    }
   }
 
   function handleFileSelect(e) {
@@ -96,8 +100,8 @@ export default function CSVImport({ onClose, onImport, templateDef, validateRows
                 <div>
                   <div className="text-sm font-medium text-emerald-800">Start with the template</div>
                   <div className="text-xs text-emerald-600 mt-1">
-                    Download the CSV template, fill in your {entityName}, then upload it here.
-                    Only <strong>name</strong> is required — all other columns are optional.
+                    Download the template, fill in your {entityName}, then upload the CSV here.
+                    Only <strong>{templateDef.required[0]?.replace(/_/g, ' ')}</strong> is required — all other columns are optional.
                   </div>
                 </div>
                 <button onClick={handleDownloadTemplate} className="shrink-0 ml-4 px-4 py-2 bg-emerald-700 text-white text-sm font-medium rounded-xl hover:bg-emerald-800 transition-colors">
@@ -179,7 +183,7 @@ export default function CSVImport({ onClose, onImport, templateDef, validateRows
                 <div className="max-h-32 overflow-y-auto space-y-1">
                   {invalidRows.map(r => (
                     <div key={r._row} className="text-xs text-amber-700">
-                      Row {r._row}: {r.name || '(no name)'} — {r._issues.join(', ')}
+                      Row {r._row}: {r.name || [r.first_name, r.last_name].filter(Boolean).join(' ') || '(no name)'} — {r._issues.join(', ')}
                     </div>
                   ))}
                 </div>
@@ -209,10 +213,10 @@ export default function CSVImport({ onClose, onImport, templateDef, validateRows
                             : <span className="text-amber-500" title={r._issues.join(', ')}>⚠</span>
                           }
                         </td>
-                        <td className="px-3 py-2 text-stone-900 font-medium">{r.name || '—'}</td>
+                        <td className="px-3 py-2 text-stone-900 font-medium">{r.name || [r.first_name, r.last_name].filter(Boolean).join(' ') || '—'}</td>
                         <td className="px-3 py-2 text-stone-600">{r.phone || '—'}</td>
                         <td className="px-3 py-2 text-stone-600">{r.email || '—'}</td>
-                        {entityName === 'clients' && <td className="px-3 py-2 text-stone-600 truncate max-w-[200px]">{r.address || '—'}</td>}
+                        {entityName === 'clients' && <td className="px-3 py-2 text-stone-600 truncate max-w-[200px]">{[r.address_1, r.city].filter(Boolean).join(', ') || '—'}</td>}
                         {entityName === 'workers' && <td className="px-3 py-2 text-stone-600">{r.role || 'worker'}</td>}
                       </tr>
                     ))}
