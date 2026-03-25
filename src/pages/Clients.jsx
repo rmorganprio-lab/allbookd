@@ -3,7 +3,7 @@ import { supabase } from '../lib/supabase'
 import CSVImport from '../components/CSVImport'
 import { CLIENT_TEMPLATE, validateClientRows, normalizePhone } from '../lib/csv'
 import { useAdminOrg } from '../contexts/AdminOrgContext'
-import { formatAddress, formatName } from '../lib/formatAddress'
+import { formatAddress, formatAddressLines, formatName } from '../lib/formatAddress'
 
 const emptyClient = {
   first_name: '', last_name: '', email: '', phone: '',
@@ -442,7 +442,19 @@ export default function Clients({ user }) {
           <Section title="Contact">
             <InfoRow label="Phone" value={selectedClient.phone} />
             <InfoRow label="Email" value={selectedClient.email} />
-            <InfoRow label="Address" value={formatAddress(selectedClient) || selectedClient.address} />
+            {(() => {
+              const lines = formatAddressLines(selectedClient)
+              const fallback = selectedClient.address
+              if (!lines.length && !fallback) return null
+              return (
+                <div className="flex justify-between py-1.5">
+                  <span className="text-xs text-stone-400">Address</span>
+                  <span className="text-sm text-stone-700 text-right max-w-[65%]">
+                    {lines.length ? lines.map((l, i) => <span key={i} className="block">{l}</span>) : fallback}
+                  </span>
+                </div>
+              )
+            })()}
           </Section>
 
           {selectedClient.client_properties?.[0] && (
