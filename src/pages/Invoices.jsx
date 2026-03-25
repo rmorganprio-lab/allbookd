@@ -56,6 +56,7 @@ export default function Invoices({ user }) {
   // Delete confirmation
   const [deleteTarget, setDeleteTarget] = useState(null) // invoice to delete
   const [deleteLinkedPayments, setDeleteLinkedPayments] = useState(0)
+  const [errors, setErrors] = useState({})
 
   const canDelete = user?.role === 'ceo' || user?.is_platform_admin
 
@@ -137,6 +138,7 @@ export default function Invoices({ user }) {
     setFormStatus('draft')
     setSelectedInvoice(null)
     setShowPayment(false)
+    setErrors({})
     setModal('add')
   }
 
@@ -158,6 +160,7 @@ export default function Invoices({ user }) {
     setFormDueDate(invoice.due_date || '')
     setFormStatus(invoice.status)
     setShowPayment(false)
+    setErrors({})
     setModal('edit')
   }
 
@@ -223,11 +226,21 @@ export default function Invoices({ user }) {
     setFormLines(lines => lines.filter((_, i) => i !== idx))
   }
 
+  function validateInvoice() {
+    const errs = {}
+    if (!formClient) errs.client = 'Please select a client.'
+    if (formLines.length === 0 || !formLines.some(l => l.description.trim())) errs.lines = 'Add at least one line item with a description.'
+    const todayStr = todayInTimezone(tz)
+    if (formDueDate && formDueDate < todayStr) errs.due_date = 'Due date cannot be in the past.'
+    return errs
+  }
+
   // ── Save ──
 
   async function handleSave() {
-    if (!formClient || formLines.length === 0) return
     setSaving(true)
+    const errs = validateInvoice()
+    if (Object.keys(errs).length > 0) { setErrors(errs); setSaving(false); return; }
 
     const today = todayInTimezone(tz)
     const invoiceData = {
@@ -898,10 +911,11 @@ export default function Invoices({ user }) {
             {/* Client */}
             <div>
               <label className="block text-xs font-medium text-stone-500 mb-1.5">Client *</label>
-              <select value={formClient} onChange={e => handleClientChange(e.target.value)} className="w-full px-3 py-2.5 bg-stone-50 border border-stone-200 rounded-xl text-sm text-stone-900 focus:outline-none focus:ring-2 focus:ring-emerald-600">
+              <select value={formClient} onChange={e => { handleClientChange(e.target.value); setErrors(er => { const n = {...er}; delete n.client; return n }) }} className="w-full px-3 py-2.5 bg-stone-50 border border-stone-200 rounded-xl text-sm text-stone-900 focus:outline-none focus:ring-2 focus:ring-emerald-600">
                 <option value="">Select client...</option>
                 {clients.map(c => <option key={c.id} value={c.id}>{formatName(c.first_name, c.last_name) || c.name}</option>)}
               </select>
+              {errors.client && <p className="text-xs text-red-500 mt-1">{errors.client}</p>}
             </div>
 
             {/* Completed jobs for this client — quick add */}
@@ -958,6 +972,7 @@ export default function Invoices({ user }) {
                 ))}
               </div>
             </div>
+            {errors.lines && <p className="text-xs text-red-500 mt-1">{errors.lines}</p>}
 
             {/* Totals */}
             <div className="text-right space-y-1 p-3 bg-stone-50 rounded-xl">
@@ -969,7 +984,8 @@ export default function Invoices({ user }) {
             {/* Due date */}
             <div>
               <label className="block text-xs font-medium text-stone-500 mb-1.5">Due Date</label>
-              <input type="date" value={formDueDate} onChange={e => setFormDueDate(e.target.value)} className="w-full px-3 py-2.5 bg-stone-50 border border-stone-200 rounded-xl text-sm text-stone-900 focus:outline-none focus:ring-2 focus:ring-emerald-600" />
+              <input type="date" value={formDueDate} onChange={e => { setFormDueDate(e.target.value); setErrors(er => { const n = {...er}; delete n.due_date; return n }) }} className="w-full px-3 py-2.5 bg-stone-50 border border-stone-200 rounded-xl text-sm text-stone-900 focus:outline-none focus:ring-2 focus:ring-emerald-600" />
+              {errors.due_date && <p className="text-xs text-red-500 mt-1">{errors.due_date}</p>}
             </div>
 
             {/* Status (edit only) */}
@@ -994,7 +1010,7 @@ export default function Invoices({ user }) {
           {/* Actions */}
           <div className="flex gap-3 mt-6 pt-4 border-t border-stone-200">
             <button onClick={() => setModal(null)} className="flex-1 py-2.5 bg-stone-100 text-stone-600 text-sm font-medium rounded-xl hover:bg-stone-200 transition-colors">Cancel</button>
-            <button onClick={handleSave} disabled={saving || !formClient || formLines.every(l => !l.description)} className="flex-1 py-2.5 bg-emerald-700 text-white text-sm font-medium rounded-xl hover:bg-emerald-800 disabled:opacity-50 transition-colors">
+            <button onClick={handleSave} disabled={saving} className="flex-1 py-2.5 bg-emerald-700 text-white text-sm font-medium rounded-xl hover:bg-emerald-800 disabled:opacity-50 transition-colors">
               {saving ? 'Saving...' : modal === 'add' ? 'Create Invoice' : 'Save Changes'}
             </button>
           </div>

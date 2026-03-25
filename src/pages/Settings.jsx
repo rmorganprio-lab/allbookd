@@ -55,6 +55,7 @@ export default function Settings({ user }) {
   const [paymentMethods, setPaymentMethods] = useState(['Cash', 'Venmo', 'Zelle', 'Card', 'Bank Transfer', 'Check', 'Other'])
   const [newMethod, setNewMethod] = useState('')
   const [saving, setSaving] = useState(false)
+  const [errors, setErrors] = useState({})
 
   useEffect(() => { loadOrg() }, [effectiveOrgId])
 
@@ -107,8 +108,20 @@ export default function Settings({ user }) {
     setPaymentMethods(prev => prev.filter(m => m !== method))
   }
 
+  function validate() {
+    const errs = {}
+    if (!orgName.trim()) errs.orgName = 'Business name is required.'
+    if (taxRate === '' || isNaN(Number(taxRate)) || Number(taxRate) < 0 || Number(taxRate) > 100) {
+      errs.taxRate = 'Tax rate must be a number between 0 and 100.'
+    }
+    if (paymentMethods.length === 0) errs.paymentMethods = 'At least one payment method is required.'
+    return errs
+  }
+
   async function handleSave() {
     if (!canEdit) return
+    const errs = validate()
+    if (Object.keys(errs).length > 0) { setErrors(errs); return; }
     setSaving(true)
 
     const newSettings = {
@@ -171,10 +184,11 @@ export default function Settings({ user }) {
             <input
               type="text"
               value={orgName}
-              onChange={e => setOrgName(e.target.value)}
+              onChange={e => { setOrgName(e.target.value); setErrors(er => { const n = {...er}; delete n.orgName; return n }) }}
               disabled={!canEdit}
               className="w-full px-3 py-2.5 bg-stone-50 border border-stone-200 rounded-xl text-sm text-stone-900 focus:outline-none focus:ring-2 focus:ring-emerald-600 disabled:opacity-60"
             />
+            {errors.orgName && <p className="text-xs text-red-500 mt-1">{errors.orgName}</p>}
           </div>
 
           <div>
@@ -259,6 +273,7 @@ export default function Settings({ user }) {
                 <span className="absolute right-3 top-1/2 -translate-y-1/2 text-stone-400 text-sm">%</span>
               </div>
             </div>
+            {errors.taxRate && <p className="text-xs text-red-500 mt-1">{errors.taxRate}</p>}
             <p className="text-xs text-stone-400 mt-1">Applied automatically when creating new invoices.</p>
           </div>
 
@@ -337,12 +352,13 @@ export default function Settings({ user }) {
             <button onClick={addPaymentMethod} className="px-3 py-2 bg-stone-100 text-stone-600 text-sm rounded-xl hover:bg-stone-200 transition-colors">Add</button>
           </div>
         )}
+        {errors.paymentMethods && <p className="text-xs text-red-500 mt-2">{errors.paymentMethods}</p>}
       </div>
 
       {canEdit && (
         <button
           onClick={handleSave}
-          disabled={saving || !orgName.trim()}
+          disabled={saving}
           className="w-full py-3 bg-emerald-700 text-white text-sm font-medium rounded-xl hover:bg-emerald-800 disabled:opacity-50 transition-colors"
         >
           {saving ? 'Saving...' : 'Save Settings'}

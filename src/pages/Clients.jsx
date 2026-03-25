@@ -6,6 +6,14 @@ import { useAdminOrg } from '../contexts/AdminOrgContext'
 import { useToast } from '../contexts/ToastContext'
 import { formatAddress, formatAddressLines, formatName } from '../lib/formatAddress'
 
+function isValidEmail(v) { return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v) }
+function isValidPhone(v) {
+  const digits = v.replace(/\D/g, '')
+  return digits.length >= 7
+}
+function isValidPostalUS(v) { return /^\d{5}(-\d{4})?$/.test(v.trim()) }
+function isValidPostalNL(v) { return /^\d{4}\s?[A-Za-z]{2}$/.test(v.trim()) }
+
 const emptyClient = {
   first_name: '', last_name: '', email: '', phone: '',
   address_line_1: '', address_line_2: '', city: '', state_province: '', postal_code: '', country: 'US',
@@ -38,6 +46,7 @@ export default function Clients({ user }) {
   const [tagInput, setTagInput] = useState('')
   const [showImport, setShowImport] = useState(false)
   const [clientTimeline, setClientTimeline] = useState([])
+  const [errors, setErrors] = useState({})
 
   const { adminViewOrg } = useAdminOrg()
   const { showToast } = useToast()
@@ -85,6 +94,7 @@ export default function Clients({ user }) {
     setForm({ ...emptyClient, country: defaultCountry })
     setPropertyForm({ ...emptyProperty })
     setTagInput('')
+    setErrors({})
     setModal('add')
   }
 
@@ -120,6 +130,7 @@ export default function Clients({ user }) {
       special_notes: prop.special_notes || '',
     })
     setTagInput('')
+    setErrors({})
     setModal('edit')
   }
 
@@ -139,9 +150,23 @@ export default function Clients({ user }) {
     setClientTimeline(timeline || [])
   }
 
+  function validate() {
+    const errs = {}
+    if (!form.first_name.trim()) errs.first_name = 'First name is required.'
+    if (form.email && !isValidEmail(form.email)) errs.email = 'Enter a valid email address.'
+    if (form.phone && !isValidPhone(form.phone)) errs.phone = 'Phone must have at least 7 digits.'
+    if (form.postal_code) {
+      if (form.country === 'US' && !isValidPostalUS(form.postal_code)) errs.postal_code = 'Enter a valid US ZIP code (e.g. 94103 or 94103-1234).'
+      if (form.country === 'NL' && !isValidPostalNL(form.postal_code)) errs.postal_code = 'Enter a valid Dutch postal code (e.g. 1234 AB).'
+    }
+    return errs
+  }
+
   // Save client
   async function handleSave() {
     setSaving(true)
+    const errs = validate()
+    if (Object.keys(errs).length > 0) { setErrors(errs); setSaving(false); return; }
 
     if (modal === 'add') {
       const preferred = form.preferred_contact === 'sms' && form.email
@@ -593,12 +618,21 @@ export default function Clients({ user }) {
             {/* Basic Info */}
             <FormSection title="Contact Information">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <Field label="First Name *" value={form.first_name} onChange={v => setForm(f => ({ ...f, first_name: v }))} placeholder="Jane" />
+                <div>
+                  <Field label="First Name *" value={form.first_name} onChange={v => { setForm(f => ({ ...f, first_name: v })); setErrors(e => { const n = {...e}; delete n.first_name; return n }) }} placeholder="Jane" />
+                  {errors.first_name && <p className="text-xs text-red-500 mt-1">{errors.first_name}</p>}
+                </div>
                 <Field label="Last Name" value={form.last_name} onChange={v => setForm(f => ({ ...f, last_name: v }))} placeholder="Smith" />
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <Field label="Phone" value={form.phone} onChange={v => setForm(f => ({ ...f, phone: v }))} placeholder="+1 650 290 0821" type="tel" />
-                <Field label="Email" value={form.email} onChange={v => setForm(f => ({ ...f, email: v }))} placeholder="email@example.com" type="email" />
+                <div>
+                  <Field label="Phone" value={form.phone} onChange={v => { setForm(f => ({ ...f, phone: v })); setErrors(e => { const n = {...e}; delete n.phone; return n }) }} placeholder="+1 650 290 0821" type="tel" />
+                  {errors.phone && <p className="text-xs text-red-500 mt-1">{errors.phone}</p>}
+                </div>
+                <div>
+                  <Field label="Email" value={form.email} onChange={v => { setForm(f => ({ ...f, email: v })); setErrors(e => { const n = {...e}; delete n.email; return n }) }} placeholder="email@example.com" type="email" />
+                  {errors.email && <p className="text-xs text-red-500 mt-1">{errors.email}</p>}
+                </div>
               </div>
               <Field label="Status" value={form.status} onChange={v => setForm(f => ({ ...f, status: v }))} type="select" options={statusOptions} />
               <div>
@@ -624,7 +658,10 @@ export default function Clients({ user }) {
                 <Field label="State / Province" value={form.state_province} onChange={v => setForm(f => ({ ...f, state_province: v }))} placeholder="CA" />
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <Field label="Postal Code" value={form.postal_code} onChange={v => setForm(f => ({ ...f, postal_code: v }))} placeholder="95814" />
+                <div>
+                  <Field label="Postal Code" value={form.postal_code} onChange={v => { setForm(f => ({ ...f, postal_code: v })); setErrors(e => { const n = {...e}; delete n.postal_code; return n }) }} placeholder="95814" />
+                  {errors.postal_code && <p className="text-xs text-red-500 mt-1">{errors.postal_code}</p>}
+                </div>
                 <Field label="Country" value={form.country} onChange={v => setForm(f => ({ ...f, country: v }))} type="select" options={COUNTRY_OPTIONS.map(c => c.code)} optionLabels={Object.fromEntries(COUNTRY_OPTIONS.map(c => [c.code, c.label]))} />
               </div>
             </FormSection>

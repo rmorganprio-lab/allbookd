@@ -52,6 +52,7 @@ export default function Payments({ user }) {
   const [clientJobs, setClientJobs] = useState([])
   const [filter, setFilter] = useState({ method: 'all', client: 'all', period: 'all' })
   const [search, setSearch] = useState('')
+  const [errors, setErrors] = useState({})
 
   useEffect(() => { loadAll() }, [effectiveOrgId])
 
@@ -134,6 +135,7 @@ export default function Payments({ user }) {
   function openAdd() {
     setForm({ ...emptyPayment, date: today, method: paymentMethods[0] || 'Cash' })
     setSelectedPayment(null)
+    setErrors({})
     setModal('add')
   }
 
@@ -145,6 +147,7 @@ export default function Payments({ user }) {
       amount: payment.amount, method: payment.method, date: payment.date,
       notes: payment.notes || '', reference: payment.reference || '',
     })
+    setErrors({})
     setModal('edit')
   }
 
@@ -153,9 +156,19 @@ export default function Payments({ user }) {
     setModal('view')
   }
 
+  function validatePayment() {
+    const errs = {}
+    if (!form.amount || Number(form.amount) <= 0) errs.amount = 'Enter a valid amount.'
+    if (!form.method) errs.method = 'Select a payment method.'
+    if (!form.date) errs.date = 'Date is required.'
+    return errs
+  }
+
   // ── Save ──
 
   async function handleSave() {
+    const errs = validatePayment()
+    if (Object.keys(errs).length > 0) { setErrors(errs); return; }
     setSaving(true)
     const paymentData = {
       org_id: effectiveOrgId,
@@ -520,8 +533,16 @@ export default function Payments({ user }) {
               <label className="block text-xs font-medium text-stone-500 mb-1.5">Amount *</label>
               <div className="relative">
                 <span className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-400 text-sm">{currencySymbol}</span>
-                <input type="number" value={form.amount} onChange={e => setForm(f => ({...f, amount: e.target.value}))} placeholder="0.00" step="0.01" className="w-full pl-7 pr-3 py-2.5 bg-stone-50 border border-stone-200 rounded-xl text-sm text-stone-900 focus:outline-none focus:ring-2 focus:ring-emerald-600" />
+                <input type="number" value={form.amount} onChange={e => { setForm(f => ({...f, amount: e.target.value})); setErrors(er => { const n = {...er}; delete n.amount; return n }) }} placeholder="0.00" step="0.01" className="w-full pl-7 pr-3 py-2.5 bg-stone-50 border border-stone-200 rounded-xl text-sm text-stone-900 focus:outline-none focus:ring-2 focus:ring-emerald-600" />
               </div>
+              {errors.amount && <p className="text-xs text-red-500 mt-1">{errors.amount}</p>}
+              {(() => {
+                const inv = form.invoice_id ? invoices.find(i => i.id === form.invoice_id) : null
+                if (inv && form.amount && Number(form.amount) > Number(inv.total)) {
+                  return <p className="text-xs text-amber-600 mt-1">This amount exceeds the invoice balance. Overpayment will be recorded as credit.</p>
+                }
+                return null
+              })()}
             </div>
 
             {/* Method */}
@@ -529,17 +550,19 @@ export default function Payments({ user }) {
               <label className="block text-xs font-medium text-stone-500 mb-1.5">Payment Method *</label>
               <div className="flex flex-wrap gap-2">
                 {paymentMethods.map(m => (
-                  <button key={m} type="button" onClick={() => setForm(f => ({...f, method: m}))} className={`px-3 py-2 text-xs font-medium rounded-xl transition-colors ${form.method === m ? methodColor(m) + ' ring-2 ring-offset-1 ring-emerald-300' : 'bg-stone-50 text-stone-400 border border-stone-200 hover:border-stone-300'}`}>
+                  <button key={m} type="button" onClick={() => { setForm(f => ({...f, method: m})); setErrors(er => { const n = {...er}; delete n.method; return n }) }} className={`px-3 py-2 text-xs font-medium rounded-xl transition-colors ${form.method === m ? methodColor(m) + ' ring-2 ring-offset-1 ring-emerald-300' : 'bg-stone-50 text-stone-400 border border-stone-200 hover:border-stone-300'}`}>
                     {m}
                   </button>
                 ))}
               </div>
+              {errors.method && <p className="text-xs text-red-500 mt-1">{errors.method}</p>}
             </div>
 
             {/* Date */}
             <div>
               <label className="block text-xs font-medium text-stone-500 mb-1.5">Date *</label>
-              <input type="date" value={form.date} onChange={e => setForm(f => ({...f, date: e.target.value}))} className="w-full px-3 py-2.5 bg-stone-50 border border-stone-200 rounded-xl text-sm text-stone-900 focus:outline-none focus:ring-2 focus:ring-emerald-600" />
+              <input type="date" value={form.date} onChange={e => { setForm(f => ({...f, date: e.target.value})); setErrors(er => { const n = {...er}; delete n.date; return n }) }} className="w-full px-3 py-2.5 bg-stone-50 border border-stone-200 rounded-xl text-sm text-stone-900 focus:outline-none focus:ring-2 focus:ring-emerald-600" />
+              {errors.date && <p className="text-xs text-red-500 mt-1">{errors.date}</p>}
             </div>
 
             {/* Reference */}
@@ -557,7 +580,7 @@ export default function Payments({ user }) {
 
           <div className="flex gap-3 mt-6 pt-4 border-t border-stone-200">
             <button onClick={() => setModal(null)} className="flex-1 py-2.5 bg-stone-100 text-stone-600 text-sm font-medium rounded-xl hover:bg-stone-200">Cancel</button>
-            <button onClick={handleSave} disabled={saving || !form.client_id || !form.amount || !form.date} className="flex-1 py-2.5 bg-emerald-700 text-white text-sm font-medium rounded-xl hover:bg-emerald-800 disabled:opacity-50">
+            <button onClick={handleSave} disabled={saving} className="flex-1 py-2.5 bg-emerald-700 text-white text-sm font-medium rounded-xl hover:bg-emerald-800 disabled:opacity-50">
               {saving ? 'Saving...' : modal === 'add' ? 'Record Payment' : 'Save Changes'}
             </button>
           </div>

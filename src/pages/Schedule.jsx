@@ -53,6 +53,8 @@ export default function Schedule({ user }) {
   const [payAmount, setPayAmount] = useState('')
   const [payMethod, setPayMethod] = useState('')
   const [paymentSaving, setPaymentSaving] = useState(false)
+  const [payErrors, setPayErrors] = useState({})
+  const [errors, setErrors] = useState({})
   const [jobLinkedData, setJobLinkedData] = useState(null) // { payments, items } for delete warning
 
   const location = useLocation()
@@ -143,6 +145,7 @@ export default function Schedule({ user }) {
     setShowRecurringOptions(false)
     setDeleteConfirm(false)
     setShowDeleteRecurring(false)
+    setErrors({})
     setModal('add')
   }
 
@@ -158,6 +161,7 @@ export default function Schedule({ user }) {
     setRecurringAction(null)
     setDeleteConfirm(false)
     setShowDeleteRecurring(false)
+    setErrors({})
     // If recurring, show options before edit form
     if (isRecurring(job)) {
       setShowRecurringOptions(true)
@@ -181,10 +185,31 @@ export default function Schedule({ user }) {
     setModal('edit')
   }
 
+  function validateJob() {
+    const errs = {}
+    if (!form.client_id) errs.client_id = 'Please select a client.'
+    if (!form.date) errs.date = 'Date is required.'
+    else {
+      const todayStr = todayInTimezone(tz)
+      if (form.date < todayStr) errs.date = 'Job date cannot be in the past.'
+    }
+    if (!form.start_time) errs.start_time = 'Start time is required.'
+    if (!form.title.trim()) errs.title = 'Job title is required.'
+    if (!form.explicitlyUnassigned && form.assignees.length === 0) errs.assignees = 'Select a worker or choose Unassigned.'
+    if (modal === 'add' && form.frequency !== 'one_time' && form.assignees.length > 0 && recurringWorkerChoice === null) {
+      errs.assignees = 'Choose whether to assign this worker to all occurrences.'
+    }
+    return errs
+  }
+
   // ── Save job ──
 
   async function handleSave() {
     setSaving(true)
+    if (modal === 'add') {
+      const errs = validateJob()
+      if (Object.keys(errs).length > 0) { setErrors(errs); setSaving(false); return; }
+    }
     const jobData = {
       org_id: effectiveOrgId, client_id: form.client_id, service_type_id: form.service_type_id || null,
       title: form.title, date: form.date, start_time: form.start_time,
@@ -359,12 +384,18 @@ export default function Schedule({ user }) {
       if (selectedJob?.id === job.id) setSelectedJob({ ...job, status: 'completed', completed_at: new Date().toISOString() })
       setPayAmount(job.price ? String(job.price) : '')
       setPayMethod(paymentMethods[0] || 'Cash')
+      setPayErrors({})
       setPaymentModal(job)
     }
   }
 
   async function handleJobPayment() {
-    if (!paymentModal || !payAmount || Number(payAmount) <= 0) return
+    if (!paymentModal) return
+    const pe = {}
+    if (!payAmount || Number(payAmount) <= 0) pe.amount = 'Enter a payment amount.'
+    if (!payMethod) pe.method = 'Select a payment method.'
+    if (Object.keys(pe).length > 0) { setPayErrors(pe); return; }
+    setPayErrors({})
     setPaymentSaving(true)
     const tz_date = todayInTimezone(tz)
     const view_token = crypto.randomUUID()
@@ -745,19 +776,21 @@ export default function Schedule({ user }) {
                   <div className="text-xs text-stone-500 mb-1">Amount received {paymentModal.price ? `(Job total: ${formatCurrency(paymentModal.price, currencySymbol)})` : ''}</div>
                   <div className="relative">
                     <span className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-400 text-sm">{currencySymbol}</span>
-                    <input type="number" value={payAmount} onChange={e => setPayAmount(e.target.value)} placeholder="0.00" step="0.01" className="w-full pl-7 pr-3 py-2.5 bg-stone-50 border border-stone-200 rounded-xl text-sm text-stone-900 focus:outline-none focus:ring-2 focus:ring-emerald-600" />
+                    <input type="number" value={payAmount} onChange={e => { setPayAmount(e.target.value); setPayErrors(pe => { const n = {...pe}; delete n.amount; return n }) }} placeholder="0.00" step="0.01" className="w-full pl-7 pr-3 py-2.5 bg-stone-50 border border-stone-200 rounded-xl text-sm text-stone-900 focus:outline-none focus:ring-2 focus:ring-emerald-600" />
                   </div>
+                  {payErrors.amount && <p className="text-xs text-red-500 mt-1">{payErrors.amount}</p>}
                   {paymentModal.price && payAmount && Number(payAmount) > 0 && Number(payAmount) < Number(paymentModal.price) && (
                     <div className="text-xs text-amber-600 mt-1">Partial payment — {formatCurrency(Number(paymentModal.price) - Number(payAmount), currencySymbol)} remaining</div>
                   )}
                 </div>
                 <div className="flex flex-wrap gap-2">
                   {paymentMethods.map(m => (
-                    <button key={m} onClick={() => setPayMethod(m)} className={`px-3 py-2 text-sm font-medium rounded-xl transition-colors min-h-[44px] ${
+                    <button key={m} onClick={() => { setPayMethod(m); setPayErrors(pe => { const n = {...pe}; delete n.method; return n }) }} className={`px-3 py-2 text-sm font-medium rounded-xl transition-colors min-h-[44px] ${
                       payMethod === m ? 'bg-stone-800 text-white' : 'bg-stone-100 text-stone-600 hover:bg-stone-200'
                     }`}>{m}</button>
                   ))}
                 </div>
+                {payErrors.method && <p className="text-xs text-red-500 mt-1">{payErrors.method}</p>}
               </>
             )}
           </div>
@@ -793,10 +826,11 @@ export default function Schedule({ user }) {
           <div className="space-y-4 max-h-[65vh] overflow-y-auto pr-1">
             <div>
               <label className="block text-xs font-medium text-stone-500 mb-1.5">Client *</label>
-              <select value={form.client_id} onChange={e => setForm(f => ({...f, client_id: e.target.value}))} className="w-full px-3 py-2.5 bg-stone-50 border border-stone-200 rounded-xl text-sm text-stone-900 focus:outline-none focus:ring-2 focus:ring-emerald-600">
+              <select value={form.client_id} onChange={e => { setForm(f => ({...f, client_id: e.target.value})); setErrors(er => { const n = {...er}; delete n.client_id; return n }) }} className="w-full px-3 py-2.5 bg-stone-50 border border-stone-200 rounded-xl text-sm text-stone-900 focus:outline-none focus:ring-2 focus:ring-emerald-600">
                 <option value="">Select client...</option>
                 {clients.map(c => <option key={c.id} value={c.id}>{formatName(c.first_name, c.last_name) || c.name}</option>)}
               </select>
+              {errors.client_id && <p className="text-xs text-red-500 mt-1">{errors.client_id}</p>}
             </div>
             <div>
               <label className="block text-xs font-medium text-stone-500 mb-1.5">Service Type</label>
@@ -805,12 +839,19 @@ export default function Schedule({ user }) {
                 {serviceTypes.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
               </select>
             </div>
-            <Field label="Job Title" value={form.title} onChange={v => setForm(f => ({...f, title: v}))} placeholder="e.g. Standard Clean" />
+            <div>
+              <Field label="Job Title" value={form.title} onChange={v => { setForm(f => ({...f, title: v})); setErrors(er => { const n = {...er}; delete n.title; return n }) }} placeholder="e.g. Standard Clean" />
+              {errors.title && <p className="text-xs text-red-500 mt-1">{errors.title}</p>}
+            </div>
             <div className="grid grid-cols-2 gap-4">
-              <Field label="Date *" value={form.date} onChange={v => setForm(f => ({...f, date: v}))} type="date" />
+              <div>
+                <Field label="Date *" value={form.date} onChange={v => { setForm(f => ({...f, date: v})); setErrors(er => { const n = {...er}; delete n.date; return n }) }} type="date" />
+                {errors.date && <p className="text-xs text-red-500 mt-1">{errors.date}</p>}
+              </div>
               <div>
                 <label className="block text-xs font-medium text-stone-500 mb-1.5">Start Time ({tzAbbr})</label>
-                <input type="time" value={form.start_time} onChange={e => setForm(f => ({...f, start_time: e.target.value}))} className="w-full px-3 py-2.5 bg-stone-50 border border-stone-200 rounded-xl text-sm text-stone-900 focus:outline-none focus:ring-2 focus:ring-emerald-600" />
+                <input type="time" value={form.start_time} onChange={e => { setForm(f => ({...f, start_time: e.target.value})); setErrors(er => { const n = {...er}; delete n.start_time; return n }) }} className="w-full px-3 py-2.5 bg-stone-50 border border-stone-200 rounded-xl text-sm text-stone-900 focus:outline-none focus:ring-2 focus:ring-emerald-600" />
+                {errors.start_time && <p className="text-xs text-red-500 mt-1">{errors.start_time}</p>}
               </div>
             </div>
             <div className="grid grid-cols-2 gap-4">
@@ -854,8 +895,9 @@ export default function Schedule({ user }) {
                   Unassigned — assign before job date
                 </button>
               </div>
-              {form.assignees.length === 0 && !form.explicitlyUnassigned && (
-                <p className="text-xs text-red-500 mt-1">Select a worker or choose Unassigned to continue.</p>
+              {errors.assignees && <p className="text-xs text-red-500 mt-1">{errors.assignees}</p>}
+              {!errors.assignees && form.assignees.length === 0 && !form.explicitlyUnassigned && (
+                <p className="text-xs text-amber-500 mt-1">Select a worker or choose Unassigned to continue.</p>
               )}
             </div>
 
@@ -890,11 +932,7 @@ export default function Schedule({ user }) {
             <button onClick={() => setModal(null)} className="flex-1 py-2.5 bg-stone-100 text-stone-600 text-sm font-medium rounded-xl hover:bg-stone-200">Cancel</button>
             <button
               onClick={handleSave}
-              disabled={
-                saving || !form.client_id || !form.date || !form.title.trim()
-                || (!form.explicitlyUnassigned && form.assignees.length === 0)
-                || (modal === 'add' && form.frequency !== 'one_time' && form.assignees.length > 0 && recurringWorkerChoice === null)
-              }
+              disabled={saving}
               className="flex-1 py-2.5 bg-emerald-700 text-white text-sm font-medium rounded-xl hover:bg-emerald-800 disabled:opacity-50"
             >
               {saving ? 'Saving...' : modal === 'add' ? 'Create Job' : 'Save Changes'}

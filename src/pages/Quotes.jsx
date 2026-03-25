@@ -20,6 +20,8 @@ const statusFlow = ['draft', 'sent', 'approved', 'declined', 'expired']
 
 const emptyLine = { description: '', quantity: 1, unit_price: 0, frequency: 'one_time' }
 
+function isValidEmail(v) { return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v) }
+
 export default function Quotes({ user }) {
   const tz = user?.organizations?.settings?.timezone || 'America/Los_Angeles'
   const currencySymbol = user?.organizations?.settings?.currency_symbol || '$'
@@ -41,6 +43,7 @@ export default function Quotes({ user }) {
   const [deliveryModal, setDeliveryModal] = useState(null) // quote being sent
   const [filter, setFilter] = useState('all')
   const [search, setSearch] = useState('')
+  const [errors, setErrors] = useState({})
 
   // Schedule form state
   const [showScheduleForm, setShowScheduleForm] = useState(false)
@@ -143,6 +146,7 @@ export default function Quotes({ user }) {
     setIsNewClient(false)
     setNewClient({ name: '', phone: '', email: '', address: '' })
     setNewProperty({ property_type: 'residential', bedrooms: '', bathrooms: '', square_footage: '', alarm_code: '', key_info: '', pet_details: '', parking_instructions: '', supply_location: '', special_notes: '' })
+    setErrors({})
     setModal('add')
   }
 
@@ -164,6 +168,7 @@ export default function Quotes({ user }) {
     setFormNotes(quote.notes || '')
     setFormValidUntil(quote.valid_until || '')
     setFormStatus(quote.status)
+    setErrors({})
     setModal('edit')
   }
 
@@ -274,11 +279,28 @@ export default function Quotes({ user }) {
     }
   }
 
+  function validate() {
+    const errs = {}
+    if (!formClient && !isNewClient) errs.client = 'Please select a client.'
+    if (isNewClient && !newClient.name.trim()) errs.client = 'Client name is required.'
+    if (formLines.length === 0) errs.lines = 'Add at least one line item.'
+    const lineErrs = formLines.map((l, i) => {
+      if (!l.description.trim()) return `Line ${i + 1}: description is required.`
+      if (Number(l.quantity) <= 0) return `Line ${i + 1}: quantity must be greater than 0.`
+      if (Number(l.unit_price) < 0) return `Line ${i + 1}: price cannot be negative.`
+      return null
+    }).filter(Boolean)
+    if (lineErrs.length > 0) errs.lines = lineErrs[0]
+    if (formSubtotal <= 0) errs.total = 'Total must be greater than 0.'
+    return errs
+  }
+
   // ── Save ──
 
   async function handleSave() {
-    if ((!formClient && !isNewClient) || (isNewClient && !newClient.name.trim()) || formLines.length === 0) return
     setSaving(true)
+    const errs = validate()
+    if (Object.keys(errs).length > 0) { setErrors(errs); setSaving(false); return; }
 
     let clientId = formClient
 
@@ -843,14 +865,18 @@ export default function Quotes({ user }) {
               </div>
 
               {!isNewClient ? (
-                <select value={formClient} onChange={e => handleClientChange(e.target.value)} className="w-full px-3 py-2.5 bg-stone-50 border border-stone-200 rounded-xl text-sm text-stone-900 focus:outline-none focus:ring-2 focus:ring-emerald-600">
-                  <option value="">Select client...</option>
-                  {clients.map(c => <option key={c.id} value={c.id}>{formatName(c.first_name, c.last_name) || c.name}</option>)}
-                </select>
+                <>
+                  <select value={formClient} onChange={e => { handleClientChange(e.target.value); setErrors(er => { const n = {...er}; delete n.client; return n }) }} className="w-full px-3 py-2.5 bg-stone-50 border border-stone-200 rounded-xl text-sm text-stone-900 focus:outline-none focus:ring-2 focus:ring-emerald-600">
+                    <option value="">Select client...</option>
+                    {clients.map(c => <option key={c.id} value={c.id}>{formatName(c.first_name, c.last_name) || c.name}</option>)}
+                  </select>
+                  {errors.client && <p className="text-xs text-red-500 mt-1">{errors.client}</p>}
+                </>
               ) : (
                 <div className="space-y-3 p-4 bg-stone-50 border border-stone-200 rounded-xl">
                   <div className="text-xs font-semibold text-stone-600 mb-2">New Client Details</div>
-                  <input type="text" value={newClient.name} onChange={e => setNewClient(nc => ({...nc, name: e.target.value}))} placeholder="Full name *" className="w-full px-3 py-2.5 bg-white border border-stone-200 rounded-xl text-sm text-stone-900 placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-emerald-600" />
+                  <input type="text" value={newClient.name} onChange={e => { setNewClient(nc => ({...nc, name: e.target.value})); setErrors(er => { const n = {...er}; delete n.client; return n }) }} placeholder="Full name *" className="w-full px-3 py-2.5 bg-white border border-stone-200 rounded-xl text-sm text-stone-900 placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-emerald-600" />
+                  {errors.client && <p className="text-xs text-red-500 mt-1">{errors.client}</p>}
                   <div className="grid grid-cols-2 gap-2">
                     <input type="tel" value={newClient.phone} onChange={e => setNewClient(nc => ({...nc, phone: e.target.value}))} placeholder="Phone" className="w-full px-3 py-2.5 bg-white border border-stone-200 rounded-xl text-sm text-stone-900 placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-emerald-600" />
                     <input type="email" value={newClient.email} onChange={e => setNewClient(nc => ({...nc, email: e.target.value}))} placeholder="Email" className="w-full px-3 py-2.5 bg-white border border-stone-200 rounded-xl text-sm text-stone-900 placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-emerald-600" />
@@ -963,6 +989,7 @@ export default function Quotes({ user }) {
                 ))}
               </div>
             </div>
+            {errors.lines && <p className="text-xs text-red-500 mt-1">{errors.lines}</p>}
 
             {/* Totals */}
             <div className="text-right space-y-1 p-3 bg-stone-50 rounded-xl">
@@ -970,6 +997,7 @@ export default function Quotes({ user }) {
               {taxRate > 0 && <div className="text-sm text-stone-500">Tax ({taxRate}%): {formatCurrency(formTax, currencySymbol)}</div>}
               <div className="text-lg font-bold text-stone-900">Total: {formatCurrency(formTotal, currencySymbol)}</div>
             </div>
+            {errors.total && <p className="text-xs text-red-500 mt-1">{errors.total}</p>}
 
             {/* Valid until */}
             <div>
@@ -999,7 +1027,7 @@ export default function Quotes({ user }) {
           {/* Actions */}
           <div className="flex gap-3 mt-6 pt-4 border-t border-stone-200">
             <button onClick={() => setModal(null)} className="flex-1 py-2.5 bg-stone-100 text-stone-600 text-sm font-medium rounded-xl hover:bg-stone-200 transition-colors">Cancel</button>
-            <button onClick={handleSave} disabled={saving || (!formClient && !isNewClient) || (isNewClient && !newClient.name.trim()) || formLines.every(l => !l.description)} className="flex-1 py-2.5 bg-emerald-700 text-white text-sm font-medium rounded-xl hover:bg-emerald-800 disabled:opacity-50 transition-colors">
+            <button onClick={handleSave} disabled={saving} className="flex-1 py-2.5 bg-emerald-700 text-white text-sm font-medium rounded-xl hover:bg-emerald-800 disabled:opacity-50 transition-colors">
               {saving ? 'Saving...' : modal === 'add' ? 'Create Quote' : 'Save Changes'}
             </button>
           </div>

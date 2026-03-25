@@ -1,4 +1,10 @@
 import { useState, useEffect } from 'react'
+
+function isValidEmail(v) { return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v) }
+function isValidPhone(v) {
+  const digits = v.replace(/\D/g, '')
+  return digits.length >= 7
+}
 import { supabase } from '../lib/supabase'
 import CSVImport from '../components/CSVImport'
 import { WORKER_TEMPLATE, validateWorkerRows, normalizePhone } from '../lib/csv'
@@ -15,6 +21,7 @@ export default function Workers({ user }) {
   const [skillInput, setSkillInput] = useState('')
   const [deleteConfirm, setDeleteConfirm] = useState(null)
   const [showImport, setShowImport] = useState(false)
+  const [errors, setErrors] = useState({})
 
   const orgId = user?.org_id
   const { adminViewOrg } = useAdminOrg()
@@ -54,6 +61,7 @@ export default function Workers({ user }) {
     })
     setSkillInput('')
     setSelectedWorker(null)
+    setErrors({})
     setModal('add')
   }
 
@@ -81,10 +89,22 @@ export default function Workers({ user }) {
     })
     setSkillInput('')
     setDeleteConfirm(null)
+    setErrors({})
     setModal('edit')
   }
 
+  function validate() {
+    const errs = {}
+    if (!form.name.trim()) errs.name = 'Name is required.'
+    if (!form.phone.trim() && !form.email.trim()) errs.contact = 'Provide a phone number or email — needed to log in.'
+    if (form.phone && !isValidPhone(form.phone)) errs.phone = 'Phone must have at least 7 digits.'
+    if (form.email && !isValidEmail(form.email)) errs.email = 'Enter a valid email address.'
+    return errs
+  }
+
   async function handleSave() {
+    const errs = validate()
+    if (Object.keys(errs).length > 0) { setErrors(errs); return; }
     setSaving(true)
 
     const addressFields = {
@@ -436,9 +456,19 @@ export default function Workers({ user }) {
           </div>
 
           <div className="space-y-4">
-            <Field label="Name *" value={form.name} onChange={v => setForm(f => ({ ...f, name: v }))} placeholder="Full name" />
-            <Field label="Phone" value={form.phone} onChange={v => setForm(f => ({ ...f, phone: v }))} type="tel" placeholder="+1 650 686 8323" />
-            <Field label="Email" value={form.email} onChange={v => setForm(f => ({ ...f, email: v }))} type="email" placeholder="Optional" />
+            <div>
+              <Field label="Name *" value={form.name} onChange={v => { setForm(f => ({ ...f, name: v })); setErrors(er => { const n = {...er}; delete n.name; return n }) }} placeholder="Full name" />
+              {errors.name && <p className="text-xs text-red-500 mt-1">{errors.name}</p>}
+            </div>
+            <div>
+              <Field label="Phone" value={form.phone} onChange={v => { setForm(f => ({ ...f, phone: v })); setErrors(er => { const n = {...er}; delete n.phone; delete n.contact; return n }) }} type="tel" placeholder="+1 650 686 8323" />
+              {errors.phone && <p className="text-xs text-red-500 mt-1">{errors.phone}</p>}
+            </div>
+            <div>
+              <Field label="Email" value={form.email} onChange={v => { setForm(f => ({ ...f, email: v })); setErrors(er => { const n = {...er}; delete n.email; delete n.contact; return n }) }} type="email" placeholder="Optional" />
+              {errors.email && <p className="text-xs text-red-500 mt-1">{errors.email}</p>}
+            </div>
+            {errors.contact && <p className="text-xs text-red-500 -mt-2">{errors.contact}</p>}
             
             {/* Role */}
             <div>
@@ -540,7 +570,7 @@ export default function Workers({ user }) {
             </button>
             <button
               onClick={handleSave}
-              disabled={saving || !form.name?.trim()}
+              disabled={saving}
               className="flex-1 py-2.5 bg-emerald-700 text-white text-sm font-medium rounded-xl hover:bg-emerald-800 disabled:opacity-50 transition-colors"
             >
               {saving ? 'Saving...' : modal === 'add' ? 'Add Worker' : 'Save Changes'}

@@ -103,6 +103,7 @@ export default function CSVImport({ onClose, onImport, templateDef, validateRows
                     Download the template, fill in your {entityName}, then upload the CSV here.
                     Only <strong>{templateDef.required[0]?.replace(/_/g, ' ')}</strong> is required — all other columns are optional.
                   </div>
+                  <div className="text-xs text-emerald-600 mt-1">Duplicate records (matched by phone or email) will be automatically skipped.</div>
                 </div>
                 <button onClick={handleDownloadTemplate} className="shrink-0 ml-4 px-4 py-2 bg-emerald-700 text-white text-sm font-medium rounded-xl hover:bg-emerald-800 transition-colors">
                   Download Template
@@ -189,6 +190,12 @@ export default function CSVImport({ onClose, onImport, templateDef, validateRows
                 </div>
               </div>
             )}
+
+            {/* Summary sentence */}
+            <div className="text-sm text-stone-600 mb-3">
+              {validRows.length} row{validRows.length !== 1 ? 's' : ''} ready to import
+              {invalidRows.length > 0 && <span className="text-amber-600"> · {invalidRows.length} with errors (will be skipped)</span>}
+            </div>
 
             {/* Preview table */}
             <div className="border border-stone-200 rounded-xl overflow-hidden mb-4">
