@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { todayInTimezone, addDays, currentHourInTimezone, getTimezoneAbbr, formatTime } from '../lib/timezone'
 import { useAdminOrg } from '../contexts/AdminOrgContext'
@@ -7,6 +7,7 @@ import { formatCurrency } from '../lib/formatCurrency'
 import { formatName, formatAddress } from '../lib/formatAddress'
 
 export default function Dashboard({ user }) {
+  const routerNavigate = useNavigate()
   const tz = user?.organizations?.settings?.timezone || 'America/Los_Angeles'
   const timeFormat = user?.organizations?.settings?.time_format || '12h'
   const currencySymbol = user?.organizations?.settings?.currency_symbol || '$'
@@ -91,6 +92,10 @@ export default function Dashboard({ user }) {
     )
   }
 
+  function handleJobClick(job) {
+    routerNavigate('/schedule', { state: { jobId: job.id } })
+  }
+
   if (loading) {
     return <div className="p-6 md:p-8 text-stone-400">Loading...</div>
   }
@@ -116,7 +121,7 @@ export default function Dashboard({ user }) {
         ) : (
           <div className="space-y-3">
             {myJobs.map((job, idx) => (
-              <JobCard key={job.id} job={job} isNext={idx === 0 && job.status === 'scheduled'} tz={tz} user={user} onUpdate={loadDashboard} />
+              <JobCard key={job.id} job={job} isNext={idx === 0 && job.status === 'scheduled'} tz={tz} user={user} onUpdate={loadDashboard} onJobClick={() => handleJobClick(job)} />
             ))}
           </div>
         )}
@@ -151,7 +156,7 @@ export default function Dashboard({ user }) {
           <h2 className="font-semibold text-stone-900 mb-3">My Jobs Today</h2>
           <div className="grid gap-3 md:grid-cols-2">
             {myJobs.map((job, idx) => (
-              <JobCard key={job.id} job={job} isNext={idx === 0 && job.status === 'scheduled'} tz={tz} user={user} onUpdate={loadDashboard} />
+              <JobCard key={job.id} job={job} isNext={idx === 0 && job.status === 'scheduled'} tz={tz} user={user} onUpdate={loadDashboard} onJobClick={() => handleJobClick(job)} />
             ))}
           </div>
         </div>
@@ -188,7 +193,7 @@ export default function Dashboard({ user }) {
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             {/* Worker columns */}
             {data.workers.filter(w => byWorker[w.id]?.length > 0).map(worker => (
-              <Link key={worker.id} to="/schedule" className="bg-white rounded-2xl border border-stone-200 overflow-hidden hover:border-emerald-200 hover:shadow-sm transition-all block">
+              <div key={worker.id} className="bg-white rounded-2xl border border-stone-200 overflow-hidden">
                 {/* Worker header */}
                 <div className="px-4 py-3 border-b border-stone-100 flex items-center justify-between">
                   <div className="flex items-center gap-2.5">
@@ -213,7 +218,7 @@ export default function Dashboard({ user }) {
                 {/* Worker's jobs */}
                 <div className="p-2 space-y-1.5">
                   {byWorker[worker.id].sort((a, b) => (a.start_time || '').localeCompare(b.start_time || '')).map(job => (
-                    <div key={job.id} className={`px-3 py-2.5 rounded-xl text-xs ${
+                    <div key={job.id} onClick={() => handleJobClick(job)} className={`px-3 py-2.5 rounded-xl text-xs cursor-pointer hover:shadow-sm transition-shadow ${
                       job.status === 'completed' ? 'bg-emerald-50 border border-emerald-100' :
                       job.status === 'in_progress' ? 'bg-amber-50 border border-amber-100' :
                       'bg-blue-50 border border-blue-100'
@@ -229,7 +234,7 @@ export default function Dashboard({ user }) {
                     </div>
                   ))}
                 </div>
-              </Link>
+              </div>
             ))}
 
             {/* Unassigned jobs */}
@@ -243,7 +248,7 @@ export default function Dashboard({ user }) {
                 </div>
                 <div className="p-2 space-y-1.5">
                   {unassigned.map(job => (
-                    <div key={job.id} className="px-3 py-2.5 rounded-xl bg-amber-50/50 border border-amber-100 text-xs">
+                    <div key={job.id} onClick={() => handleJobClick(job)} className="px-3 py-2.5 rounded-xl bg-amber-50/50 border border-amber-100 text-xs cursor-pointer hover:shadow-sm transition-shadow">
                       <div className="font-medium text-stone-800">{formatTime(job.start_time, timeFormat)} — {job.title}</div>
                       <div className="text-stone-500">{formatName(job.clients?.first_name, job.clients?.last_name) || job.clients?.name}</div>
                       {(formatAddress(job.clients || {}) || job.clients?.address) && <div className="text-stone-400 text-[10px] mt-0.5">{formatAddress(job.clients || {}) || job.clients?.address}</div>}
@@ -344,7 +349,7 @@ function StatusDot({ status }) {
   return <div className={`w-2 h-2 rounded-full ${colors[status] || colors.scheduled}`} />
 }
 
-function JobCard({ job, isNext, tz, user, onUpdate }) {
+function JobCard({ job, isNext, tz, user, onUpdate, onJobClick }) {
   const [step, setStep] = useState('idle') // idle | askPayment | paymentForm | done
   const [payAmount, setPayAmount] = useState(job.price ? String(job.price) : '')
   const currencySymbol = user?.organizations?.settings?.currency_symbol || '$'
@@ -401,7 +406,7 @@ function JobCard({ job, isNext, tz, user, onUpdate }) {
       isNext ? 'border-emerald-300 ring-1 ring-emerald-100' : 'border-stone-200'
     }`}>
       {isNext && <div className="text-[10px] font-semibold text-emerald-700 uppercase tracking-wider mb-2">Up Next</div>}
-      <div className="flex items-start justify-between">
+      <div className="flex items-start justify-between cursor-pointer" onClick={() => onJobClick?.()}>
         <div>
           <div className="font-semibold text-stone-900">{job.title}</div>
           <div className="text-sm text-stone-500 mt-0.5">{formatName(job.clients?.first_name, job.clients?.last_name) || job.clients?.name}</div>

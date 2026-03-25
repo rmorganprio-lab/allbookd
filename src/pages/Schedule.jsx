@@ -1,5 +1,5 @@
-import { useState, useEffect, useMemo } from 'react'
-import { Link } from 'react-router-dom'
+import { useState, useEffect, useMemo, useRef } from 'react'
+import { Link, useLocation } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { todayInTimezone, toDateStr, formatDateFull, formatTime, formatTimestamp, getTimezoneAbbr, nowInTimezone } from '../lib/timezone'
 import { useAdminOrg } from '../contexts/AdminOrgContext'
@@ -54,9 +54,23 @@ export default function Schedule({ user }) {
   const [paymentSaving, setPaymentSaving] = useState(false)
   const [jobLinkedData, setJobLinkedData] = useState(null) // { payments, items } for delete warning
 
+  const location = useLocation()
+  const pendingJobId = useRef(location.state?.jobId || null)
+
   const canDelete = user?.role === 'ceo' || user?.role === 'manager' || user?.is_platform_admin
 
   useEffect(() => { loadAll() }, [effectiveOrgId])
+
+  // Auto-open a job when navigated from Dashboard with a jobId in route state
+  useEffect(() => {
+    if (!pendingJobId.current || jobs.length === 0) return
+    const job = jobs.find(j => j.id === pendingJobId.current)
+    pendingJobId.current = null
+    if (!job) return
+    setCurrentDate(new Date(job.date + 'T12:00:00'))
+    setView('day')
+    openView(job)
+  }, [jobs])
 
   async function loadAll() {
     const [jobsRes, clientsRes, workersRes, typesRes] = await Promise.all([
