@@ -4,7 +4,7 @@ import { supabase } from '../lib/supabase'
 import { todayInTimezone, addDays, currentHourInTimezone, getTimezoneAbbr, formatTime } from '../lib/timezone'
 import { useAdminOrg } from '../contexts/AdminOrgContext'
 import { formatCurrency } from '../lib/formatCurrency'
-import { formatName } from '../lib/formatAddress'
+import { formatName, formatAddress } from '../lib/formatAddress'
 
 export default function Dashboard({ user }) {
   const tz = user?.organizations?.settings?.timezone || 'America/Los_Angeles'
@@ -29,8 +29,8 @@ export default function Dashboard({ user }) {
     const weekEnd = addDays(today, 7)
 
     const queries = [
-      supabase.from('jobs').select('*, clients(name), job_assignments(user_id)').eq('org_id', effectiveOrgId).eq('date', today).neq('status', 'cancelled').order('start_time'),
-      supabase.from('jobs').select('*, clients(name)').eq('org_id', effectiveOrgId).gte('date', today).lte('date', weekEnd).neq('status', 'cancelled').order('date').order('start_time'),
+      supabase.from('jobs').select('*, clients(name, first_name, last_name, address_line_1, address_line_2, city, state_province, postal_code, country), job_assignments(user_id)').eq('org_id', effectiveOrgId).eq('date', today).neq('status', 'cancelled').order('start_time'),
+      supabase.from('jobs').select('*, clients(name, first_name, last_name, address_line_1, address_line_2, city, state_province, postal_code, country)').eq('org_id', effectiveOrgId).gte('date', today).lte('date', weekEnd).neq('status', 'cancelled').order('date').order('start_time'),
       supabase.from('users').select('id, name, role, availability').eq('org_id', effectiveOrgId).in('role', ['ceo', 'manager', 'worker']).order('name'),
       supabase.from('invoices').select('*, clients(name)').eq('org_id', effectiveOrgId).eq('status', 'overdue'),
       supabase.from('payments').select('*, clients(name)').eq('org_id', effectiveOrgId).order('date', { ascending: false }).limit(5),
@@ -223,7 +223,8 @@ export default function Dashboard({ user }) {
                         <StatusDot status={job.status} />
                       </div>
                       <div className="text-stone-600 mt-0.5">{job.title}</div>
-                      <div className="text-stone-400 mt-0.5">{job.clients?.name}</div>
+                      <div className="text-stone-400 mt-0.5">{formatName(job.clients?.first_name, job.clients?.last_name) || job.clients?.name}</div>
+                      {(formatAddress(job.clients || {}) || job.clients?.address) && <div className="text-stone-300 mt-0.5 text-[10px]">{formatAddress(job.clients || {}) || job.clients?.address}</div>}
                       {job.price && <div className="text-stone-500 font-medium mt-1">{formatCurrency(job.price, currencySymbol)}</div>}
                     </div>
                   ))}
@@ -244,7 +245,8 @@ export default function Dashboard({ user }) {
                   {unassigned.map(job => (
                     <div key={job.id} className="px-3 py-2.5 rounded-xl bg-amber-50/50 border border-amber-100 text-xs">
                       <div className="font-medium text-stone-800">{formatTime(job.start_time, timeFormat)} — {job.title}</div>
-                      <div className="text-stone-500">{job.clients?.name}</div>
+                      <div className="text-stone-500">{formatName(job.clients?.first_name, job.clients?.last_name) || job.clients?.name}</div>
+                      {(formatAddress(job.clients || {}) || job.clients?.address) && <div className="text-stone-400 text-[10px] mt-0.5">{formatAddress(job.clients || {}) || job.clients?.address}</div>}
                     </div>
                   ))}
                 </div>
@@ -402,7 +404,8 @@ function JobCard({ job, isNext, tz, user, onUpdate }) {
       <div className="flex items-start justify-between">
         <div>
           <div className="font-semibold text-stone-900">{job.title}</div>
-          <div className="text-sm text-stone-500 mt-0.5">{job.clients?.name}</div>
+          <div className="text-sm text-stone-500 mt-0.5">{formatName(job.clients?.first_name, job.clients?.last_name) || job.clients?.name}</div>
+          {(formatAddress(job.clients || {}) || job.clients?.address) && <div className="text-xs text-stone-400 mt-0.5">{formatAddress(job.clients || {}) || job.clients?.address}</div>}
         </div>
         <div className="text-right">
           <div className="text-sm font-medium text-stone-700">{formatTime(job.start_time, timeFormat)}</div>

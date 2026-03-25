@@ -5,7 +5,7 @@ import { todayInTimezone, toDateStr, formatDateFull, formatTime, formatTimestamp
 import { useAdminOrg } from '../contexts/AdminOrgContext'
 import { useToast } from '../contexts/ToastContext'
 import { formatCurrency } from '../lib/formatCurrency'
-import { formatName } from '../lib/formatAddress'
+import { formatName, formatAddress } from '../lib/formatAddress'
 
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December']
@@ -60,7 +60,7 @@ export default function Schedule({ user }) {
 
   async function loadAll() {
     const [jobsRes, clientsRes, workersRes, typesRes] = await Promise.all([
-      supabase.from('jobs').select('*, clients(name), job_assignments(user_id)').eq('org_id', effectiveOrgId).order('date').order('start_time'),
+      supabase.from('jobs').select('*, clients(name, first_name, last_name, address_line_1, address_line_2, city, state_province, postal_code, country), job_assignments(user_id)').eq('org_id', effectiveOrgId).order('date').order('start_time'),
       supabase.from('clients').select('id, first_name, last_name, name, email, phone, preferred_contact').eq('org_id', effectiveOrgId).eq('status', 'active').order('first_name'),
       supabase.from('users').select('id, name, availability').eq('org_id', effectiveOrgId).in('role', ['ceo', 'manager', 'worker']).order('name'),
       supabase.from('service_types').select('*').eq('org_id', effectiveOrgId).eq('is_active', true).order('name'),
@@ -813,7 +813,8 @@ function WeekView({ days, today, jobsOnDate, onJobClick, onAddJob, timeFormat })
                 {dayJobs.map(j => (
                   <div key={j.id} onClick={() => onJobClick(j)} className={`p-1.5 rounded-lg text-[10px] cursor-pointer hover:opacity-80 ${j.status==='completed'?'bg-emerald-50 border border-emerald-100':j.status==='in_progress'?'bg-amber-50 border border-amber-100':j.status==='cancelled'?'bg-stone-50 border border-stone-100':'bg-blue-50 border border-blue-100'}`}>
                     <div className="font-medium truncate">{formatTime(j.start_time, timeFormat)} {j.title}</div>
-                    <div className="text-stone-500 truncate">{j.clients?.name}</div>
+                    <div className="text-stone-500 truncate">{formatName(j.clients?.first_name, j.clients?.last_name) || j.clients?.name}</div>
+                    {(formatAddress(j.clients || {}) || j.clients?.address) && <div className="text-stone-400 truncate">{formatAddress(j.clients || {}) || j.clients?.address}</div>}
                   </div>
                 ))}
                 <button onClick={() => onAddJob(d)} className="w-full py-1 text-[10px] text-stone-300 hover:text-stone-500 hover:bg-stone-50 rounded">+</button>
@@ -847,6 +848,7 @@ function DayView({ date, today, jobs, onJobClick, onAddJob, workerName, clientNa
                     {job.recurrence_group_id && <span className="text-purple-500 text-[10px]">↻</span>}
                   </div>
                   <div className="text-stone-600 text-xs mt-0.5">{clientName(job.client_id)}</div>
+                  {(formatAddress(job.clients || {}) || job.clients?.address) && <div className="text-stone-400 text-xs mt-0.5">{formatAddress(job.clients || {}) || job.clients?.address}</div>}
                 </div>
                 <div className="text-right">
                   <div className="text-sm font-medium text-stone-700">{formatTime(job.start_time, timeFormat)}</div>

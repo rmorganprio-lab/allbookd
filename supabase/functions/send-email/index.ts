@@ -52,6 +52,19 @@ function formatClientName(firstName: string | null | undefined, lastName: string
   return [firstName, lastName].filter(Boolean).join(' ') || fallback
 }
 
+function formatClientAddress(client: Record<string, unknown>): string[] {
+  const lines: string[] = []
+  if (client.address_line_1) lines.push(String(client.address_line_1))
+  if (client.address_line_2) lines.push(String(client.address_line_2))
+  const city = client.city ? String(client.city) : ''
+  const state = client.state_province ? String(client.state_province) : ''
+  const zip = client.postal_code ? String(client.postal_code) : ''
+  const cityLine = [city, [state, zip].filter(Boolean).join(' ')].filter(Boolean).join(', ')
+  if (cityLine) lines.push(cityLine)
+  if (lines.length === 0 && client.address) lines.push(String(client.address))
+  return lines
+}
+
 function lineItemsTable(items: Array<{ description: string; quantity: number; unit_price: number; total?: number }>, sym = '$'): string {
   const rows = items.map(li => {
     const lineTotal = li.total ?? (li.quantity * li.unit_price)
@@ -114,11 +127,17 @@ function templateQuoteSent(org: { name: string }, data: Record<string, unknown>,
 
   const subject = `Quote from ${org.name} — #${quoteNumber}`
 
+  const addrLines = formatClientAddress(data.client as Record<string, unknown> || {})
+
   const body = `
     <p style="font-size:15px;color:#44403c;margin:0 0 8px 0;">Hi ${firstName},</p>
     <p style="font-size:15px;color:#44403c;margin:0 0 24px 0;">Here's a quote for your review:</p>
 
     <div style="background-color:#f5f5f4;border-radius:8px;padding:16px;margin-bottom:20px;">
+      <div style="font-size:11px;color:#a8a29e;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;">Prepared for</div>
+      <div style="font-size:14px;font-weight:600;color:#1c1917;">${clientName}</div>
+      ${addrLines.map(l => `<div style="font-size:13px;color:#78716c;">${l}</div>`).join('')}
+      <div style="border-top:1px solid #e7e5e4;margin:10px 0;"></div>
       <div style="font-size:13px;color:#78716c;margin-bottom:4px;">Quote #${quoteNumber}</div>
       <div style="font-size:13px;color:#78716c;">Date: ${fmtDate(String(data.quote_date || ''))}</div>
       ${data.valid_until ? `<div style="font-size:13px;color:#78716c;margin-top:4px;">Valid until: ${fmtDate(String(data.valid_until))}</div>` : ''}
@@ -148,6 +167,7 @@ function templateInvoiceSent(org: { name: string }, data: Record<string, unknown
   const invoiceNumber = String(data.invoice_number || '')
   const token = String(data.view_token || '')
   const viewUrl = `https://timelyops.com/invoice/${token}`
+  const addrLines = formatClientAddress(data.client as Record<string, unknown> || {})
 
   const subject = `Invoice from ${org.name} — #${invoiceNumber}`
 
@@ -156,6 +176,10 @@ function templateInvoiceSent(org: { name: string }, data: Record<string, unknown
     <p style="font-size:15px;color:#44403c;margin:0 0 24px 0;">Here's your invoice:</p>
 
     <div style="background-color:#f5f5f4;border-radius:8px;padding:16px;margin-bottom:20px;">
+      <div style="font-size:11px;color:#a8a29e;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;">Billed to</div>
+      <div style="font-size:14px;font-weight:600;color:#1c1917;">${clientName}</div>
+      ${addrLines.map(l => `<div style="font-size:13px;color:#78716c;">${l}</div>`).join('')}
+      <div style="border-top:1px solid #e7e5e4;margin:10px 0;"></div>
       <div style="font-size:13px;color:#78716c;margin-bottom:4px;">Invoice #${invoiceNumber}</div>
       <div style="font-size:13px;color:#78716c;">Issued: ${fmtDate(String(data.issue_date || ''))}</div>
       ${data.due_date ? `<div style="font-size:14px;font-weight:600;color:#dc2626;margin-top:6px;">Due: ${fmtDate(String(data.due_date))}</div>` : ''}
@@ -338,7 +362,7 @@ serve(async (req) => {
         console.log('[send-email] Fetching quote:', quote_id)
         const { data: quote, error } = await adminClient
           .from('quotes')
-          .select('*, clients(name, first_name, last_name, email), organizations(name, settings), quote_line_items(*)')
+          .select('*, clients(name, first_name, last_name, email, address, address_line_1, address_line_2, city, state_province, postal_code), organizations(name, settings), quote_line_items(*)')
           .eq('id', quote_id)
           .single()
         console.log('[send-email] Quote query result — data:', JSON.stringify(quote), 'error:', JSON.stringify(error))
@@ -356,6 +380,7 @@ serve(async (req) => {
         ;({ subject, html } = templateQuoteSent({ name: orgName }, {
           client_name: formatClientName(quote.clients.first_name, quote.clients.last_name, quote.clients.name),
           client_first_name: quote.clients.first_name || quote.clients.name?.split(' ')[0],
+          client: quote.clients,
           quote_number: quote.quote_number,
           quote_date: quote.created_at,
           valid_until: quote.valid_until,
@@ -376,7 +401,7 @@ serve(async (req) => {
         console.log('[send-email] Fetching invoice:', invoice_id)
         const { data: invoice, error: invError } = await adminClient
           .from('invoices')
-          .select('*, clients(name, first_name, last_name, email), organizations(name, settings), invoice_line_items(*)')
+          .select('*, clients(name, first_name, last_name, email, address, address_line_1, address_line_2, city, state_province, postal_code), organizations(name, settings), invoice_line_items(*)')
           .eq('id', invoice_id)
           .single()
         console.log('[send-email] Invoice query result — data:', JSON.stringify(invoice), 'error:', JSON.stringify(invError))
@@ -394,6 +419,7 @@ serve(async (req) => {
         ;({ subject, html } = templateInvoiceSent({ name: orgName }, {
           client_name: formatClientName(invoice.clients.first_name, invoice.clients.last_name, invoice.clients.name),
           client_first_name: invoice.clients.first_name || invoice.clients.name?.split(' ')[0],
+          client: invoice.clients,
           invoice_number: invoice.invoice_number,
           issue_date: invoice.issue_date,
           due_date: invoice.due_date,

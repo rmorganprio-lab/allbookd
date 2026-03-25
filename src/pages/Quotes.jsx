@@ -65,7 +65,7 @@ export default function Quotes({ user }) {
 
   async function loadAll() {
     const [quotesRes, clientsRes, typesRes, matrixRes, workersRes] = await Promise.all([
-      supabase.from('quotes').select('*, clients(name, phone, email, address, preferred_contact), quote_line_items(*)').eq('org_id', effectiveOrgId).order('created_at', { ascending: false }),
+      supabase.from('quotes').select('*, clients(name, first_name, last_name, phone, email, address, preferred_contact), quote_line_items(*)').eq('org_id', effectiveOrgId).order('created_at', { ascending: false }),
       supabase.from('clients').select('*, client_properties(*)').eq('org_id', effectiveOrgId).eq('status', 'active').order('first_name'),
       supabase.from('service_types').select('*').eq('org_id', effectiveOrgId).eq('is_active', true).order('name'),
       supabase.from('pricing_matrix').select('*').eq('org_id', effectiveOrgId),
@@ -356,6 +356,16 @@ export default function Quotes({ user }) {
     setSaving(false)
     setModal(null)
     loadAll()
+
+    // For new quotes: fetch full quote with client data and open delivery modal immediately
+    if (modal === 'add' && quoteId) {
+      const { data: freshQuote } = await supabase
+        .from('quotes')
+        .select('*, clients(name, first_name, last_name, phone, email, address, preferred_contact), quote_line_items(*)')
+        .eq('id', quoteId)
+        .single()
+      if (freshQuote) setDeliveryModal(freshQuote)
+    }
   }
 
   // ── Send quote ──
