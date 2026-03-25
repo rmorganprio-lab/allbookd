@@ -165,9 +165,9 @@ serve(async (req) => {
       conv = newConv as Conversation
     }
 
-    // Rate limit: max 50 messages per conversation
+    // Rate limit: max 10 messages per conversation
     const history = (conv.messages || []) as Message[]
-    if (history.length >= 50) {
+    if (history.length >= 10) {
       return json(
         { error: 'Conversation limit reached. Please contact us directly to book.' },
         429
@@ -427,7 +427,7 @@ Be warm and concise. Ask for 1–2 things at a time. After create_pending_job su
           'anthropic-version': '2023-06-01',
         },
         body: JSON.stringify({
-          model: 'claude-haiku-4-5-20251001',
+          model: 'claude-sonnet-4-20250514',
           max_tokens: 1024,
           system: systemPrompt,
           tools: TOOL_DEFINITIONS,
