@@ -4,6 +4,8 @@ import { supabase } from '../lib/supabase'
 import { todayInTimezone, toDateStr, formatDateFull, formatTime, formatTimestamp, getTimezoneAbbr, nowInTimezone } from '../lib/timezone'
 import { useAdminOrg } from '../contexts/AdminOrgContext'
 import { useToast } from '../contexts/ToastContext'
+import { formatCurrency } from '../lib/formatCurrency'
+import { formatName } from '../lib/formatAddress'
 
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December']
@@ -27,6 +29,8 @@ export default function Schedule({ user }) {
   const effectiveOrgId = adminViewOrg?.id ?? user?.org_id
   const tz = user?.organizations?.settings?.timezone || 'America/Los_Angeles'
   const timeFormat = user?.organizations?.settings?.time_format || '12h'
+  const currencySymbol = user?.organizations?.settings?.currency_symbol || '$'
+  const paymentMethods = user?.organizations?.settings?.payment_methods || ['Cash', 'Venmo', 'Zelle', 'Card', 'Check']
   const tzAbbr = getTimezoneAbbr(tz)
 
   const [view, setView] = useState('month')
@@ -46,7 +50,7 @@ export default function Schedule({ user }) {
   const [showDeleteRecurring, setShowDeleteRecurring] = useState(false)
   const [paymentModal, setPaymentModal] = useState(null)
   const [payAmount, setPayAmount] = useState('')
-  const [payMethod, setPayMethod] = useState('cash')
+  const [payMethod, setPayMethod] = useState('')
   const [paymentSaving, setPaymentSaving] = useState(false)
   const [jobLinkedData, setJobLinkedData] = useState(null) // { payments, items } for delete warning
 
@@ -57,7 +61,7 @@ export default function Schedule({ user }) {
   async function loadAll() {
     const [jobsRes, clientsRes, workersRes, typesRes] = await Promise.all([
       supabase.from('jobs').select('*, clients(name), job_assignments(user_id)').eq('org_id', effectiveOrgId).order('date').order('start_time'),
-      supabase.from('clients').select('id, name, email, phone, preferred_contact').eq('org_id', effectiveOrgId).eq('status', 'active').order('name'),
+      supabase.from('clients').select('id, first_name, last_name, name, email, phone, preferred_contact').eq('org_id', effectiveOrgId).eq('status', 'active').order('first_name'),
       supabase.from('users').select('id, name, availability').eq('org_id', effectiveOrgId).in('role', ['ceo', 'manager', 'worker']).order('name'),
       supabase.from('service_types').select('*').eq('org_id', effectiveOrgId).eq('is_active', true).order('name'),
     ])
@@ -291,7 +295,7 @@ export default function Schedule({ user }) {
       loadAll()
       if (selectedJob?.id === job.id) setSelectedJob({ ...job, status: 'completed', completed_at: new Date().toISOString() })
       setPayAmount(job.price ? String(job.price) : '')
-      setPayMethod('cash')
+      setPayMethod(paymentMethods[0] || 'Cash')
       setPaymentModal(job)
     }
   }
@@ -317,7 +321,7 @@ export default function Schedule({ user }) {
       org_id: effectiveOrgId,
       client_id: paymentModal.client_id,
       event_type: 'payment',
-      summary: `$${Number(payAmount).toFixed(2)} received via ${payMethod}`,
+      summary: `${formatCurrency(payAmount, currencySymbol)} received via ${payMethod}`,
       created_by: user.id,
     })
 
@@ -360,7 +364,7 @@ export default function Schedule({ user }) {
           if (error || data?.error) throw new Error(error?.message || data?.error)
           showToast('Receipt sent via email')
         } else if (hasPhone) {
-          const firstName = client.name?.split(' ')[0] || 'there'
+          const firstName = client.first_name || client.name?.split(' ')[0] || 'there'
           const { data, error } = await supabase.functions.invoke('send-sms', {
             headers: { Authorization: `Bearer ${session.access_token}` },
             body: { to: client.phone, message: `Hi ${firstName}, your payment receipt is ready: ${receiptUrl}` },
@@ -377,7 +381,7 @@ export default function Schedule({ user }) {
       // SMS preferred
       if (preferred === 'sms') {
         if (hasPhone) {
-          const firstName = client.name?.split(' ')[0] || 'there'
+          const firstName = client.first_name || client.name?.split(' ')[0] || 'there'
           const { data, error } = await supabase.functions.invoke('send-sms', {
             headers: { Authorization: `Bearer ${session.access_token}` },
             body: { to: client.phone, message: `Hi ${firstName}, your payment receipt is ready: ${receiptUrl}` },
@@ -448,7 +452,7 @@ export default function Schedule({ user }) {
     setForm(f => ({ ...f, service_type_id: id, title: st?.name || f.title, duration_minutes: st?.default_duration_minutes || f.duration_minutes }))
   }
 
-  const clientName = (id) => clients.find(c => c.id === id)?.name || 'Unknown'
+  const clientName = (id) => { const c = clients.find(c => c.id === id); return c ? (formatName(c.first_name, c.last_name) || c.name || 'Unknown') : 'Unknown' }
   const workerName = (id) => workers.find(w => w.id === id)?.name || 'Unknown'
 
   if (loading) return <div className="p-6 md:p-8 text-stone-400">Loading schedule...</div>
@@ -489,7 +493,7 @@ export default function Schedule({ user }) {
       {/* Views */}
       {view === 'month' && <MonthView days={getMonthDays()} year={year} month={month} today={today} jobsOnDate={jobsOnDate} dateStr={dateStr} timeFormat={timeFormat} onDayClick={(d) => { setView('day'); setCurrentDate(new Date(year, month, d)) }} />}
       {view === 'week' && <WeekView days={getWeekDays()} today={today} jobsOnDate={jobsOnDate} onJobClick={openView} onAddJob={(d) => openAdd(toDateStr(d))} timeFormat={timeFormat} />}
-      {view === 'day' && <DayView date={currentDate} today={today} jobs={jobsOnDate(toDateStr(currentDate))} onJobClick={openView} onAddJob={() => openAdd(toDateStr(currentDate))} workerName={workerName} clientName={clientName} onCheckIn={handleCheckIn} tz={tz} timeFormat={timeFormat} />}
+      {view === 'day' && <DayView date={currentDate} today={today} jobs={jobsOnDate(toDateStr(currentDate))} onJobClick={openView} onAddJob={() => openAdd(toDateStr(currentDate))} workerName={workerName} clientName={clientName} onCheckIn={handleCheckIn} tz={tz} timeFormat={timeFormat} currencySymbol={currencySymbol} />}
 
       {/* ── Recurring Edit Choice Modal ── */}
       {modal === 'recurring_choose' && selectedJob && (
@@ -538,7 +542,7 @@ export default function Schedule({ user }) {
             <InfoRow label="Time" value={`${formatTime(selectedJob.start_time, timeFormat)} ${tzAbbr}`} />
             <InfoRow label="Duration" value={`${selectedJob.duration_minutes} min`} />
             <InfoRow label="Status" value={<span className={`px-2 py-0.5 rounded-full text-xs font-medium capitalize ${statusColors[selectedJob.status]}`}>{selectedJob.status.replace('_',' ')}</span>} />
-            {selectedJob.price && <InfoRow label="Price" value={`$${Number(selectedJob.price).toFixed(2)}`} />}
+            {selectedJob.price && <InfoRow label="Price" value={formatCurrency(selectedJob.price, currencySymbol)} />}
             {selectedJob.frequency && selectedJob.frequency !== 'one_time' && <InfoRow label="Frequency" value={selectedJob.frequency} />}
             {selectedJob.notes && <InfoRow label="Notes" value={selectedJob.notes} />}
             {selectedJob.arrived_at && <InfoRow label="Arrived" value={formatTimestamp(selectedJob.arrived_at, tz, timeFormat)} />}
@@ -636,19 +640,19 @@ export default function Schedule({ user }) {
             ) : (
               <>
                 <div>
-                  <div className="text-xs text-stone-500 mb-1">Amount received {paymentModal.price ? `(Job total: $${Number(paymentModal.price).toFixed(2)})` : ''}</div>
+                  <div className="text-xs text-stone-500 mb-1">Amount received {paymentModal.price ? `(Job total: ${formatCurrency(paymentModal.price, currencySymbol)})` : ''}</div>
                   <div className="relative">
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-400 text-sm">$</span>
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-400 text-sm">{currencySymbol}</span>
                     <input type="number" value={payAmount} onChange={e => setPayAmount(e.target.value)} placeholder="0.00" step="0.01" className="w-full pl-7 pr-3 py-2.5 bg-stone-50 border border-stone-200 rounded-xl text-sm text-stone-900 focus:outline-none focus:ring-2 focus:ring-emerald-600" />
                   </div>
                   {paymentModal.price && payAmount && Number(payAmount) > 0 && Number(payAmount) < Number(paymentModal.price) && (
-                    <div className="text-xs text-amber-600 mt-1">Partial payment — ${(Number(paymentModal.price) - Number(payAmount)).toFixed(2)} remaining</div>
+                    <div className="text-xs text-amber-600 mt-1">Partial payment — {formatCurrency(Number(paymentModal.price) - Number(payAmount), currencySymbol)} remaining</div>
                   )}
                 </div>
-                <div className="flex gap-1.5 flex-wrap">
-                  {['cash', 'venmo', 'zelle', 'card', 'check'].map(m => (
-                    <button key={m} onClick={() => setPayMethod(m)} className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors capitalize ${
-                      payMethod === m ? 'bg-emerald-100 text-emerald-700 ring-1 ring-emerald-200' : 'bg-stone-50 text-stone-400 border border-stone-200'
+                <div className="flex flex-wrap gap-2">
+                  {paymentMethods.map(m => (
+                    <button key={m} onClick={() => setPayMethod(m)} className={`px-3 py-2 text-sm font-medium rounded-xl transition-colors min-h-[44px] ${
+                      payMethod === m ? 'bg-stone-800 text-white' : 'bg-stone-100 text-stone-600 hover:bg-stone-200'
                     }`}>{m}</button>
                   ))}
                 </div>
@@ -689,7 +693,7 @@ export default function Schedule({ user }) {
               <label className="block text-xs font-medium text-stone-500 mb-1.5">Client *</label>
               <select value={form.client_id} onChange={e => setForm(f => ({...f, client_id: e.target.value}))} className="w-full px-3 py-2.5 bg-stone-50 border border-stone-200 rounded-xl text-sm text-stone-900 focus:outline-none focus:ring-2 focus:ring-emerald-600">
                 <option value="">Select client...</option>
-                {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                {clients.map(c => <option key={c.id} value={c.id}>{formatName(c.first_name, c.last_name) || c.name}</option>)}
               </select>
             </div>
             <div>
@@ -709,7 +713,7 @@ export default function Schedule({ user }) {
             </div>
             <div className="grid grid-cols-2 gap-4">
               <Field label="Duration (min)" value={form.duration_minutes} onChange={v => setForm(f => ({...f, duration_minutes: v}))} type="number" />
-              <Field label="Price ($)" value={form.price} onChange={v => setForm(f => ({...f, price: v}))} type="number" placeholder="0.00" />
+              <Field label={`Price (${currencySymbol})`} value={form.price} onChange={v => setForm(f => ({...f, price: v}))} type="number" placeholder="0.00" />
             </div>
 
             {/* Frequency - only show on add, not edit */}
@@ -822,7 +826,7 @@ function WeekView({ days, today, jobsOnDate, onJobClick, onAddJob, timeFormat })
   )
 }
 
-function DayView({ date, today, jobs, onJobClick, onAddJob, workerName, clientName, onCheckIn, tz, timeFormat }) {
+function DayView({ date, today, jobs, onJobClick, onAddJob, workerName, clientName, onCheckIn, tz, timeFormat, currencySymbol = '$' }) {
   const ds = toDateStr(date); const isToday = ds === today
   const sorted = [...jobs].sort((a, b) => (a.start_time||'').localeCompare(b.start_time||''))
   return (
@@ -858,7 +862,7 @@ function DayView({ date, today, jobs, onJobClick, onAddJob, workerName, clientNa
                   {job.completed_at && <span className="text-xs text-stone-400">Done {formatTimestamp(job.completed_at, tz, timeFormat)}</span>}
                 </div>
               )}
-              {job.price && <div className="mt-2 text-xs font-medium text-stone-600">${Number(job.price).toFixed(2)}</div>}
+              {job.price && <div className="mt-2 text-xs font-medium text-stone-600">{formatCurrency(job.price, currencySymbol)}</div>}
             </div>
           ))}
         </div>

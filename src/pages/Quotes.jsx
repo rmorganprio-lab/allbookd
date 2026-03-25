@@ -5,6 +5,8 @@ import { useAdminOrg } from '../contexts/AdminOrgContext'
 import { useToast } from '../contexts/ToastContext'
 import { todayInTimezone, formatDate, getTimezoneAbbr } from '../lib/timezone'
 import DeliveryModal from '../components/DeliveryModal'
+import { formatCurrency } from '../lib/formatCurrency'
+import { formatName } from '../lib/formatAddress'
 
 const statusColors = {
   draft: 'bg-stone-100 text-stone-600',
@@ -20,6 +22,7 @@ const emptyLine = { description: '', quantity: 1, unit_price: 0, frequency: 'one
 
 export default function Quotes({ user }) {
   const tz = user?.organizations?.settings?.timezone || 'America/Los_Angeles'
+  const currencySymbol = user?.organizations?.settings?.currency_symbol || '$'
   const orgId = user?.org_id
   const { adminViewOrg } = useAdminOrg()
   const effectiveOrgId = adminViewOrg?.id ?? user?.org_id
@@ -63,7 +66,7 @@ export default function Quotes({ user }) {
   async function loadAll() {
     const [quotesRes, clientsRes, typesRes, matrixRes, workersRes] = await Promise.all([
       supabase.from('quotes').select('*, clients(name, phone, email, address, preferred_contact), quote_line_items(*)').eq('org_id', effectiveOrgId).order('created_at', { ascending: false }),
-      supabase.from('clients').select('*, client_properties(*)').eq('org_id', effectiveOrgId).eq('status', 'active').order('name'),
+      supabase.from('clients').select('*, client_properties(*)').eq('org_id', effectiveOrgId).eq('status', 'active').order('first_name'),
       supabase.from('service_types').select('*').eq('org_id', effectiveOrgId).eq('is_active', true).order('name'),
       supabase.from('pricing_matrix').select('*').eq('org_id', effectiveOrgId),
       supabase.from('users').select('id, name, availability').eq('org_id', effectiveOrgId).in('role', ['ceo', 'manager', 'worker']).eq('availability', 'available').order('name'),
@@ -81,8 +84,8 @@ export default function Quotes({ user }) {
     if (filter !== 'all' && q.status !== filter) return false
     if (search) {
       const s = search.toLowerCase()
-      return q.clients?.name?.toLowerCase().includes(s) ||
-        q.quote_number?.toLowerCase().includes(s)
+      const clientName = formatName(q.clients?.first_name, q.clients?.last_name) || q.clients?.name || ''
+      return clientName.toLowerCase().includes(s) || q.quote_number?.toLowerCase().includes(s)
     }
     return true
   })
@@ -325,7 +328,7 @@ export default function Quotes({ user }) {
       if (quoteId) {
         await supabase.from('client_timeline').insert({
           org_id: effectiveOrgId, client_id: clientId,
-          event_type: 'quote', summary: `Quote ${quoteData.quote_number} created for $${formTotal.toFixed(2)}`,
+          event_type: 'quote', summary: `Quote ${quoteData.quote_number} created for ${formatCurrency(formTotal, currencySymbol)}`,
           created_by: user.id,
         })
       }
@@ -392,10 +395,10 @@ export default function Quotes({ user }) {
     setSending(true)
     try {
       const token = await ensureApprovalToken(quote)
-      const firstName = quote.clients.name.split(' ')[0]
+      const firstName = quote.clients.first_name || quote.clients.name?.split(' ')[0] || 'there'
       const orgName = user.organizations?.name || ''
       const link = `https://www.timelyops.com/approve/${token}`
-      const message = `Hi ${firstName}, ${orgName} sent you a quote for $${Number(quote.total).toFixed(2)}. View and approve: ${link}`
+      const message = `Hi ${firstName}, ${orgName} sent you a quote for ${formatCurrency(quote.total, currencySymbol)}. View and approve: ${link}`
       const { data, error } = await supabase.functions.invoke('send-sms', {
         body: { to: quote.clients.phone, message },
       })
@@ -514,7 +517,7 @@ export default function Quotes({ user }) {
     loadAll()
   }
 
-  const clientName = (id) => clients.find(c => c.id === id)?.name || 'Unknown'
+  const clientName = (id) => { const c = clients.find(c => c.id === id); return c ? (formatName(c.first_name, c.last_name) || c.name || 'Unknown') : 'Unknown' }
 
   if (loading) return <div className="p-6 md:p-8 text-stone-400">Loading quotes...</div>
 
@@ -553,7 +556,7 @@ export default function Quotes({ user }) {
         </div>
         <div className="bg-white rounded-2xl border border-stone-200 p-4">
           <div className="text-xs font-medium text-stone-500 mb-1">Approved Value</div>
-          <div className="text-2xl font-bold text-emerald-700">${approvedTotal.toFixed(0)}</div>
+          <div className="text-2xl font-bold text-emerald-700">{currencySymbol}{approvedTotal.toFixed(0)}</div>
         </div>
       </div>
 
@@ -590,13 +593,13 @@ export default function Quotes({ user }) {
               <div key={q.id} onClick={() => openView(q)} className="grid grid-cols-1 md:grid-cols-12 gap-2 md:gap-4 px-5 py-4 border-b border-stone-50 hover:bg-stone-50 cursor-pointer transition-colors items-center">
                 <div className="md:col-span-1 text-xs font-mono text-stone-400">{q.quote_number}</div>
                 <div className="md:col-span-3">
-                  <div className="font-medium text-stone-900 text-sm">{q.clients?.name}</div>
+                  <div className="font-medium text-stone-900 text-sm">{formatName(q.clients?.first_name, q.clients?.last_name) || q.clients?.name}</div>
                 </div>
                 <div className="md:col-span-2 text-sm text-stone-600">{formatDate(q.created_at?.split('T')[0])}</div>
                 <div className="md:col-span-2">
                   <span className={`inline-block px-2.5 py-0.5 rounded-full text-xs font-medium capitalize ${statusColors[q.status]}`}>{q.status}</span>
                 </div>
-                <div className="md:col-span-2 text-right font-semibold text-stone-900">${Number(q.total).toFixed(2)}</div>
+                <div className="md:col-span-2 text-right font-semibold text-stone-900">{formatCurrency(q.total, currencySymbol)}</div>
                 <div className="md:col-span-2 text-right text-sm text-stone-400">{q.valid_until ? formatDate(q.valid_until) : '—'}</div>
               </div>
             ))}
@@ -613,7 +616,7 @@ export default function Quotes({ user }) {
                 <h2 className="text-lg font-bold text-stone-900">Quote {selectedQuote.quote_number}</h2>
                 <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium capitalize ${statusColors[selectedQuote.status]}`}>{selectedQuote.status}</span>
               </div>
-              <p className="text-sm text-stone-500 mt-0.5">{selectedQuote.clients?.name}</p>
+              <p className="text-sm text-stone-500 mt-0.5">{formatName(selectedQuote.clients?.first_name, selectedQuote.clients?.last_name) || selectedQuote.clients?.name}</p>
             </div>
             <button onClick={() => setModal(null)} className="p-1.5 text-stone-400 hover:text-stone-600">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
@@ -622,7 +625,7 @@ export default function Quotes({ user }) {
 
           {/* Client details */}
           <div className="mb-4 p-3 bg-stone-50 rounded-xl text-sm">
-            <div className="font-medium text-stone-700">{selectedQuote.clients?.name}</div>
+            <div className="font-medium text-stone-700">{formatName(selectedQuote.clients?.first_name, selectedQuote.clients?.last_name) || selectedQuote.clients?.name}</div>
             {selectedQuote.clients?.address && <div className="text-stone-500 text-xs mt-0.5">{selectedQuote.clients.address}</div>}
             {selectedQuote.clients?.phone && <div className="text-stone-500 text-xs mt-0.5">{selectedQuote.clients.phone}</div>}
           </div>
@@ -641,8 +644,8 @@ export default function Quotes({ user }) {
                 <div key={i} className="grid grid-cols-12 gap-2 px-4 py-2.5 border-t border-stone-100 text-sm">
                   <div className="col-span-6 text-stone-800">{li.description}</div>
                   <div className="col-span-2 text-center text-stone-600">{li.quantity}</div>
-                  <div className="col-span-2 text-right text-stone-600">${Number(li.unit_price).toFixed(2)}</div>
-                  <div className="col-span-2 text-right font-medium text-stone-800">${Number(li.total).toFixed(2)}</div>
+                  <div className="col-span-2 text-right text-stone-600">{formatCurrency(li.unit_price, currencySymbol)}</div>
+                  <div className="col-span-2 text-right font-medium text-stone-800">{formatCurrency(li.total, currencySymbol)}</div>
                 </div>
               ))}
             </div>
@@ -650,9 +653,9 @@ export default function Quotes({ user }) {
 
           {/* Totals */}
           <div className="mb-4 space-y-1 text-right">
-            <div className="text-sm text-stone-500">Subtotal: ${Number(selectedQuote.subtotal).toFixed(2)}</div>
-            {Number(selectedQuote.tax_amount) > 0 && <div className="text-sm text-stone-500">Tax: ${Number(selectedQuote.tax_amount).toFixed(2)}</div>}
-            <div className="text-lg font-bold text-stone-900">Total: ${Number(selectedQuote.total).toFixed(2)}</div>
+            <div className="text-sm text-stone-500">Subtotal: {formatCurrency(selectedQuote.subtotal, currencySymbol)}</div>
+            {Number(selectedQuote.tax_amount) > 0 && <div className="text-sm text-stone-500">Tax: {formatCurrency(selectedQuote.tax_amount, currencySymbol)}</div>}
+            <div className="text-lg font-bold text-stone-900">Total: {formatCurrency(selectedQuote.total, currencySymbol)}</div>
           </div>
 
           {selectedQuote.valid_until && (
@@ -789,7 +792,7 @@ export default function Quotes({ user }) {
               {!isNewClient ? (
                 <select value={formClient} onChange={e => handleClientChange(e.target.value)} className="w-full px-3 py-2.5 bg-stone-50 border border-stone-200 rounded-xl text-sm text-stone-900 focus:outline-none focus:ring-2 focus:ring-emerald-600">
                   <option value="">Select client...</option>
-                  {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                  {clients.map(c => <option key={c.id} value={c.id}>{formatName(c.first_name, c.last_name) || c.name}</option>)}
                 </select>
               ) : (
                 <div className="space-y-3 p-4 bg-stone-50 border border-stone-200 rounded-xl">
@@ -875,11 +878,11 @@ export default function Quotes({ user }) {
                       </div>
                       <div className="col-span-2">
                         <div className="relative">
-                          <span className="absolute left-2 top-1/2 -translate-y-1/2 text-stone-400 text-xs">$</span>
+                          <span className="absolute left-2 top-1/2 -translate-y-1/2 text-stone-400 text-xs">{currencySymbol}</span>
                           <input type="number" value={line.unit_price} onChange={e => updateLine(idx, 'unit_price', e.target.value)} step="0.01" className="w-full pl-5 pr-2 py-2 bg-white border border-stone-200 rounded-lg text-sm text-stone-900 focus:outline-none focus:ring-2 focus:ring-emerald-600" />
                         </div>
                       </div>
-                      <div className="col-span-1 text-right text-sm font-medium text-stone-700">${lineTotal(line).toFixed(0)}</div>
+                      <div className="col-span-1 text-right text-sm font-medium text-stone-700">{currencySymbol}{lineTotal(line).toFixed(0)}</div>
                       <div className="col-span-1 text-right">
                         {formLines.length > 1 && (
                           <button onClick={() => removeLine(idx)} className="p-1 text-stone-300 hover:text-red-500 transition-colors">
@@ -895,9 +898,9 @@ export default function Quotes({ user }) {
 
             {/* Totals */}
             <div className="text-right space-y-1 p-3 bg-stone-50 rounded-xl">
-              <div className="text-sm text-stone-500">Subtotal: ${formSubtotal.toFixed(2)}</div>
-              {taxRate > 0 && <div className="text-sm text-stone-500">Tax ({taxRate}%): ${formTax.toFixed(2)}</div>}
-              <div className="text-lg font-bold text-stone-900">Total: ${formTotal.toFixed(2)}</div>
+              <div className="text-sm text-stone-500">Subtotal: {formatCurrency(formSubtotal, currencySymbol)}</div>
+              {taxRate > 0 && <div className="text-sm text-stone-500">Tax ({taxRate}%): {formatCurrency(formTax, currencySymbol)}</div>}
+              <div className="text-lg font-bold text-stone-900">Total: {formatCurrency(formTotal, currencySymbol)}</div>
             </div>
 
             {/* Valid until */}

@@ -42,6 +42,7 @@ export default function Workers({ user }) {
       role: 'worker',
       availability: 'available',
       skills: [],
+      address_line_1: '', address_line_2: '', city: '', state_province: '', postal_code: '', country: 'US',
     })
     setSkillInput('')
     setSelectedWorker(null)
@@ -63,6 +64,12 @@ export default function Workers({ user }) {
       role: worker.role || 'worker',
       availability: worker.availability || 'available',
       skills: worker.skills || [],
+      address_line_1: worker.address_line_1 || '',
+      address_line_2: worker.address_line_2 || '',
+      city: worker.city || '',
+      state_province: worker.state_province || '',
+      postal_code: worker.postal_code || '',
+      country: worker.country || 'US',
     })
     setSkillInput('')
     setDeleteConfirm(null)
@@ -71,6 +78,15 @@ export default function Workers({ user }) {
 
   async function handleSave() {
     setSaving(true)
+
+    const addressFields = {
+      address_line_1: form.address_line_1 || null,
+      address_line_2: form.address_line_2 || null,
+      city: form.city || null,
+      state_province: form.state_province || null,
+      postal_code: form.postal_code || null,
+      country: form.country || null,
+    }
 
     if (modal === 'add') {
       // Create a manual worker (no auth account)
@@ -85,6 +101,7 @@ export default function Workers({ user }) {
         availability: form.availability,
         skills: form.skills,
         auth_linked: false,
+        ...addressFields,
       })
     } else {
       await supabase
@@ -96,6 +113,7 @@ export default function Workers({ user }) {
           role: form.role,
           availability: form.availability,
           skills: form.skills,
+          ...addressFields,
         })
         .eq('id', selectedWorker.id)
     }
@@ -425,6 +443,23 @@ export default function Workers({ user }) {
                     {status === 'unavailable' ? 'Off' : status}
                   </button>
                 ))}
+              </div>
+            </div>
+
+            {/* Home Address */}
+            <div>
+              <label className="block text-xs font-semibold text-stone-500 uppercase tracking-wider text-[11px] mb-3">Home Address (optional — for route planning)</label>
+              <div className="space-y-3">
+                <Field label="Address Line 1" value={form.address_line_1} onChange={v => setForm(f => ({ ...f, address_line_1: v }))} placeholder="123 Main St" />
+                <Field label="Address Line 2" value={form.address_line_2} onChange={v => setForm(f => ({ ...f, address_line_2: v }))} placeholder="Apt, suite, unit, etc." />
+                <div className="grid grid-cols-2 gap-3">
+                  <Field label="City" value={form.city} onChange={v => setForm(f => ({ ...f, city: v }))} placeholder="Sacramento" />
+                  <Field label="State / Province" value={form.state_province} onChange={v => setForm(f => ({ ...f, state_province: v }))} placeholder="CA" />
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <Field label="Postal Code" value={form.postal_code} onChange={v => setForm(f => ({ ...f, postal_code: v }))} placeholder="95814" />
+                  <Field label="Country" value={form.country} onChange={v => setForm(f => ({ ...f, country: v }))} placeholder="US" />
+                </div>
               </div>
             </div>
 

@@ -4,31 +4,37 @@ import { useAdminOrg } from '../contexts/AdminOrgContext'
 import { useToast } from '../contexts/ToastContext'
 import { todayInTimezone, formatDate, getTimezoneAbbr } from '../lib/timezone'
 import DeliveryModal from '../components/DeliveryModal'
+import { formatCurrency } from '../lib/formatCurrency'
+import { formatName } from '../lib/formatAddress'
 
-const METHODS = ['cash', 'venmo', 'zelle', 'card', 'bank_transfer', 'check', 'other']
-
-const methodLabels = {
-  cash: 'Cash', venmo: 'Venmo', zelle: 'Zelle', card: 'Card',
-  bank_transfer: 'Bank Transfer', check: 'Check', other: 'Other',
-}
-
-const methodColors = {
+// Legacy color map for known method names (case-insensitive fallback)
+const METHOD_COLORS = {
   cash: 'bg-green-100 text-green-700',
   venmo: 'bg-blue-100 text-blue-700',
   zelle: 'bg-purple-100 text-purple-700',
   card: 'bg-amber-100 text-amber-700',
+  'bank transfer': 'bg-cyan-100 text-cyan-700',
   bank_transfer: 'bg-cyan-100 text-cyan-700',
   check: 'bg-stone-100 text-stone-600',
-  other: 'bg-stone-100 text-stone-500',
+  ideal: 'bg-blue-100 text-blue-700',
+  tikkie: 'bg-orange-100 text-orange-700',
+  interac: 'bg-red-100 text-red-700',
+  payid: 'bg-teal-100 text-teal-700',
+}
+
+function methodColor(method) {
+  return METHOD_COLORS[(method || '').toLowerCase()] || 'bg-stone-100 text-stone-500'
 }
 
 const emptyPayment = {
-  client_id: '', invoice_id: '', job_id: '', amount: '', method: 'cash', date: '', notes: '', reference: '',
+  client_id: '', invoice_id: '', job_id: '', amount: '', method: '', date: '', notes: '', reference: '',
 }
 
 export default function Payments({ user }) {
   const tz = user?.organizations?.settings?.timezone || 'America/Los_Angeles'
   const tzAbbr = getTimezoneAbbr(tz)
+  const currencySymbol = user?.organizations?.settings?.currency_symbol || '$'
+  const paymentMethods = user?.organizations?.settings?.payment_methods || ['Cash', 'Venmo', 'Zelle', 'Card', 'Check']
   const { adminViewOrg } = useAdminOrg()
   const effectiveOrgId = adminViewOrg?.id ?? user?.org_id
   const { showToast } = useToast()
@@ -52,7 +58,7 @@ export default function Payments({ user }) {
   async function loadAll() {
     const [paymentsRes, clientsRes, invoicesRes] = await Promise.all([
       supabase.from('payments').select('*, clients(name, email, phone, preferred_contact), invoices(invoice_number, total)').eq('org_id', effectiveOrgId).order('date', { ascending: false }),
-      supabase.from('clients').select('id, name').eq('org_id', effectiveOrgId).eq('status', 'active').order('name'),
+      supabase.from('clients').select('id, name, first_name, last_name').eq('org_id', effectiveOrgId).eq('status', 'active').order('first_name'),
       supabase.from('invoices').select('id, invoice_number, total, status, client_id, clients(name)').eq('org_id', effectiveOrgId).in('status', ['sent', 'overdue']).order('created_at', { ascending: false }),
     ])
     setPayments(paymentsRes.data || [])
@@ -100,11 +106,11 @@ export default function Payments({ user }) {
     return pDate.getMonth() === todayDate.getMonth() && pDate.getFullYear() === todayDate.getFullYear()
   }).reduce((sum, p) => sum + Number(p.amount || 0), 0)
 
-  const methodBreakdown = METHODS.map(m => ({
+  const methodBreakdown = [...new Set(filtered.map(p => p.method).filter(Boolean))].map(m => ({
     method: m,
     total: filtered.filter(p => p.method === m).reduce((sum, p) => sum + Number(p.amount || 0), 0),
     count: filtered.filter(p => p.method === m).length,
-  })).filter(m => m.count > 0)
+  }))
 
   // ── Modal handlers ──
 
@@ -120,7 +126,7 @@ export default function Payments({ user }) {
   }, [form.client_id])
 
   function openAdd() {
-    setForm({ ...emptyPayment, date: today })
+    setForm({ ...emptyPayment, date: today, method: paymentMethods[0] || 'Cash' })
     setSelectedPayment(null)
     setModal('add')
   }
@@ -174,7 +180,7 @@ export default function Payments({ user }) {
           org_id: effectiveOrgId,
           client_id: form.client_id,
           event_type: 'payment',
-          summary: `Payment of $${Number(form.amount).toFixed(2)} received via ${methodLabels[form.method]}`,
+          summary: `Payment of ${formatCurrency(form.amount, currencySymbol)} received via ${form.method}`,
           created_by: user.id,
         })
       }
@@ -258,7 +264,7 @@ export default function Payments({ user }) {
 
   const clientInvoices = invoices.filter(i => i.client_id === form.client_id)
 
-  const clientName = (id) => clients.find(c => c.id === id)?.name || 'Unknown'
+  const clientName = (id) => { const c = clients.find(c => c.id === id); return c ? (formatName(c.first_name, c.last_name) || c.name || 'Unknown') : 'Unknown' }
 
   if (loading) return <div className="p-6 md:p-8 text-stone-400">Loading payments...</div>
 
@@ -271,7 +277,7 @@ export default function Payments({ user }) {
           <p className="text-stone-500 text-sm mt-1">
             {payments.length} total payments
             <span className="text-stone-300 mx-1.5">·</span>
-            ${totalThisMonth.toFixed(2)} this month
+            {formatCurrency(totalThisMonth, currencySymbol)} this month
           </p>
         </div>
         <button onClick={openAdd} className="inline-flex items-center gap-2 px-4 py-2.5 bg-emerald-700 text-white text-sm font-medium rounded-xl hover:bg-emerald-800 transition-colors">
@@ -284,17 +290,17 @@ export default function Payments({ user }) {
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
         <div className="bg-white rounded-2xl border border-stone-200 p-4">
           <div className="text-xs font-medium text-stone-500 mb-2">Showing</div>
-          <div className="text-2xl font-bold text-stone-900">${totalFiltered.toFixed(2)}</div>
+          <div className="text-2xl font-bold text-stone-900">{formatCurrency(totalFiltered, currencySymbol)}</div>
           <div className="text-xs text-stone-400 mt-1">{filtered.length} payments</div>
         </div>
         <div className="bg-white rounded-2xl border border-stone-200 p-4">
           <div className="text-xs font-medium text-stone-500 mb-2">This Month</div>
-          <div className="text-2xl font-bold text-emerald-700">${totalThisMonth.toFixed(2)}</div>
+          <div className="text-2xl font-bold text-emerald-700">{formatCurrency(totalThisMonth, currencySymbol)}</div>
         </div>
         {methodBreakdown.slice(0, 2).map(mb => (
           <div key={mb.method} className="bg-white rounded-2xl border border-stone-200 p-4">
-            <div className="text-xs font-medium text-stone-500 mb-2">{methodLabels[mb.method]}</div>
-            <div className="text-2xl font-bold text-stone-700">${mb.total.toFixed(2)}</div>
+            <div className="text-xs font-medium text-stone-500 mb-2">{mb.method}</div>
+            <div className="text-2xl font-bold text-stone-700">{formatCurrency(mb.total, currencySymbol)}</div>
             <div className="text-xs text-stone-400 mt-1">{mb.count} payments</div>
           </div>
         ))}
@@ -309,11 +315,11 @@ export default function Payments({ user }) {
         />
         <select value={filter.method} onChange={e => setFilter(f => ({...f, method: e.target.value}))} className="px-3 py-2 bg-white border border-stone-200 rounded-xl text-sm text-stone-700 focus:outline-none focus:ring-2 focus:ring-emerald-600">
           <option value="all">All Methods</option>
-          {METHODS.map(m => <option key={m} value={m}>{methodLabels[m]}</option>)}
+          {paymentMethods.map(m => <option key={m} value={m}>{m}</option>)}
         </select>
         <select value={filter.client} onChange={e => setFilter(f => ({...f, client: e.target.value}))} className="px-3 py-2 bg-white border border-stone-200 rounded-xl text-sm text-stone-700 focus:outline-none focus:ring-2 focus:ring-emerald-600">
           <option value="all">All Clients</option>
-          {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+          {clients.map(c => <option key={c.id} value={c.id}>{formatName(c.first_name, c.last_name) || c.name}</option>)}
         </select>
         <select value={filter.period} onChange={e => setFilter(f => ({...f, period: e.target.value}))} className="px-3 py-2 bg-white border border-stone-200 rounded-xl text-sm text-stone-700 focus:outline-none focus:ring-2 focus:ring-emerald-600">
           <option value="all">All Time</option>
@@ -349,17 +355,17 @@ export default function Payments({ user }) {
             {filtered.map(p => (
               <div key={p.id} onClick={() => openView(p)} className="grid grid-cols-1 md:grid-cols-12 gap-2 md:gap-4 px-5 py-4 border-b border-stone-50 hover:bg-stone-50 cursor-pointer transition-colors items-center">
                 <div className="md:col-span-3">
-                  <div className="font-medium text-stone-900 text-sm">{p.clients?.name || 'Unknown'}</div>
+                  <div className="font-medium text-stone-900 text-sm">{formatName(p.clients?.first_name, p.clients?.last_name) || p.clients?.name || 'Unknown'}</div>
                   {p.invoices?.invoice_number && <div className="text-xs text-stone-400">Invoice #{p.invoices.invoice_number}</div>}
                 </div>
                 <div className="md:col-span-2 text-sm text-stone-600">{formatDate(p.date)}</div>
                 <div className="md:col-span-2">
-                  <span className={`inline-block px-2.5 py-0.5 rounded-full text-xs font-medium ${methodColors[p.method] || methodColors.other}`}>
-                    {methodLabels[p.method] || p.method}
+                  <span className={`inline-block px-2.5 py-0.5 rounded-full text-xs font-medium ${methodColor(p.method)}`}>
+                    {p.method}
                   </span>
                 </div>
                 <div className="md:col-span-2 text-sm text-stone-500 truncate">{p.reference || '—'}</div>
-                <div className="md:col-span-2 text-right font-semibold text-stone-900">${Number(p.amount).toFixed(2)}</div>
+                <div className="md:col-span-2 text-right font-semibold text-stone-900">{formatCurrency(p.amount, currencySymbol)}</div>
                 <div className="md:col-span-1 text-right">
                   <button onClick={(e) => { e.stopPropagation(); openEdit(p) }} className="text-stone-400 hover:text-stone-600">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
@@ -379,10 +385,10 @@ export default function Payments({ user }) {
             {methodBreakdown.map(mb => (
               <div key={mb.method} className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${methodColors[mb.method]}`}>{methodLabels[mb.method]}</span>
+                  <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${methodColor(mb.method)}`}>{mb.method}</span>
                   <span className="text-xs text-stone-400">{mb.count} payments</span>
                 </div>
-                <span className="text-sm font-medium text-stone-700">${mb.total.toFixed(2)}</span>
+                <span className="text-sm font-medium text-stone-700">{formatCurrency(mb.total, currencySymbol)}</span>
               </div>
             ))}
           </div>
@@ -403,10 +409,10 @@ export default function Payments({ user }) {
           </div>
 
           <div className="space-y-2 mb-6">
-            <InfoRow label="Amount" value={<span className="text-lg font-bold text-emerald-700">${Number(selectedPayment.amount).toFixed(2)}</span>} />
-            <InfoRow label="Client" value={selectedPayment.clients?.name} />
+            <InfoRow label="Amount" value={<span className="text-lg font-bold text-emerald-700">{formatCurrency(selectedPayment.amount, currencySymbol)}</span>} />
+            <InfoRow label="Client" value={formatName(selectedPayment.clients?.first_name, selectedPayment.clients?.last_name) || selectedPayment.clients?.name} />
             <InfoRow label="Date" value={formatDate(selectedPayment.date)} />
-            <InfoRow label="Method" value={<span className={`px-2.5 py-0.5 rounded-full text-xs font-medium ${methodColors[selectedPayment.method]}`}>{methodLabels[selectedPayment.method]}</span>} />
+            <InfoRow label="Method" value={<span className={`px-2.5 py-0.5 rounded-full text-xs font-medium ${methodColor(selectedPayment.method)}`}>{selectedPayment.method}</span>} />
             {selectedPayment.invoices?.invoice_number && <InfoRow label="Invoice" value={`#${selectedPayment.invoices.invoice_number}`} />}
             {selectedPayment.reference && <InfoRow label="Reference" value={selectedPayment.reference} />}
             {selectedPayment.notes && <InfoRow label="Notes" value={selectedPayment.notes} />}
@@ -458,7 +464,7 @@ export default function Payments({ user }) {
               <label className="block text-xs font-medium text-stone-500 mb-1.5">Client *</label>
               <select value={form.client_id} onChange={e => setForm(f => ({...f, client_id: e.target.value, invoice_id: '', job_id: ''}))} className="w-full px-3 py-2.5 bg-stone-50 border border-stone-200 rounded-xl text-sm text-stone-900 focus:outline-none focus:ring-2 focus:ring-emerald-600">
                 <option value="">Select client...</option>
-                {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                {clients.map(c => <option key={c.id} value={c.id}>{formatName(c.first_name, c.last_name) || c.name}</option>)}
               </select>
             </div>
 
@@ -468,7 +474,7 @@ export default function Payments({ user }) {
                 <label className="block text-xs font-medium text-stone-500 mb-1.5">Against Invoice (optional)</label>
                 <select value={form.invoice_id} onChange={e => setForm(f => ({...f, invoice_id: e.target.value}))} className="w-full px-3 py-2.5 bg-stone-50 border border-stone-200 rounded-xl text-sm text-stone-900 focus:outline-none focus:ring-2 focus:ring-emerald-600">
                   <option value="">No invoice (general payment)</option>
-                  {clientInvoices.map(i => <option key={i.id} value={i.id}>#{i.invoice_number} — ${Number(i.total).toFixed(2)}</option>)}
+                  {clientInvoices.map(i => <option key={i.id} value={i.id}>#{i.invoice_number} — {formatCurrency(i.total, currencySymbol)}</option>)}
                 </select>
               </div>
             )}
@@ -481,7 +487,7 @@ export default function Payments({ user }) {
                   <option value="">No specific job</option>
                   {clientJobs.map(j => (
                     <option key={j.id} value={j.id}>
-                      {j.title} — {j.date}{j.price ? ` — $${Number(j.price).toFixed(2)}` : ''}
+                      {j.title} — {j.date}{j.price ? ` — ${formatCurrency(j.price, currencySymbol)}` : ''}
                     </option>
                   ))}
                 </select>
@@ -492,7 +498,7 @@ export default function Payments({ user }) {
             <div>
               <label className="block text-xs font-medium text-stone-500 mb-1.5">Amount *</label>
               <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-400 text-sm">$</span>
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-400 text-sm">{currencySymbol}</span>
                 <input type="number" value={form.amount} onChange={e => setForm(f => ({...f, amount: e.target.value}))} placeholder="0.00" step="0.01" className="w-full pl-7 pr-3 py-2.5 bg-stone-50 border border-stone-200 rounded-xl text-sm text-stone-900 focus:outline-none focus:ring-2 focus:ring-emerald-600" />
               </div>
             </div>
@@ -500,10 +506,10 @@ export default function Payments({ user }) {
             {/* Method */}
             <div>
               <label className="block text-xs font-medium text-stone-500 mb-1.5">Payment Method *</label>
-              <div className="grid grid-cols-4 gap-2">
-                {METHODS.map(m => (
-                  <button key={m} type="button" onClick={() => setForm(f => ({...f, method: m}))} className={`py-2 text-xs font-medium rounded-xl transition-colors ${form.method === m ? methodColors[m] + ' ring-2 ring-offset-1 ring-emerald-300' : 'bg-stone-50 text-stone-400 border border-stone-200 hover:border-stone-300'}`}>
-                    {methodLabels[m]}
+              <div className="flex flex-wrap gap-2">
+                {paymentMethods.map(m => (
+                  <button key={m} type="button" onClick={() => setForm(f => ({...f, method: m}))} className={`px-3 py-2 text-xs font-medium rounded-xl transition-colors ${form.method === m ? methodColor(m) + ' ring-2 ring-offset-1 ring-emerald-300' : 'bg-stone-50 text-stone-400 border border-stone-200 hover:border-stone-300'}`}>
+                    {m}
                   </button>
                 ))}
               </div>

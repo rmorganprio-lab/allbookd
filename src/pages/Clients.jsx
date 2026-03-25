@@ -3,9 +3,12 @@ import { supabase } from '../lib/supabase'
 import CSVImport from '../components/CSVImport'
 import { CLIENT_TEMPLATE, validateClientRows, normalizePhone } from '../lib/csv'
 import { useAdminOrg } from '../contexts/AdminOrgContext'
+import { formatAddress, formatName } from '../lib/formatAddress'
 
 const emptyClient = {
-  name: '', email: '', phone: '', address: '', notes: '', tags: [], status: 'active', preferred_contact: 'sms',
+  first_name: '', last_name: '', email: '', phone: '',
+  address_line_1: '', address_line_2: '', city: '', state_province: '', postal_code: '', country: 'US',
+  notes: '', tags: [], status: 'active', preferred_contact: 'sms',
 }
 
 const contactOptions = ['email', 'sms', 'whatsapp', 'phone']
@@ -25,7 +28,7 @@ export default function Clients({ user }) {
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState('all')
-  const [modal, setModal] = useState(null) // 'add' | 'edit' | 'view' | null
+  const [modal, setModal] = useState(null)
   const [selectedClient, setSelectedClient] = useState(null)
   const [form, setForm] = useState(emptyClient)
   const [propertyForm, setPropertyForm] = useState(emptyProperty)
@@ -35,39 +38,43 @@ export default function Clients({ user }) {
   const [showImport, setShowImport] = useState(false)
   const [clientTimeline, setClientTimeline] = useState([])
 
-  const orgId = user?.org_id
   const { adminViewOrg } = useAdminOrg()
   const effectiveOrgId = adminViewOrg?.id ?? user?.org_id
+  const defaultCountry = user?.organizations?.settings?.country || 'US'
 
   useEffect(() => {
     loadClients()
   }, [effectiveOrgId])
 
   async function loadClients() {
-    const { data, error } = await supabase
+    const { data } = await supabase
       .from('clients')
       .select('*, client_properties(*)')
       .eq('org_id', effectiveOrgId)
-      .order('name')
-    
+      .order('first_name')
+
     if (data) setClients(data)
     setLoading(false)
   }
 
   // Filter clients
   const filtered = clients.filter(c => {
-    const matchesSearch = !search || 
-      c.name.toLowerCase().includes(search.toLowerCase()) ||
+    const fullName = formatName(c.first_name, c.last_name).toLowerCase()
+    const addr = formatAddress(c).toLowerCase()
+    const matchesSearch = !search ||
+      fullName.includes(search.toLowerCase()) ||
       (c.phone || '').includes(search) ||
       (c.email || '').toLowerCase().includes(search.toLowerCase()) ||
-      (c.address || '').toLowerCase().includes(search.toLowerCase())
+      (c.city || '').toLowerCase().includes(search.toLowerCase()) ||
+      (c.address_line_1 || '').toLowerCase().includes(search.toLowerCase()) ||
+      addr.includes(search.toLowerCase())
     const matchesStatus = statusFilter === 'all' || c.status === statusFilter
     return matchesSearch && matchesStatus
   })
 
   // Open modals
   function openAdd() {
-    setForm({ ...emptyClient })
+    setForm({ ...emptyClient, country: defaultCountry })
     setPropertyForm({ ...emptyProperty })
     setTagInput('')
     setModal('add')
@@ -76,10 +83,16 @@ export default function Clients({ user }) {
   function openEdit(client) {
     setSelectedClient(client)
     setForm({
-      name: client.name || '',
+      first_name: client.first_name || '',
+      last_name: client.last_name || '',
       email: client.email || '',
       phone: client.phone || '',
-      address: client.address || '',
+      address_line_1: client.address_line_1 || '',
+      address_line_2: client.address_line_2 || '',
+      city: client.city || '',
+      state_province: client.state_province || '',
+      postal_code: client.postal_code || '',
+      country: client.country || defaultCountry,
       notes: client.notes || '',
       tags: client.tags || [],
       status: client.status || 'active',
@@ -120,13 +133,11 @@ export default function Clients({ user }) {
     setSaving(true)
 
     if (modal === 'add') {
-      // Auto-detect preferred_contact if still at default
       const preferred = form.preferred_contact === 'sms' && form.email
         ? 'email'
         : form.preferred_contact
 
-      // Create client
-      const { data: newClient, error } = await supabase
+      const { data: newClient } = await supabase
         .from('clients')
         .insert({ ...form, preferred_contact: preferred, org_id: effectiveOrgId })
         .select()
@@ -139,7 +150,6 @@ export default function Clients({ user }) {
           org_id: effectiveOrgId,
         })
 
-        // Add timeline entry
         await supabase.from('client_timeline').insert({
           org_id: effectiveOrgId,
           client_id: newClient.id,
@@ -149,13 +159,11 @@ export default function Clients({ user }) {
         })
       }
     } else {
-      // Update client
-      const { error } = await supabase
+      await supabase
         .from('clients')
         .update({ ...form })
         .eq('id', selectedClient.id)
 
-      // Update or create property
       const existingProp = selectedClient.client_properties?.[0]
       if (hasPropertyData()) {
         if (existingProp) {
@@ -178,7 +186,6 @@ export default function Clients({ user }) {
     loadClients()
   }
 
-  // Delete client
   async function handleDelete(id) {
     await supabase.from('clients').delete().eq('id', id)
     setDeleteConfirm(null)
@@ -186,9 +193,8 @@ export default function Clients({ user }) {
     loadClients()
   }
 
-  // Helpers
   function hasPropertyData() {
-    return propertyForm.bedrooms || propertyForm.bathrooms || propertyForm.alarm_code || 
+    return propertyForm.bedrooms || propertyForm.bathrooms || propertyForm.alarm_code ||
            propertyForm.key_info || propertyForm.pet_details || propertyForm.parking_instructions ||
            propertyForm.supply_location || propertyForm.special_notes || propertyForm.square_footage
   }
@@ -229,10 +235,16 @@ export default function Clients({ user }) {
 
       const { data: newClient } = await supabase.from('clients').insert({
         org_id: effectiveOrgId,
-        name: row.name,
+        first_name: row.first_name,
+        last_name: row.last_name || null,
         phone: normalizePhone(row.phone) || null,
         email: row.email || null,
-        address: row.address || null,
+        address_line_1: row.address_line_1 || null,
+        address_line_2: row.address_line_2 || null,
+        city: row.city || null,
+        state_province: row.state_province || null,
+        postal_code: row.postal_code || null,
+        country: row.country || defaultCountry,
         notes: row.notes || null,
         tags: row.tags ? row.tags.split(',').map(t => t.trim().toLowerCase()).filter(Boolean) : [],
         status: (row.status || 'active').toLowerCase(),
@@ -349,6 +361,8 @@ export default function Clients({ user }) {
         <div className="grid gap-3">
           {filtered.map(client => {
             const prop = client.client_properties?.[0]
+            const displayName = formatName(client.first_name, client.last_name)
+            const displayAddr = formatAddress(client) || client.address
             return (
               <div
                 key={client.id}
@@ -357,20 +371,18 @@ export default function Clients({ user }) {
               >
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex items-start gap-3 min-w-0">
-                    {/* Avatar */}
                     <div className="w-10 h-10 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-700 font-bold text-sm flex-shrink-0">
-                      {client.name.charAt(0).toUpperCase()}
+                      {(client.first_name || '?').charAt(0).toUpperCase()}
                     </div>
                     <div className="min-w-0">
-                      <div className="font-semibold text-stone-900 text-sm">{client.name}</div>
+                      <div className="font-semibold text-stone-900 text-sm">{displayName}</div>
                       <div className="text-stone-500 text-xs mt-0.5 flex flex-wrap gap-x-3 gap-y-0.5">
                         {client.phone && <span>{client.phone}</span>}
                         {client.email && <span>{client.email}</span>}
                       </div>
-                      {client.address && (
-                        <div className="text-stone-400 text-xs mt-1 truncate">{client.address}</div>
+                      {displayAddr && (
+                        <div className="text-stone-400 text-xs mt-1 truncate">{displayAddr}</div>
                       )}
-                      {/* Property summary */}
                       {prop && (prop.bedrooms || prop.bathrooms) && (
                         <div className="text-stone-400 text-xs mt-1">
                           {prop.bedrooms && `${prop.bedrooms}BR`}
@@ -383,7 +395,6 @@ export default function Clients({ user }) {
                     </div>
                   </div>
                   <div className="flex items-center gap-2 flex-shrink-0">
-                    {/* Tags */}
                     {client.tags?.length > 0 && (
                       <div className="hidden sm:flex gap-1">
                         {client.tags.slice(0, 2).map(tag => (
@@ -411,10 +422,10 @@ export default function Clients({ user }) {
           <div className="flex items-start justify-between mb-6">
             <div className="flex items-center gap-3">
               <div className="w-12 h-12 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-700 font-bold text-lg">
-                {selectedClient.name.charAt(0).toUpperCase()}
+                {(selectedClient.first_name || '?').charAt(0).toUpperCase()}
               </div>
               <div>
-                <h2 className="text-lg font-bold text-stone-900">{selectedClient.name}</h2>
+                <h2 className="text-lg font-bold text-stone-900">{formatName(selectedClient.first_name, selectedClient.last_name)}</h2>
                 <StatusBadge status={selectedClient.status} />
               </div>
             </div>
@@ -428,21 +439,18 @@ export default function Clients({ user }) {
             </div>
           </div>
 
-          {/* Contact Info */}
           <Section title="Contact">
             <InfoRow label="Phone" value={selectedClient.phone} />
             <InfoRow label="Email" value={selectedClient.email} />
-            <InfoRow label="Address" value={selectedClient.address} />
+            <InfoRow label="Address" value={formatAddress(selectedClient) || selectedClient.address} />
           </Section>
 
-          {/* Property Details */}
           {selectedClient.client_properties?.[0] && (
             <Section title="Property">
               <PropertyView prop={selectedClient.client_properties[0]} />
             </Section>
           )}
 
-          {/* Tags */}
           {selectedClient.tags?.length > 0 && (
             <Section title="Tags">
               <div className="flex flex-wrap gap-2">
@@ -455,14 +463,12 @@ export default function Clients({ user }) {
             </Section>
           )}
 
-          {/* Notes */}
           {selectedClient.notes && (
             <Section title="Notes">
               <p className="text-sm text-stone-600 whitespace-pre-wrap">{selectedClient.notes}</p>
             </Section>
           )}
 
-          {/* Activity Timeline */}
           <div className="mt-6 pt-4 border-t border-stone-200">
             <h3 className="text-sm font-semibold text-stone-700 mb-3">Activity Timeline</h3>
             {clientTimeline.length === 0 ? (
@@ -492,7 +498,6 @@ export default function Clients({ user }) {
             )}
           </div>
 
-          {/* Actions */}
           <div className="flex gap-3 mt-6 pt-4 border-t border-stone-200">
             <button onClick={() => openEdit(selectedClient)} className="flex-1 py-2.5 bg-emerald-700 text-white text-sm font-medium rounded-xl hover:bg-emerald-800 transition-colors">
               Edit Client
@@ -505,10 +510,9 @@ export default function Clients({ user }) {
             </button>
           </div>
 
-          {/* Delete confirmation */}
           {deleteConfirm === selectedClient.id && (
             <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-xl">
-              <p className="text-sm text-red-700 mb-3">Delete {selectedClient.name}? This cannot be undone.</p>
+              <p className="text-sm text-red-700 mb-3">Delete {formatName(selectedClient.first_name, selectedClient.last_name)}? This cannot be undone.</p>
               <div className="flex gap-2">
                 <button onClick={() => handleDelete(selectedClient.id)} className="px-3 py-1.5 bg-red-600 text-white text-sm rounded-lg hover:bg-red-700">Yes, delete</button>
                 <button onClick={() => setDeleteConfirm(null)} className="px-3 py-1.5 bg-white text-stone-600 text-sm rounded-lg border border-stone-200 hover:bg-stone-50">Cancel</button>
@@ -544,12 +548,14 @@ export default function Clients({ user }) {
           <div className="space-y-6 max-h-[70vh] overflow-y-auto pr-1">
             {/* Basic Info */}
             <FormSection title="Contact Information">
-              <Field label="Name *" value={form.name} onChange={v => setForm(f => ({ ...f, name: v }))} placeholder="Full name" />
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <Field label="First Name *" value={form.first_name} onChange={v => setForm(f => ({ ...f, first_name: v }))} placeholder="Jane" />
+                <Field label="Last Name" value={form.last_name} onChange={v => setForm(f => ({ ...f, last_name: v }))} placeholder="Smith" />
+              </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <Field label="Phone" value={form.phone} onChange={v => setForm(f => ({ ...f, phone: v }))} placeholder="+1 650 290 0821" type="tel" />
                 <Field label="Email" value={form.email} onChange={v => setForm(f => ({ ...f, email: v }))} placeholder="email@example.com" type="email" />
               </div>
-              <Field label="Address" value={form.address} onChange={v => setForm(f => ({ ...f, address: v }))} placeholder="Full address" />
               <Field label="Status" value={form.status} onChange={v => setForm(f => ({ ...f, status: v }))} type="select" options={statusOptions} />
               <div>
                 <label className="block text-xs font-medium text-stone-500 mb-1">Preferred Contact Method</label>
@@ -562,6 +568,20 @@ export default function Clients({ user }) {
                     <option key={o} value={o}>{contactLabels[o]}</option>
                   ))}
                 </select>
+              </div>
+            </FormSection>
+
+            {/* Address */}
+            <FormSection title="Address">
+              <Field label="Address Line 1" value={form.address_line_1} onChange={v => setForm(f => ({ ...f, address_line_1: v }))} placeholder="123 Main St" />
+              <Field label="Address Line 2" value={form.address_line_2} onChange={v => setForm(f => ({ ...f, address_line_2: v }))} placeholder="Apt, suite, unit, etc." />
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <Field label="City" value={form.city} onChange={v => setForm(f => ({ ...f, city: v }))} placeholder="Sacramento" />
+                <Field label="State / Province" value={form.state_province} onChange={v => setForm(f => ({ ...f, state_province: v }))} placeholder="CA" />
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <Field label="Postal Code" value={form.postal_code} onChange={v => setForm(f => ({ ...f, postal_code: v }))} placeholder="95814" />
+                <Field label="Country" value={form.country} onChange={v => setForm(f => ({ ...f, country: v }))} type="select" options={COUNTRY_OPTIONS.map(c => c.code)} optionLabels={Object.fromEntries(COUNTRY_OPTIONS.map(c => [c.code, c.label]))} />
               </div>
             </FormSection>
 
@@ -614,14 +634,13 @@ export default function Clients({ user }) {
             </FormSection>
           </div>
 
-          {/* Save / Cancel */}
           <div className="flex gap-3 mt-6 pt-4 border-t border-stone-200">
             <button onClick={() => setModal(null)} className="flex-1 py-2.5 bg-stone-100 text-stone-600 text-sm font-medium rounded-xl hover:bg-stone-200 transition-colors">
               Cancel
             </button>
             <button
               onClick={handleSave}
-              disabled={saving || !form.name.trim()}
+              disabled={saving || !form.first_name.trim()}
               className="flex-1 py-2.5 bg-emerald-700 text-white text-sm font-medium rounded-xl hover:bg-emerald-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
               {saving ? 'Saving...' : modal === 'add' ? 'Add Client' : 'Save Changes'}
@@ -632,6 +651,25 @@ export default function Clients({ user }) {
     </div>
   )
 }
+
+// ── Country list ──────────────────────────────────────────────
+
+const COUNTRY_OPTIONS = [
+  { code: 'US', label: 'United States' },
+  { code: 'NL', label: 'Netherlands' },
+  { code: 'GB', label: 'United Kingdom' },
+  { code: 'CA', label: 'Canada' },
+  { code: 'AU', label: 'Australia' },
+  { code: 'DE', label: 'Germany' },
+  { code: 'FR', label: 'France' },
+  { code: 'ES', label: 'Spain' },
+  { code: 'IT', label: 'Italy' },
+  { code: 'BE', label: 'Belgium' },
+  { code: 'CH', label: 'Switzerland' },
+  { code: 'AT', label: 'Austria' },
+  { code: 'NZ', label: 'New Zealand' },
+  { code: 'Other', label: 'Other' },
+]
 
 // ── Reusable Components ──────────────────────────────────────
 
@@ -665,15 +703,15 @@ function FormSection({ title, children }) {
   )
 }
 
-function Field({ label, value, onChange, placeholder, type = 'text', options = [] }) {
+function Field({ label, value, onChange, placeholder, type = 'text', options = [], optionLabels = {} }) {
   const base = "w-full px-3 py-2.5 bg-stone-50 border border-stone-200 rounded-xl text-sm text-stone-900 placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-emerald-600 focus:border-transparent"
-  
+
   if (type === 'select') {
     return (
       <div>
         {label && <label className="block text-xs font-medium text-stone-500 mb-1.5">{label}</label>}
         <select value={value} onChange={e => onChange(e.target.value)} className={base + " capitalize"}>
-          {options.map(o => <option key={o} value={o} className="capitalize">{o}</option>)}
+          {options.map(o => <option key={o} value={o}>{optionLabels[o] || o}</option>)}
         </select>
       </div>
     )
@@ -701,7 +739,7 @@ function InfoRow({ label, value }) {
   return (
     <div className="flex justify-between py-1.5">
       <span className="text-xs text-stone-400">{label}</span>
-      <span className="text-sm text-stone-700">{value}</span>
+      <span className="text-sm text-stone-700 text-right max-w-[65%]">{value}</span>
     </div>
   )
 }

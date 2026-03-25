@@ -3,10 +3,13 @@ import { Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { todayInTimezone, addDays, currentHourInTimezone, getTimezoneAbbr, formatTime } from '../lib/timezone'
 import { useAdminOrg } from '../contexts/AdminOrgContext'
+import { formatCurrency } from '../lib/formatCurrency'
+import { formatName } from '../lib/formatAddress'
 
 export default function Dashboard({ user }) {
   const tz = user?.organizations?.settings?.timezone || 'America/Los_Angeles'
   const timeFormat = user?.organizations?.settings?.time_format || '12h'
+  const currencySymbol = user?.organizations?.settings?.currency_symbol || '$'
   const role = user?.role || 'worker'
   const isWorker = role === 'worker'
   const { adminViewOrg } = useAdminOrg()
@@ -58,7 +61,7 @@ export default function Dashboard({ user }) {
     return 'Good evening'
   }
 
-  const firstName = user?.name?.split(' ')[0]
+  const firstName = user?.name?.split(' ')[0] || user?.organizations?.name?.split(' ')[0] || 'there'
   const today = todayInTimezone(tz)
 
   // Group today's jobs by worker
@@ -165,7 +168,7 @@ export default function Dashboard({ user }) {
         } />
         <StatCard label="This Week" value={data.weekJobs.length} />
         <StatCard label="Overdue" value={data.overdueInvoices.length} alert={data.overdueInvoices.length > 0} sub={
-          data.totalOutstanding > 0 ? <span className="text-xs text-red-500">${data.totalOutstanding.toFixed(0)} outstanding</span> : null
+          data.totalOutstanding > 0 ? <span className="text-xs text-red-500">{formatCurrency(data.totalOutstanding.toFixed(0), currencySymbol)} outstanding</span> : null
         } />
         <StatCard label="Total Clients" value={data.totalClients} />
       </div>
@@ -221,7 +224,7 @@ export default function Dashboard({ user }) {
                       </div>
                       <div className="text-stone-600 mt-0.5">{job.title}</div>
                       <div className="text-stone-400 mt-0.5">{job.clients?.name}</div>
-                      {job.price && <div className="text-stone-500 font-medium mt-1">${Number(job.price).toFixed(0)}</div>}
+                      {job.price && <div className="text-stone-500 font-medium mt-1">{formatCurrency(job.price, currencySymbol)}</div>}
                     </div>
                   ))}
                 </div>
@@ -285,7 +288,7 @@ export default function Dashboard({ user }) {
                   <div className="text-xs text-stone-500">#{inv.invoice_number}</div>
                 </div>
                 <div className="text-right">
-                  <div className="text-sm font-bold text-red-700">${Number(inv.total).toFixed(2)}</div>
+                  <div className="text-sm font-bold text-red-700">{formatCurrency(inv.total, currencySymbol)}</div>
                 </div>
               </div>
             ))}
@@ -307,7 +310,7 @@ export default function Dashboard({ user }) {
                   <div className="text-sm font-medium text-stone-900">{p.clients?.name}</div>
                   <div className="text-xs text-stone-400 capitalize">{p.method} · {p.date}</div>
                 </div>
-                <div className="text-sm font-semibold text-emerald-700">+${Number(p.amount).toFixed(2)}</div>
+                <div className="text-sm font-semibold text-emerald-700">+{formatCurrency(p.amount, currencySymbol)}</div>
               </div>
             ))}
           </div>
@@ -342,7 +345,9 @@ function StatusDot({ status }) {
 function JobCard({ job, isNext, tz, user, onUpdate }) {
   const [step, setStep] = useState('idle') // idle | askPayment | paymentForm | done
   const [payAmount, setPayAmount] = useState(job.price ? String(job.price) : '')
-  const [payMethod, setPayMethod] = useState('cash')
+  const currencySymbol = user?.organizations?.settings?.currency_symbol || '$'
+  const paymentMethods = user?.organizations?.settings?.payment_methods || ['Cash', 'Venmo', 'Zelle', 'Card', 'Check']
+  const [payMethod, setPayMethod] = useState(paymentMethods[0] || 'Cash')
   const [saving, setSaving] = useState(false)
 
   async function handleArrive() {
@@ -381,16 +386,13 @@ function JobCard({ job, isNext, tz, user, onUpdate }) {
       org_id: user.org_id,
       client_id: job.client_id,
       event_type: 'payment',
-      summary: `$${Number(payAmount).toFixed(2)} received via ${payMethod}`,
+      summary: `${formatCurrency(payAmount, currencySymbol)} received via ${payMethod}`,
       created_by: user.id,
     })
     setSaving(false)
     setStep('done')
     onUpdate?.()
   }
-
-  const methods = ['cash', 'venmo', 'zelle', 'card', 'check']
-  const methodLabels = { cash: 'Cash', venmo: 'Venmo', zelle: 'Zelle', card: 'Card', check: 'Check' }
 
   return (
     <div className={`bg-white rounded-2xl border p-5 ${
@@ -407,7 +409,7 @@ function JobCard({ job, isNext, tz, user, onUpdate }) {
           <div className="text-xs text-stone-400">{job.duration_minutes}min</div>
         </div>
       </div>
-      {job.price && <div className="text-sm font-medium text-stone-600 mt-2">${Number(job.price).toFixed(2)}</div>}
+      {job.price && <div className="text-sm font-medium text-stone-600 mt-2">{formatCurrency(job.price, currencySymbol)}</div>}
       
       {/* Actions */}
       <div className="mt-4 pt-3 border-t border-stone-100">
@@ -449,23 +451,23 @@ function JobCard({ job, isNext, tz, user, onUpdate }) {
           <div className="space-y-3">
             <div>
               <div className="text-sm font-medium text-stone-700">Amount received</div>
-              {job.price && <div className="text-xs text-stone-400 mt-0.5">Job total: ${Number(job.price).toFixed(2)}</div>}
+              {job.price && <div className="text-xs text-stone-400 mt-0.5">Job total: {formatCurrency(job.price, currencySymbol)}</div>}
             </div>
             <div className="relative">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-400 text-sm">$</span>
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-400 text-sm">{currencySymbol}</span>
               <input type="number" value={payAmount} onChange={e => setPayAmount(e.target.value)} placeholder="0.00" step="0.01" className="w-full pl-7 pr-3 py-2.5 bg-stone-50 border border-stone-200 rounded-xl text-sm text-stone-900 focus:outline-none focus:ring-2 focus:ring-emerald-600" />
             </div>
             {job.price && payAmount && Number(payAmount) < Number(job.price) && (
-              <div className="text-xs text-amber-600">Partial payment — ${(Number(job.price) - Number(payAmount)).toFixed(2)} remaining</div>
+              <div className="text-xs text-amber-600">Partial payment — {formatCurrency(Number(job.price) - Number(payAmount), currencySymbol)} remaining</div>
             )}
             {job.price && payAmount && Number(payAmount) > Number(job.price) && (
-              <div className="text-xs text-blue-600">Overpayment of ${(Number(payAmount) - Number(job.price)).toFixed(2)} — includes tip or credit</div>
+              <div className="text-xs text-blue-600">Overpayment of {formatCurrency(Number(payAmount) - Number(job.price), currencySymbol)} — includes tip or credit</div>
             )}
-            <div className="flex gap-1.5 flex-wrap">
-              {methods.map(m => (
-                <button key={m} onClick={() => setPayMethod(m)} className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${
-                  payMethod === m ? 'bg-emerald-100 text-emerald-700 ring-1 ring-emerald-200' : 'bg-stone-50 text-stone-400 border border-stone-200'
-                }`}>{methodLabels[m]}</button>
+            <div className="flex flex-wrap gap-2">
+              {paymentMethods.map(m => (
+                <button key={m} onClick={() => setPayMethod(m)} className={`px-3 py-2 text-sm font-medium rounded-xl transition-colors min-h-[44px] ${
+                  payMethod === m ? 'bg-stone-800 text-white' : 'bg-stone-100 text-stone-600 hover:bg-stone-200'
+                }`}>{m}</button>
               ))}
             </div>
             <div className="flex gap-2">

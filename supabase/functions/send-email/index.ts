@@ -48,14 +48,18 @@ function emailWrapper(orgName: string, body: string): string {
 </html>`
 }
 
-function lineItemsTable(items: Array<{ description: string; quantity: number; unit_price: number; total?: number }>): string {
+function formatClientName(firstName: string | null | undefined, lastName: string | null | undefined, fallback = ''): string {
+  return [firstName, lastName].filter(Boolean).join(' ') || fallback
+}
+
+function lineItemsTable(items: Array<{ description: string; quantity: number; unit_price: number; total?: number }>, sym = '$'): string {
   const rows = items.map(li => {
     const lineTotal = li.total ?? (li.quantity * li.unit_price)
     return `<tr>
       <td style="padding:10px 0;font-size:14px;color:#44403c;border-bottom:1px solid #f5f5f4;">${li.description}</td>
       <td style="padding:10px 0;font-size:14px;color:#78716c;text-align:right;border-bottom:1px solid #f5f5f4;">${li.quantity}</td>
-      <td style="padding:10px 0;font-size:14px;color:#78716c;text-align:right;border-bottom:1px solid #f5f5f4;">$${Number(li.unit_price).toFixed(2)}</td>
-      <td style="padding:10px 0;font-size:14px;color:#1c1917;font-weight:600;text-align:right;border-bottom:1px solid #f5f5f4;">$${Number(lineTotal).toFixed(2)}</td>
+      <td style="padding:10px 0;font-size:14px;color:#78716c;text-align:right;border-bottom:1px solid #f5f5f4;">${sym}${Number(li.unit_price).toFixed(2)}</td>
+      <td style="padding:10px 0;font-size:14px;color:#1c1917;font-weight:600;text-align:right;border-bottom:1px solid #f5f5f4;">${sym}${Number(lineTotal).toFixed(2)}</td>
     </tr>`
   }).join('')
   return `<table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:16px 0;">
@@ -69,23 +73,23 @@ function lineItemsTable(items: Array<{ description: string; quantity: number; un
   </table>`
 }
 
-function totalsBlock(subtotal: number, taxAmount: number, total: number): string {
+function totalsBlock(subtotal: number, taxAmount: number, total: number, sym = '$'): string {
   const tax = taxAmount > 0 ? `<tr>
     <td colspan="2"></td>
     <td style="padding:4px 0;font-size:13px;color:#78716c;text-align:right;padding-right:16px;">Tax</td>
-    <td style="padding:4px 0;font-size:13px;color:#44403c;text-align:right;">$${Number(taxAmount).toFixed(2)}</td>
+    <td style="padding:4px 0;font-size:13px;color:#44403c;text-align:right;">${sym}${Number(taxAmount).toFixed(2)}</td>
   </tr>` : ''
   return `<table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-top:8px;">
     <tr>
       <td colspan="2"></td>
       <td style="padding:4px 0;font-size:13px;color:#78716c;text-align:right;padding-right:16px;">Subtotal</td>
-      <td style="padding:4px 0;font-size:13px;color:#44403c;text-align:right;">$${Number(subtotal).toFixed(2)}</td>
+      <td style="padding:4px 0;font-size:13px;color:#44403c;text-align:right;">${sym}${Number(subtotal).toFixed(2)}</td>
     </tr>
     ${tax}
     <tr>
       <td colspan="2"></td>
       <td style="padding:8px 0;font-size:16px;font-weight:700;color:#1c1917;text-align:right;padding-right:16px;border-top:2px solid #e7e5e4;">Total</td>
-      <td style="padding:8px 0;font-size:16px;font-weight:700;color:#047857;text-align:right;border-top:2px solid #e7e5e4;">$${Number(total).toFixed(2)}</td>
+      <td style="padding:8px 0;font-size:16px;font-weight:700;color:#047857;text-align:right;border-top:2px solid #e7e5e4;">${sym}${Number(total).toFixed(2)}</td>
     </tr>
   </table>`
 }
@@ -100,9 +104,9 @@ function fmtDate(d: string): string {
 
 // ─── Templates ────────────────────────────────────────────────
 
-function templateQuoteSent(org: { name: string }, data: Record<string, unknown>): { subject: string; html: string } {
+function templateQuoteSent(org: { name: string }, data: Record<string, unknown>, sym = '$'): { subject: string; html: string } {
   const clientName = String(data.client_name || '')
-  const firstName = clientName.split(' ')[0] || clientName
+  const firstName = String(data.client_first_name || clientName.split(' ')[0] || clientName)
   const quoteNumber = String(data.quote_number || '')
   const token = String(data.approval_token || '')
   const baseUrl = 'https://timelyops.com'
@@ -120,8 +124,8 @@ function templateQuoteSent(org: { name: string }, data: Record<string, unknown>)
       ${data.valid_until ? `<div style="font-size:13px;color:#78716c;margin-top:4px;">Valid until: ${fmtDate(String(data.valid_until))}</div>` : ''}
     </div>
 
-    ${lineItemsTable(data.line_items as Array<{ description: string; quantity: number; unit_price: number; total?: number }>)}
-    ${totalsBlock(Number(data.subtotal), Number(data.tax_amount || 0), Number(data.total))}
+    ${lineItemsTable(data.line_items as Array<{ description: string; quantity: number; unit_price: number; total?: number }>, sym)}
+    ${totalsBlock(Number(data.subtotal), Number(data.tax_amount || 0), Number(data.total), sym)}
 
     ${data.notes ? `<div style="margin:20px 0;padding:16px;background-color:#f5f5f4;border-radius:8px;font-size:14px;color:#57534e;">${String(data.notes)}</div>` : ''}
 
@@ -138,9 +142,9 @@ function templateQuoteSent(org: { name: string }, data: Record<string, unknown>)
   return { subject, html: emailWrapper(org.name, body) }
 }
 
-function templateInvoiceSent(org: { name: string }, data: Record<string, unknown>): { subject: string; html: string } {
+function templateInvoiceSent(org: { name: string }, data: Record<string, unknown>, sym = '$'): { subject: string; html: string } {
   const clientName = String(data.client_name || '')
-  const firstName = clientName.split(' ')[0] || clientName
+  const firstName = String(data.client_first_name || clientName.split(' ')[0] || clientName)
   const invoiceNumber = String(data.invoice_number || '')
   const token = String(data.view_token || '')
   const viewUrl = `https://timelyops.com/invoice/${token}`
@@ -157,8 +161,8 @@ function templateInvoiceSent(org: { name: string }, data: Record<string, unknown
       ${data.due_date ? `<div style="font-size:14px;font-weight:600;color:#dc2626;margin-top:6px;">Due: ${fmtDate(String(data.due_date))}</div>` : ''}
     </div>
 
-    ${lineItemsTable(data.line_items as Array<{ description: string; quantity: number; unit_price: number; total?: number }>)}
-    ${totalsBlock(Number(data.subtotal), Number(data.tax_amount || 0), Number(data.total))}
+    ${lineItemsTable(data.line_items as Array<{ description: string; quantity: number; unit_price: number; total?: number }>, sym)}
+    ${totalsBlock(Number(data.subtotal), Number(data.tax_amount || 0), Number(data.total), sym)}
 
     ${data.notes ? `<div style="margin:20px 0;padding:16px;background-color:#f5f5f4;border-radius:8px;font-size:14px;color:#57534e;">${String(data.notes)}</div>` : ''}
 
@@ -173,9 +177,9 @@ function templateInvoiceSent(org: { name: string }, data: Record<string, unknown
   return { subject, html: emailWrapper(org.name, body) }
 }
 
-function templatePaymentReceipt(org: { name: string }, data: Record<string, unknown>): { subject: string; html: string } {
+function templatePaymentReceipt(org: { name: string }, data: Record<string, unknown>, sym = '$'): { subject: string; html: string } {
   const clientName = String(data.client_name || '')
-  const firstName = clientName.split(' ')[0] || clientName
+  const firstName = String(data.client_first_name || clientName.split(' ')[0] || clientName)
   const invoiceNumber = String(data.invoice_number || '')
   const amount = Number(data.payment_amount || 0)
   const invoiceTotal = Number(data.invoice_total || 0)
@@ -189,7 +193,7 @@ function templatePaymentReceipt(org: { name: string }, data: Record<string, unkn
     <p style="font-size:15px;color:#44403c;margin:0 0 24px 0;">Thank you for your payment!</p>
 
     <div style="background-color:#ecfdf5;border:1px solid #a7f3d0;border-radius:8px;padding:20px;text-align:center;margin-bottom:24px;">
-      <div style="font-size:32px;font-weight:700;color:#047857;margin-bottom:4px;">$${amount.toFixed(2)}</div>
+      <div style="font-size:32px;font-weight:700;color:#047857;margin-bottom:4px;">${sym}${amount.toFixed(2)}</div>
       <div style="font-size:14px;color:#059669;">Payment received</div>
     </div>
 
@@ -208,19 +212,19 @@ function templatePaymentReceipt(org: { name: string }, data: Record<string, unkn
       </tr>` : ''}
       ${invoiceTotal > 0 ? `<tr>
         <td style="padding:8px 0;font-size:13px;color:#78716c;">Invoice total</td>
-        <td style="padding:8px 0;font-size:13px;color:#44403c;text-align:right;">$${invoiceTotal.toFixed(2)}</td>
+        <td style="padding:8px 0;font-size:13px;color:#44403c;text-align:right;">${sym}${invoiceTotal.toFixed(2)}</td>
       </tr>` : ''}
     </table>
 
     ${isPaidInFull
       ? `<div style="background-color:#ecfdf5;border-radius:8px;padding:14px;text-align:center;font-size:14px;font-weight:600;color:#047857;">✓ This invoice is now paid in full.</div>`
-      : `<div style="background-color:#fff7ed;border:1px solid #fed7aa;border-radius:8px;padding:14px;text-align:center;font-size:14px;color:#c2410c;">Remaining balance: <strong>$${remaining.toFixed(2)}</strong></div>`
+      : `<div style="background-color:#fff7ed;border:1px solid #fed7aa;border-radius:8px;padding:14px;text-align:center;font-size:14px;color:#c2410c;">Remaining balance: <strong>${sym}${remaining.toFixed(2)}</strong></div>`
     }`
 
   return { subject, html: emailWrapper(org.name, body) }
 }
 
-function templateQuoteApproved(org: { name: string }, data: Record<string, unknown>): { subject: string; html: string } {
+function templateQuoteApproved(org: { name: string }, data: Record<string, unknown>, sym = '$'): { subject: string; html: string } {
   const clientName = String(data.client_name || '')
   const quoteNumber = String(data.quote_number || '')
   const total = Number(data.total || 0)
@@ -236,7 +240,7 @@ function templateQuoteApproved(org: { name: string }, data: Record<string, unkno
 
     <div style="background-color:#f5f5f4;border-radius:8px;padding:16px;margin-bottom:24px;text-align:center;">
       <div style="font-size:13px;color:#78716c;margin-bottom:4px;">Quote #${quoteNumber}</div>
-      <div style="font-size:22px;font-weight:700;color:#047857;">$${total.toFixed(2)}</div>
+      <div style="font-size:22px;font-weight:700;color:#047857;">${sym}${total.toFixed(2)}</div>
     </div>
 
     <p style="font-size:14px;color:#57534e;text-align:center;margin-bottom:24px;">Log in to TimelyOps to schedule the job.</p>
@@ -248,7 +252,7 @@ function templateQuoteApproved(org: { name: string }, data: Record<string, unkno
   return { subject, html: emailWrapper(org.name, body) }
 }
 
-function templateQuoteDeclined(org: { name: string }, data: Record<string, unknown>): { subject: string; html: string } {
+function templateQuoteDeclined(org: { name: string }, data: Record<string, unknown>, sym = '$'): { subject: string; html: string } {
   const clientName = String(data.client_name || '')
   const quoteNumber = String(data.quote_number || '')
   const total = Number(data.total || 0)
@@ -262,7 +266,7 @@ function templateQuoteDeclined(org: { name: string }, data: Record<string, unkno
 
     <div style="background-color:#f5f5f4;border-radius:8px;padding:16px;margin-bottom:24px;">
       <div style="font-size:13px;color:#78716c;margin-bottom:4px;">Quote #${quoteNumber}</div>
-      <div style="font-size:18px;font-weight:700;color:#44403c;">$${total.toFixed(2)}</div>
+      <div style="font-size:18px;font-weight:700;color:#44403c;">${sym}${total.toFixed(2)}</div>
     </div>
 
     ${reason ? `<div style="background-color:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:14px;margin-bottom:24px;">
@@ -334,7 +338,7 @@ serve(async (req) => {
         console.log('[send-email] Fetching quote:', quote_id)
         const { data: quote, error } = await adminClient
           .from('quotes')
-          .select('*, clients(name, email), organizations(name), quote_line_items(*)')
+          .select('*, clients(name, first_name, last_name, email), organizations(name, settings), quote_line_items(*)')
           .eq('id', quote_id)
           .single()
         console.log('[send-email] Quote query result — data:', JSON.stringify(quote), 'error:', JSON.stringify(error))
@@ -344,12 +348,14 @@ serve(async (req) => {
         to = quote.clients.email
         orgId = quote.org_id
         orgName = quote.organizations.name
+        const quoteSym = quote.organizations.settings?.currency_symbol || '$'
         // orgEmail resolved after switch via users table
 
         const lineItems = (quote.quote_line_items || [])
           .sort((a: Record<string, unknown>, b: Record<string, unknown>) => (Number(a.sort_order) ?? 0) - (Number(b.sort_order) ?? 0))
         ;({ subject, html } = templateQuoteSent({ name: orgName }, {
-          client_name: quote.clients.name,
+          client_name: formatClientName(quote.clients.first_name, quote.clients.last_name, quote.clients.name),
+          client_first_name: quote.clients.first_name || quote.clients.name?.split(' ')[0],
           quote_number: quote.quote_number,
           quote_date: quote.created_at,
           valid_until: quote.valid_until,
@@ -359,7 +365,7 @@ serve(async (req) => {
           tax_amount: quote.tax_amount,
           total: quote.total,
           notes: quote.notes,
-        }))
+        }, quoteSym))
         break
       }
 
@@ -370,7 +376,7 @@ serve(async (req) => {
         console.log('[send-email] Fetching invoice:', invoice_id)
         const { data: invoice, error: invError } = await adminClient
           .from('invoices')
-          .select('*, clients(name, email), organizations(name), invoice_line_items(*)')
+          .select('*, clients(name, first_name, last_name, email), organizations(name, settings), invoice_line_items(*)')
           .eq('id', invoice_id)
           .single()
         console.log('[send-email] Invoice query result — data:', JSON.stringify(invoice), 'error:', JSON.stringify(invError))
@@ -380,12 +386,14 @@ serve(async (req) => {
         to = invoice.clients.email
         orgId = invoice.org_id
         orgName = invoice.organizations.name
+        const invoiceSym = invoice.organizations.settings?.currency_symbol || '$'
         // orgEmail resolved after switch via users table
 
         const lineItems = (invoice.invoice_line_items || [])
           .sort((a: Record<string, unknown>, b: Record<string, unknown>) => (Number(a.sort_order) ?? 0) - (Number(b.sort_order) ?? 0))
         ;({ subject, html } = templateInvoiceSent({ name: orgName }, {
-          client_name: invoice.clients.name,
+          client_name: formatClientName(invoice.clients.first_name, invoice.clients.last_name, invoice.clients.name),
+          client_first_name: invoice.clients.first_name || invoice.clients.name?.split(' ')[0],
           invoice_number: invoice.invoice_number,
           issue_date: invoice.issue_date,
           due_date: invoice.due_date,
@@ -395,7 +403,7 @@ serve(async (req) => {
           tax_amount: invoice.tax_amount,
           total: invoice.total,
           notes: invoice.notes,
-        }))
+        }, invoiceSym))
         break
       }
 
@@ -406,7 +414,7 @@ serve(async (req) => {
         console.log('[send-email] Fetching payment:', payment_id)
         const { data: payment, error: payError } = await adminClient
           .from('payments')
-          .select('*, clients(name, email), invoices(invoice_number, total), organizations(name)')
+          .select('*, clients(name, first_name, last_name, email), invoices(invoice_number, total), organizations(name, settings)')
           .eq('id', payment_id)
           .single()
         console.log('[send-email] Payment query result — data:', JSON.stringify(payment), 'error:', JSON.stringify(payError))
@@ -416,16 +424,18 @@ serve(async (req) => {
         to = payment.clients.email
         orgId = payment.org_id
         orgName = payment.organizations.name
+        const receiptSym = payment.organizations.settings?.currency_symbol || '$'
         // orgEmail resolved after switch via users table
 
         ;({ subject, html } = templatePaymentReceipt({ name: orgName }, {
-          client_name: payment.clients.name,
+          client_name: formatClientName(payment.clients.first_name, payment.clients.last_name, payment.clients.name),
+          client_first_name: payment.clients.first_name || payment.clients.name?.split(' ')[0],
           invoice_number: payment.invoices?.invoice_number || null,
           payment_amount: payment.amount,
           invoice_total: payment.invoices?.total || 0,
           payment_date: payment.date,
           payment_method: payment.method,
-        }))
+        }, receiptSym))
         break
       }
 
@@ -438,9 +448,10 @@ serve(async (req) => {
         to = bodyTo
         orgName = org.name
         orgEmail = org.email || null
+        const actionSym = (org.settings?.currency_symbol) || '$'
         ;({ subject, html } = type === 'quote_approved'
-          ? templateQuoteApproved(org, data)
-          : templateQuoteDeclined(org, data))
+          ? templateQuoteApproved(org, data, actionSym)
+          : templateQuoteDeclined(org, data, actionSym))
         break
       }
 

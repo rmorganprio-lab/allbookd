@@ -10,7 +10,7 @@ import {
 
 // ─── Helpers ─────────────────────────────────────────────────
 
-function fmtMoney(n) { return '$' + Number(n || 0).toFixed(2) }
+function fmtMoney(n, sym = '$') { return sym + Number(n || 0).toFixed(2) }
 
 function fmtMins(mins) {
   if (mins === null || mins === undefined) return '—'
@@ -109,6 +109,7 @@ const PIE_COLORS = ['#047857', '#059669', '#10b981', '#34d399', '#6ee7b7', '#a7f
 
 function DailyTab({ user }) {
   const tz = user?.organizations?.settings?.timezone || 'America/Los_Angeles'
+  const currencySymbol = user?.organizations?.settings?.currency_symbol || '$'
   const today = todayInTimezone(tz)
   const [date, setDate] = useState(today)
   const [jobs, setJobs] = useState([])
@@ -187,7 +188,7 @@ function DailyTab({ user }) {
             />
             <MetricCard
               label="Revenue Collected"
-              value={fmtMoney(totalRevenue)}
+              value={fmtMoney(totalRevenue, currencySymbol)}
               sub={`${payments.length} payment${payments.length !== 1 ? 's' : ''}`}
             />
             <MetricCard
@@ -276,6 +277,7 @@ function DailyTab({ user }) {
 
 function WeeklyTab({ user }) {
   const tz = user?.organizations?.settings?.timezone || 'America/Los_Angeles'
+  const currencySymbol = user?.organizations?.settings?.currency_symbol || '$'
   const today = todayInTimezone(tz)
   const [weekStart, setWeekStart] = useState(() => getMondayOfWeek(today))
   const [jobs, setJobs] = useState([])
@@ -355,9 +357,9 @@ function WeeklyTab({ user }) {
       ) : (
         <>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-            <MetricCard label="Total Revenue" value={fmtMoney(totalRevenue)} />
+            <MetricCard label="Total Revenue" value={fmtMoney(totalRevenue, currencySymbol)} />
             <MetricCard label="Total Jobs" value={jobs.length} sub={`${completed.length} completed`} />
-            <MetricCard label="Avg Job Value" value={avgJobValue > 0 ? fmtMoney(avgJobValue) : '—'} />
+            <MetricCard label="Avg Job Value" value={avgJobValue > 0 ? fmtMoney(avgJobValue, currencySymbol) : '—'} />
             <MetricCard label="Active Clients" value={activeClientIds.size} />
           </div>
 
@@ -372,7 +374,7 @@ function WeeklyTab({ user }) {
                   <XAxis dataKey="day" tick={{ fontSize: 12, fill: '#78716c' }} axisLine={false} tickLine={false} />
                   <YAxis tick={{ fontSize: 11, fill: '#a8a29e' }} axisLine={false} tickLine={false} tickFormatter={v => `$${v}`} width={48} />
                   <Tooltip
-                    formatter={v => [`$${Number(v).toFixed(2)}`, 'Revenue']}
+                    formatter={v => [`${currencySymbol}${Number(v).toFixed(2)}`, 'Revenue']}
                     contentStyle={{ borderRadius: '12px', border: '1px solid #e7e5e0', fontSize: 12 }}
                   />
                   <Bar dataKey="revenue" fill={EMERALD} radius={[6, 6, 0, 0]} />
@@ -394,7 +396,7 @@ function WeeklyTab({ user }) {
                     <div key={i} className="grid grid-cols-4 gap-2 px-4 py-3 border-b border-stone-50 text-sm items-center">
                       <div className="font-medium text-stone-700 truncate">{w.name}</div>
                       <div className="text-right text-stone-600">{w.jobs}</div>
-                      <div className="text-right text-stone-600">{fmtMoney(w.revenue)}</div>
+                      <div className="text-right text-stone-600">{fmtMoney(w.revenue, currencySymbol)}</div>
                       <div className="text-right text-stone-400">{w.avg !== null ? fmtMins(w.avg) : '—'}</div>
                     </div>
                   ))}
@@ -414,7 +416,7 @@ function WeeklyTab({ user }) {
                     <div key={i} className="grid grid-cols-3 gap-2 px-4 py-3 border-b border-stone-50 text-sm items-center">
                       <div className="font-medium text-stone-700 truncate">{c.name}</div>
                       <div className="text-right text-stone-600">{c.jobs}</div>
-                      <div className="text-right text-stone-600">{fmtMoney(c.revenue)}</div>
+                      <div className="text-right text-stone-600">{fmtMoney(c.revenue, currencySymbol)}</div>
                     </div>
                   ))}
                 </div>
@@ -431,6 +433,7 @@ function WeeklyTab({ user }) {
 
 function MonthlyTab({ user }) {
   const tz = user?.organizations?.settings?.timezone || 'America/Los_Angeles'
+  const currencySymbol = user?.organizations?.settings?.currency_symbol || '$'
   const now = new Date(todayInTimezone(tz) + 'T12:00:00')
   const [year, setYear] = useState(now.getFullYear())
   const [month, setMonth] = useState(now.getMonth() + 1)
@@ -549,7 +552,7 @@ function MonthlyTab({ user }) {
     const good = higherIsBetter ? value > 0 : value < 0
     const color = good ? 'text-emerald-600' : 'text-red-500'
     const sign = value > 0 ? '+' : ''
-    const display = pct ? `${sign}${value.toFixed(1)}%` : `${sign}${fmtMoney(Math.abs(value))}`
+    const display = pct ? `${sign}${value.toFixed(1)}%` : `${sign}${fmtMoney(Math.abs(value), currencySymbol)}`
     return <span className={`text-xs ${color}`}>{display} vs last month</span>
   }
 
@@ -561,7 +564,7 @@ function MonthlyTab({ user }) {
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
         <div className="bg-white rounded-2xl border border-stone-200 p-4">
           <div className="text-xs font-medium text-stone-500 mb-2">Total Revenue</div>
-          <div className="text-2xl font-bold text-stone-900">{fmtMoney(totalRevenue)}</div>
+          <div className="text-2xl font-bold text-stone-900">{fmtMoney(totalRevenue, currencySymbol)}</div>
           <div className="mt-1"><DeltaBadge value={revenueChangePct} pct /></div>
         </div>
         <div className="bg-white rounded-2xl border border-stone-200 p-4">
@@ -576,7 +579,7 @@ function MonthlyTab({ user }) {
         </div>
         <div className="bg-white rounded-2xl border border-stone-200 p-4">
           <div className="text-xs font-medium text-stone-500 mb-2">Avg Job Value</div>
-          <div className="text-2xl font-bold text-stone-900">{avgJobValue > 0 ? fmtMoney(avgJobValue) : '—'}</div>
+          <div className="text-2xl font-bold text-stone-900">{avgJobValue > 0 ? fmtMoney(avgJobValue, currencySymbol) : '—'}</div>
           <div className="mt-1"><DeltaBadge value={avgDelta} /></div>
         </div>
       </div>
@@ -593,7 +596,7 @@ function MonthlyTab({ user }) {
                 <Pie data={pieData} cx="50%" cy="50%" innerRadius={55} outerRadius={85} paddingAngle={3} dataKey="value">
                   {pieData.map((_, i) => <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />)}
                 </Pie>
-                <Tooltip formatter={v => fmtMoney(v)} contentStyle={{ borderRadius: '12px', border: '1px solid #e7e5e0', fontSize: 12 }} />
+                <Tooltip formatter={v => fmtMoney(v, currencySymbol)} contentStyle={{ borderRadius: '12px', border: '1px solid #e7e5e0', fontSize: 12 }} />
                 <Legend iconType="circle" iconSize={8} formatter={val => <span style={{ fontSize: 11, color: '#78716c' }}>{val}</span>} />
               </PieChart>
             </ResponsiveContainer>
@@ -635,7 +638,7 @@ function MonthlyTab({ user }) {
               <div key={i} className="grid grid-cols-5 gap-4 px-5 py-3 border-b border-stone-50 text-sm items-center">
                 <div className="col-span-2 font-medium text-stone-700 truncate">{c.name}</div>
                 <div className="text-right text-stone-600">{c.jobs}</div>
-                <div className="text-right font-medium text-stone-900">{fmtMoney(c.revenue)}</div>
+                <div className="text-right font-medium text-stone-900">{fmtMoney(c.revenue, currencySymbol)}</div>
                 <div className="text-right text-stone-400">{totalForPct > 0 ? `${((c.revenue / totalForPct) * 100).toFixed(1)}%` : '—'}</div>
               </div>
             ))}
@@ -661,7 +664,7 @@ function MonthlyTab({ user }) {
                 <div key={i} className="grid grid-cols-5 gap-4 px-5 py-3 border-b border-stone-50 text-sm items-center">
                   <div className="font-medium text-stone-700">{w.name}</div>
                   <div className="text-right text-stone-600">{w.jobs}</div>
-                  <div className="text-right text-stone-600">{fmtMoney(w.revenue)}</div>
+                  <div className="text-right text-stone-600">{fmtMoney(w.revenue, currencySymbol)}</div>
                   <div className="text-right text-stone-400">{w.minsCount > 0 ? fmtMins(Math.round(w.mins / w.minsCount)) : '—'}</div>
                   <div className={`text-right font-medium ${onTimePct === null ? 'text-stone-300' : onTimePct >= 90 ? 'text-emerald-600' : onTimePct < 75 ? 'text-red-500' : 'text-stone-600'}`}>
                     {onTimePct !== null ? `${onTimePct}%` : '—'}
@@ -680,6 +683,7 @@ function MonthlyTab({ user }) {
 
 function AlertsTab({ user }) {
   const tz = user?.organizations?.settings?.timezone || 'America/Los_Angeles'
+  const currencySymbol = user?.organizations?.settings?.currency_symbol || '$'
   const today = todayInTimezone(tz)
   const [alerts, setAlerts] = useState([])
   const [loading, setLoading] = useState(true)
@@ -757,7 +761,7 @@ function AlertsTab({ user }) {
       .forEach(j => {
         found.push({
           level: 'amber', type: 'Payment gap',
-          desc: `${j.clients?.name || 'Unknown'}: completed ${formatDate(j.date)}, ${fmtMoney(j.price)} due`,
+          desc: `${j.clients?.name || 'Unknown'}: completed ${formatDate(j.date)}, ${fmtMoney(j.price, currencySymbol)} due`,
           date: j.date, id: `payment-${j.id}`,
         })
       })

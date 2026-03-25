@@ -1,6 +1,6 @@
 # TimelyOps — Project Status Board
 
-Last updated: 2026-03-25
+Last updated: 2026-03-25 (Phase 2 structural refactor complete)
 
 ---
 
@@ -31,7 +31,7 @@ Last updated: 2026-03-25
 ## Database schema
 
 ### `organizations`
-id, name, slug, industry, settings (jsonb: `{ timezone, time_format, tax_rate, currency }`), created_at, subscription_tier, add_ons (jsonb array), subscription_status, trial_ends_at, is_founding_customer
+id, name, slug, industry, settings (jsonb: `{ timezone, time_format, tax_rate, currency_symbol, payment_methods }`), created_at, subscription_tier, add_ons (jsonb array), subscription_status, trial_ends_at, is_founding_customer
 
 **RLS:** SELECT (own org), UPDATE (ceo only), ALL (platform admin)
 
@@ -41,7 +41,10 @@ id (= auth.uid after linking), org_id, name, phone, email, role (`ceo`/`manager`
 **RLS:** standard org scoping; platform admins can see/update all
 
 ### `clients`
-id, org_id, name, email, phone, address, notes, tags, status (`active`/`inactive`/`vip`), preferred_contact (`email`/`sms`/`whatsapp`/`phone`), created_at
+id, org_id, name (legacy display field), first_name, last_name, email, phone, address (legacy single-line), address_line1, address_line2, city, state, zip, notes, tags, status (`active`/`inactive`/`vip`), preferred_contact (`email`/`sms`/`whatsapp`/`phone`), created_at
+
+**Name display:** Always use `formatName(first_name, last_name)` from `src/lib/formatAddress.js`, falling back to legacy `name`. Queries should `select('id, name, first_name, last_name')` and `.order('first_name')`.
+**Address display:** Use `formatAddress(client)` from `src/lib/formatAddress.js` — builds multi-line address from structured fields, falls back to legacy `address`.
 
 **Has child:** `client_properties` (one-to-one), `client_timeline`
 
@@ -84,7 +87,7 @@ id, org_id, client_id, quote_id, invoice_number, subtotal, tax_amount, total, st
 id, invoice_id (FK → invoices CASCADE), description, quantity, unit_price, total, job_id (FK → jobs **SET NULL**)
 
 ### `payments`
-id, org_id, client_id, invoice_id (FK → invoices **SET NULL**), job_id (FK → jobs **SET NULL**), amount, method (`cash`/`venmo`/`zelle`/`card`/`bank_transfer`/`check`/`other`), date, notes, view_token, created_at
+id, org_id, client_id, invoice_id (FK → invoices **SET NULL**), job_id (FK → jobs **SET NULL**), amount, method (display name string — stored as entered, e.g. "Cash", "Venmo"; legacy rows may have lowercase slugs like `cash`/`venmo`), date, notes, view_token, created_at
 
 **RLS DELETE:** ceo only (inline subquery, platform admin bypass)
 
@@ -115,6 +118,8 @@ Deleting an invoice NULLs: `payments.invoice_id`, `jobs.invoice_id`
 **Reply-To:** org owner email (looked up from users where role='ceo')
 **Env vars:** `RESEND_API_KEY`, `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`
 **Auth:** Manual JWT verify via `supabase.auth.getUser(token)` — callers must pass `Authorization: Bearer <session.access_token>`
+**Currency:** DB queries include `organizations(name, settings)` — `currency_symbol` extracted from `org.settings?.currency_symbol || '$'` and passed to template helpers `lineItemsTable(items, sym)` and `totalsBlock(subtotal, tax, total, sym)`.
+**Client names:** Uses `formatClientName(first_name, last_name, fallback)` helper — joins structured name fields with space, falls back to legacy `name`. Email subject lines and body use `client_first_name` for personal greeting.
 
 ### `send-sms`
 **What:** Sends SMS via Twilio API. Accepts `{ to, message }`.
@@ -145,6 +150,11 @@ Deleting an invoice NULLs: `payments.invoice_id`, `jobs.invoice_id`
 
 ## Key architecture decisions
 
+### Utility libraries (Phase 2 refactor)
+- `src/lib/formatAddress.js` — exports `formatName(first, last)` (joins with space, trims), `formatAddress(client)` (builds multi-line from structured fields, falls back to `client.address`)
+- `src/lib/formatCurrency.js` — exports `formatCurrency(amount, symbol)` (formats to 2 decimal places with symbol prefix, handles null/undefined)
+Both are used across all data pages. Never hardcode `$` or build display names from `client.name` directly.
+
 ### Admin org scoping (not impersonation)
 Admin uses `AdminOrgContext` to scope views to another org while staying logged in as themselves. Every data page reads:
 ```js
@@ -163,7 +173,10 @@ Toast always describes what actually happened.
 Quotes, Invoices, Payments pages use `<DeliveryModal>` for manual sends. Pre-selects channel based on `client.preferred_contact` with fallback. Workers can switch channel before sending.
 
 ### Settings stored in JSONB
-`organizations.settings` JSONB holds: `timezone`, `time_format` (`12h`/`24h`), `tax_rate`, `currency`. Not separate columns. After saving settings, page reloads to propagate new values.
+`organizations.settings` JSONB holds: `timezone`, `time_format` (`12h`/`24h`), `tax_rate`, `currency_symbol` (e.g. `$`, `€`, `£`), `payment_methods` (string array of display names, e.g. `["Cash","Venmo","Zelle","Check"]`). Not separate columns. After saving settings, page reloads to propagate new values.
+
+**Currency:** All pages derive `const currencySymbol = user?.organizations?.settings?.currency_symbol || '$'` and pass it to `formatCurrency(amount, currencySymbol)` from `src/lib/formatCurrency.js`.
+**Payment methods:** All pages derive `const paymentMethods = user?.organizations?.settings?.payment_methods || ['Cash','Venmo','Zelle','Card','Check']`. Method chips in Quotes/Invoices/Payments forms render from this array. Badge colors use `methodColor(method)` helper (case-insensitive, backward-compatible with old lowercase slug values).
 
 ### ToastContext action button
 `showToast(message, type, { label, onClick })` — optional third arg adds an action button to the toast (used for "Copy link" fallback on failed receipt sends).

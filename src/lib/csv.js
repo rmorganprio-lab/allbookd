@@ -102,16 +102,24 @@ export function downloadCSV(filename, csvContent) {
  */
 export const CLIENT_TEMPLATE = {
   headers: [
-    'name', 'phone', 'email', 'address', 'status', 'preferred_contact', 'tags', 'notes',
+    'first_name', 'last_name', 'phone', 'email',
+    'address_line_1', 'address_line_2', 'city', 'state_province', 'postal_code', 'country',
+    'status', 'preferred_contact', 'tags', 'notes',
     'property_type', 'bedrooms', 'bathrooms', 'square_footage',
     'alarm_code', 'key_lockbox', 'pet_details', 'parking', 'supplies_location', 'special_notes'
   ],
-  required: ['name'],
+  required: ['first_name'],
   sample: {
-    name: 'Jane Smith',
+    first_name: 'Jane',
+    last_name: 'Smith',
     phone: '(650) 555-1234',
     email: 'jane@email.com',
-    address: '123 Main St, San Jose, CA 95123',
+    address_line_1: '123 Main St',
+    address_line_2: '',
+    city: 'San Jose',
+    state_province: 'CA',
+    postal_code: '95123',
+    country: 'US',
     status: 'active',
     preferred_contact: 'email',
     tags: 'weekly, referral',
@@ -163,7 +171,7 @@ export function normalizePhone(phone) {
 export function validateClientRows(rows) {
   return rows.map(row => {
     const issues = []
-    if (!row.name) issues.push('Name is required')
+    if (!row.first_name) issues.push('First Name is required')
     if (row.status && !['active', 'inactive', 'vip'].includes(row.status.toLowerCase())) {
       issues.push('Status must be active, inactive, or vip')
     }
