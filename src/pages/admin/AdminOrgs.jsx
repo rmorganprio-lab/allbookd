@@ -142,10 +142,17 @@ function CreateOrgModal({ onClose, onCreated, adminUser }) {
     e.preventDefault()
     setLoading(true)
     try {
+      const slug = form.name
+        .toLowerCase()
+        .trim()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-+|-+$/g, '')
+
       const { data: org, error: orgErr } = await supabase
         .from('organizations')
         .insert({
           name:                 form.name.trim(),
+          slug,
           subscription_tier:   form.tier,
           subscription_status: form.status,
           is_founding_customer: form.isFoundingCustomer,
