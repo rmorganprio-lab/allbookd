@@ -9,12 +9,14 @@ import DeliveryModal from '../components/DeliveryModal'
 import { formatCurrency } from '../lib/formatCurrency'
 import { formatName, formatAddress, formatAddressLines } from '../lib/formatAddress'
 import { logAudit } from '../lib/auditLog'
+import { voidInvoice, createCreditNote } from '../lib/financialActions'
 
 const statusColors = {
   draft: 'bg-stone-100 text-stone-600',
   sent: 'bg-blue-100 text-blue-700',
   paid: 'bg-emerald-100 text-emerald-700',
   overdue: 'bg-red-100 text-red-600',
+  voided: 'bg-stone-200 text-stone-400 line-through',
 }
 
 const emptyLine = { description: '', quantity: 1, unit_price: 0, job_id: '' }
@@ -56,12 +58,18 @@ export default function Invoices({ user }) {
   const [payMethod, setPayMethod] = useState('')
   const [paymentSaving, setPaymentSaving] = useState(false)
 
-  // Delete confirmation
-  const [deleteTarget, setDeleteTarget] = useState(null) // invoice to delete
-  const [deleteLinkedPayments, setDeleteLinkedPayments] = useState(0)
-  const [errors, setErrors] = useState({})
+  // Void
+  const [voidModal, setVoidModal] = useState(null) // invoice to void
+  const [voidReason, setVoidReason] = useState('')
+  const [voidSaving, setVoidSaving] = useState(false)
 
-  const canDelete = user?.role === 'ceo' || user?.is_platform_admin
+  // Credit note
+  const [creditModal, setCreditModal] = useState(null) // invoice for credit note
+  const [creditAmount, setCreditAmount] = useState('')
+  const [creditReason, setCreditReason] = useState('')
+  const [creditSaving, setCreditSaving] = useState(false)
+
+  const [errors, setErrors] = useState({})
 
   useEffect(() => { loadAll() }, [effectiveOrgId])
 
@@ -511,29 +519,43 @@ export default function Invoices({ user }) {
     loadAll()
   }
 
-  // ── Delete ──
+  // ── Void ──
 
-  async function initiateDelete(invoice) {
-    const { count } = await supabase
-      .from('payments')
-      .select('id', { count: 'exact', head: true })
-      .eq('invoice_id', invoice.id)
-    setDeleteLinkedPayments(count || 0)
-    setDeleteTarget(invoice)
+  async function handleVoidInvoice() {
+    if (!voidModal || !voidReason.trim()) return
+    setVoidSaving(true)
+    try {
+      await voidInvoice({ supabase, invoiceId: voidModal.id, reason: voidReason, user, adminViewOrg })
+      setVoidModal(null)
+      setVoidReason('')
+      setModal(null)
+      showToast('Invoice voided.')
+      loadAll()
+    } catch (err) {
+      showToast(err.message || 'Failed to void invoice.', 'error')
+    } finally {
+      setVoidSaving(false)
+    }
   }
 
-  async function confirmDelete() {
-    if (!deleteTarget) return
-    const { error } = await supabase.from('invoices').delete().eq('id', deleteTarget.id)
-    if (error) {
-      console.error('Failed to delete invoice:', error)
-      showToast('Failed to delete invoice. Please try again.', 'error')
-      return
+  // ── Credit Note ──
+
+  async function handleCreateCreditNote() {
+    if (!creditModal || !creditReason.trim() || !creditAmount) return
+    setCreditSaving(true)
+    try {
+      await createCreditNote({ supabase, invoiceId: creditModal.id, amount: Number(creditAmount), reason: creditReason, user, adminViewOrg })
+      setCreditModal(null)
+      setCreditAmount('')
+      setCreditReason('')
+      setModal(null)
+      showToast('Credit note created.')
+      loadAll()
+    } catch (err) {
+      showToast(err.message || 'Failed to create credit note.', 'error')
+    } finally {
+      setCreditSaving(false)
     }
-    setDeleteTarget(null)
-    setDeleteLinkedPayments(0)
-    setModal(null)
-    loadAll()
   }
 
   function generatePDF(invoice) {
@@ -749,7 +771,7 @@ export default function Invoices({ user }) {
       <div className="flex flex-wrap gap-3 mb-4">
         <input type="text" placeholder="Search client or invoice #..." value={search} onChange={e => setSearch(e.target.value)} className="px-3 py-2 bg-white border border-stone-200 rounded-xl text-sm text-stone-900 placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-emerald-600 w-full sm:w-64" />
         <div className="flex gap-1 bg-white border border-stone-200 rounded-xl p-1">
-          {['all', 'draft', 'sent', 'overdue', 'paid'].map(s => (
+          {['all', 'draft', 'sent', 'overdue', 'paid', 'voided'].map(s => (
             <button key={s} onClick={() => setFilter(s)} className={`px-3 py-1.5 text-xs font-medium rounded-lg capitalize transition-colors ${filter === s ? 'bg-emerald-700 text-white' : 'text-stone-500 hover:text-stone-700'}`}>{s}</button>
           ))}
         </div>
@@ -775,14 +797,14 @@ export default function Invoices({ user }) {
               <div className="col-span-2 text-right">Due</div>
             </div>
             {filtered.map(inv => (
-              <div key={inv.id} onClick={() => openView(inv)} className="grid grid-cols-1 md:grid-cols-12 gap-2 md:gap-4 px-5 py-4 border-b border-stone-50 hover:bg-stone-50 cursor-pointer transition-colors items-center">
+              <div key={inv.id} onClick={() => openView(inv)} className={`grid grid-cols-1 md:grid-cols-12 gap-2 md:gap-4 px-5 py-4 border-b border-stone-50 hover:bg-stone-50 cursor-pointer transition-colors items-center ${inv.status === 'voided' ? 'opacity-60' : ''}`}>
                 <div className="md:col-span-1 text-xs font-mono text-stone-400">{inv.invoice_number}</div>
-                <div className="md:col-span-3 font-medium text-stone-900 text-sm">{formatName(inv.clients?.first_name, inv.clients?.last_name) || inv.clients?.name}</div>
+                <div className={`md:col-span-3 font-medium text-sm ${inv.status === 'voided' ? 'text-stone-400 line-through' : 'text-stone-900'}`}>{formatName(inv.clients?.first_name, inv.clients?.last_name) || inv.clients?.name}</div>
                 <div className="md:col-span-2 text-sm text-stone-600">{formatDate(inv.issue_date)}</div>
                 <div className="md:col-span-2">
-                  <span className={`inline-block px-2.5 py-0.5 rounded-full text-xs font-medium capitalize ${statusColors[inv.status]}`}>{inv.status}</span>
+                  <span className={`inline-block px-2.5 py-0.5 rounded-full text-xs font-medium capitalize ${statusColors[inv.status] || 'bg-stone-100 text-stone-400'}`}>{inv.status}</span>
                 </div>
-                <div className="md:col-span-2 text-right font-semibold text-stone-900">{formatCurrency(inv.total, currencySymbol)}</div>
+                <div className={`md:col-span-2 text-right font-semibold ${inv.status === 'voided' ? 'text-stone-400 line-through' : 'text-stone-900'}`}>{formatCurrency(inv.total, currencySymbol)}</div>
                 <div className="md:col-span-2 text-right text-sm text-stone-400">{inv.due_date ? formatDate(inv.due_date) : '—'}</div>
               </div>
             ))}
@@ -919,26 +941,22 @@ export default function Invoices({ user }) {
               </div>
             )}
 
-            <div className="flex gap-2 pt-2">
-              {selectedInvoice.status !== 'paid' && <button onClick={() => openEdit(selectedInvoice)} className="flex-1 py-2 text-stone-500 text-sm hover:text-stone-700 transition-colors">Edit</button>}
-              {canDelete && <button onClick={() => initiateDelete(selectedInvoice)} className="flex-1 py-2 text-red-400 text-sm hover:text-red-600 transition-colors">Delete</button>}
-            </div>
-
-            {/* Delete confirmation */}
-            {deleteTarget?.id === selectedInvoice.id && (
-              <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-xl">
-                {deleteLinkedPayments > 0 && (
-                  <p className="text-xs text-red-600 mb-2">
-                    This invoice has {deleteLinkedPayments} payment{deleteLinkedPayments > 1 ? 's' : ''} linked to it. Deleting will unlink them.
-                  </p>
-                )}
-                <p className="text-sm text-red-700 mb-3">This will permanently delete this invoice. This cannot be undone. Are you sure?</p>
-                <div className="flex gap-2">
-                  <button onClick={confirmDelete} className="px-3 py-1.5 bg-red-600 text-white text-sm rounded-lg hover:bg-red-700">Yes, delete</button>
-                  <button onClick={() => { setDeleteTarget(null); setDeleteLinkedPayments(0) }} className="px-3 py-1.5 bg-white text-stone-600 text-sm rounded-lg border border-stone-200 hover:bg-stone-50">Cancel</button>
-                </div>
+            {selectedInvoice.status === 'voided' && (
+              <div className="mt-2 p-3 bg-stone-50 border border-stone-200 rounded-xl">
+                <div className="text-xs font-semibold text-stone-400 uppercase tracking-wider mb-1">Void Reason</div>
+                <div className="text-sm text-stone-600">{selectedInvoice.void_reason || '—'}</div>
               </div>
             )}
+
+            <div className="flex gap-2 pt-2">
+              {selectedInvoice.status === 'draft' && <button onClick={() => openEdit(selectedInvoice)} className="flex-1 py-2 text-stone-500 text-sm hover:text-stone-700 transition-colors">Edit</button>}
+              {selectedInvoice.status !== 'voided' && selectedInvoice.status !== 'paid' && (
+                <button onClick={() => { setVoidModal(selectedInvoice); setVoidReason('') }} className="flex-1 py-2 text-red-400 text-sm hover:text-red-600 transition-colors">Void Invoice</button>
+              )}
+              {selectedInvoice.status !== 'voided' && (
+                <button onClick={() => { setCreditModal(selectedInvoice); setCreditAmount(''); setCreditReason('') }} className="flex-1 py-2 text-amber-600 text-sm hover:text-amber-800 transition-colors">Credit Note</button>
+              )}
+            </div>
           </div>
         </Modal>
       )}
@@ -1075,6 +1093,71 @@ export default function Invoices({ user }) {
           onCopyLink={() => copyInvoiceLink(deliveryModal)}
           onClose={() => setDeliveryModal(null)}
         />
+      )}
+
+      {/* ── Void Invoice Modal ── */}
+      {voidModal && (
+        <Modal onClose={() => { setVoidModal(null); setVoidReason('') }}>
+          <div className="flex items-center justify-between mb-5">
+            <h2 className="text-base font-bold text-stone-900">Void Invoice {voidModal.invoice_number}</h2>
+            <button onClick={() => { setVoidModal(null); setVoidReason('') }} className="p-1.5 text-stone-400 hover:text-stone-600">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+          </div>
+          <p className="text-sm text-stone-500 mb-4">Voiding is permanent and cannot be undone. The invoice record will be preserved for audit purposes.</p>
+          <div className="mb-4">
+            <label className="block text-xs font-medium text-stone-500 mb-1.5">Reason for voiding *</label>
+            <textarea
+              value={voidReason}
+              onChange={e => setVoidReason(e.target.value)}
+              rows={3}
+              placeholder="e.g. Duplicate invoice, client cancelled, billing error…"
+              className="w-full px-3 py-2.5 bg-stone-50 border border-stone-200 rounded-xl text-sm text-stone-900 focus:outline-none focus:ring-2 focus:ring-red-400 resize-none"
+            />
+          </div>
+          <div className="flex gap-2">
+            <button onClick={() => { setVoidModal(null); setVoidReason('') }} className="flex-1 py-2.5 bg-stone-100 text-stone-600 text-sm font-medium rounded-xl hover:bg-stone-200 transition-colors">Cancel</button>
+            <button onClick={handleVoidInvoice} disabled={voidSaving || !voidReason.trim()} className="flex-1 py-2.5 bg-red-600 text-white text-sm font-medium rounded-xl hover:bg-red-700 disabled:opacity-50 transition-colors">
+              {voidSaving ? 'Voiding…' : 'Void Invoice'}
+            </button>
+          </div>
+        </Modal>
+      )}
+
+      {/* ── Credit Note Modal ── */}
+      {creditModal && (
+        <Modal onClose={() => { setCreditModal(null); setCreditAmount(''); setCreditReason('') }}>
+          <div className="flex items-center justify-between mb-5">
+            <h2 className="text-base font-bold text-stone-900">Credit Note — Invoice {creditModal.invoice_number}</h2>
+            <button onClick={() => { setCreditModal(null); setCreditAmount(''); setCreditReason('') }} className="p-1.5 text-stone-400 hover:text-stone-600">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+          </div>
+          <p className="text-sm text-stone-500 mb-4">A credit note offsets part or all of the invoice amount. Tax is applied at the invoice's rate ({creditModal.tax_rate ?? 0}%).</p>
+          <div className="mb-4">
+            <label className="block text-xs font-medium text-stone-500 mb-1.5">Credit amount (pre-tax) *</label>
+            <div className="relative">
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-400 text-sm">{currencySymbol}</span>
+              <input type="number" value={creditAmount} onChange={e => setCreditAmount(e.target.value)} step="0.01" min="0.01" placeholder="0.00" className="w-full pl-7 pr-3 py-2.5 bg-stone-50 border border-stone-200 rounded-xl text-sm text-stone-900 focus:outline-none focus:ring-2 focus:ring-amber-400" />
+            </div>
+          </div>
+          <div className="mb-4">
+            <label className="block text-xs font-medium text-stone-500 mb-1.5">Reason *</label>
+            <textarea
+              value={creditReason}
+              onChange={e => setCreditReason(e.target.value)}
+              rows={3}
+              placeholder="e.g. Service adjustment, overcharge correction…"
+              className="w-full px-3 py-2.5 bg-stone-50 border border-stone-200 rounded-xl text-sm text-stone-900 focus:outline-none focus:ring-2 focus:ring-amber-400 resize-none"
+            />
+          </div>
+          <div className="flex gap-2">
+            <button onClick={() => { setCreditModal(null); setCreditAmount(''); setCreditReason('') }} className="flex-1 py-2.5 bg-stone-100 text-stone-600 text-sm font-medium rounded-xl hover:bg-stone-200 transition-colors">Cancel</button>
+            <button onClick={handleCreateCreditNote} disabled={creditSaving || !creditReason.trim() || !creditAmount || Number(creditAmount) <= 0} className="flex-1 py-2.5 bg-amber-600 text-white text-sm font-medium rounded-xl hover:bg-amber-700 disabled:opacity-50 transition-colors">
+              {creditSaving ? 'Creating…' : 'Create Credit Note'}
+            </button>
+          </div>
+        </Modal>
       )}
     </div>
   )

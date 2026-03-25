@@ -8,6 +8,7 @@ import DeliveryModal from '../components/DeliveryModal'
 import { formatCurrency } from '../lib/formatCurrency'
 import { formatName } from '../lib/formatAddress'
 import { logAudit } from '../lib/auditLog'
+import { voidQuote } from '../lib/financialActions'
 
 const statusColors = {
   draft: 'bg-stone-100 text-stone-600',
@@ -15,9 +16,10 @@ const statusColors = {
   approved: 'bg-emerald-100 text-emerald-700',
   declined: 'bg-red-100 text-red-600',
   expired: 'bg-amber-100 text-amber-600',
+  voided: 'bg-stone-200 text-stone-400 line-through',
 }
 
-const statusFlow = ['draft', 'sent', 'approved', 'declined', 'expired']
+const statusFlow = ['draft', 'sent', 'approved', 'declined', 'expired', 'voided']
 
 const emptyLine = { description: '', quantity: 1, unit_price: 0, frequency: 'one_time' }
 
@@ -45,6 +47,11 @@ export default function Quotes({ user }) {
   const [filter, setFilter] = useState('all')
   const [search, setSearch] = useState('')
   const [errors, setErrors] = useState({})
+
+  // Void
+  const [voidModal, setVoidModal] = useState(null)
+  const [voidReason, setVoidReason] = useState('')
+  const [voidSaving, setVoidSaving] = useState(false)
 
   // Schedule form state
   const [showScheduleForm, setShowScheduleForm] = useState(false)
@@ -604,18 +611,23 @@ export default function Quotes({ user }) {
     loadAll()
   }
 
-  // ── Delete ──
+  // ── Void ──
 
-  async function handleDelete(id) {
-    await supabase.from('quote_line_items').delete().eq('quote_id', id)
-    const { error } = await supabase.from('quotes').delete().eq('id', id)
-    if (error) {
-      console.error('Failed to delete quote:', error)
-      showToast('Failed to delete quote. Please try again.', 'error')
-      return
+  async function handleVoidQuote() {
+    if (!voidModal || !voidReason.trim()) return
+    setVoidSaving(true)
+    try {
+      await voidQuote({ supabase, quoteId: voidModal.id, reason: voidReason, user, adminViewOrg })
+      setVoidModal(null)
+      setVoidReason('')
+      setModal(null)
+      showToast('Quote voided.')
+      loadAll()
+    } catch (err) {
+      showToast(err.message || 'Failed to void quote.', 'error')
+    } finally {
+      setVoidSaving(false)
     }
-    setModal(null)
-    loadAll()
   }
 
   const clientName = (id) => { const c = clients.find(c => c.id === id); return c ? (formatName(c.first_name, c.last_name) || c.name || 'Unknown') : 'Unknown' }
@@ -691,16 +703,16 @@ export default function Quotes({ user }) {
               <div className="col-span-2 text-right">Valid Until</div>
             </div>
             {filtered.map(q => (
-              <div key={q.id} onClick={() => openView(q)} className="grid grid-cols-1 md:grid-cols-12 gap-2 md:gap-4 px-5 py-4 border-b border-stone-50 hover:bg-stone-50 cursor-pointer transition-colors items-center">
+              <div key={q.id} onClick={() => openView(q)} className={`grid grid-cols-1 md:grid-cols-12 gap-2 md:gap-4 px-5 py-4 border-b border-stone-50 hover:bg-stone-50 cursor-pointer transition-colors items-center ${q.status === 'voided' ? 'opacity-60' : ''}`}>
                 <div className="md:col-span-1 text-xs font-mono text-stone-400">{q.quote_number}</div>
                 <div className="md:col-span-3">
-                  <div className="font-medium text-stone-900 text-sm">{formatName(q.clients?.first_name, q.clients?.last_name) || q.clients?.name}</div>
+                  <div className={`font-medium text-sm ${q.status === 'voided' ? 'text-stone-400 line-through' : 'text-stone-900'}`}>{formatName(q.clients?.first_name, q.clients?.last_name) || q.clients?.name}</div>
                 </div>
                 <div className="md:col-span-2 text-sm text-stone-600">{formatDate(q.created_at?.split('T')[0])}</div>
                 <div className="md:col-span-2">
-                  <span className={`inline-block px-2.5 py-0.5 rounded-full text-xs font-medium capitalize ${statusColors[q.status]}`}>{q.status}</span>
+                  <span className={`inline-block px-2.5 py-0.5 rounded-full text-xs font-medium capitalize ${statusColors[q.status] || 'bg-stone-100 text-stone-400'}`}>{q.status}</span>
                 </div>
-                <div className="md:col-span-2 text-right font-semibold text-stone-900">{formatCurrency(q.total, currencySymbol)}</div>
+                <div className={`md:col-span-2 text-right font-semibold ${q.status === 'voided' ? 'text-stone-400 line-through' : 'text-stone-900'}`}>{formatCurrency(q.total, currencySymbol)}</div>
                 <div className="md:col-span-2 text-right text-sm text-stone-400">{q.valid_until ? formatDate(q.valid_until) : '—'}</div>
               </div>
             ))}
@@ -863,9 +875,18 @@ export default function Quotes({ user }) {
               <button onClick={() => openEdit(selectedQuote)} className="w-full py-2.5 bg-stone-100 text-stone-600 text-sm font-medium rounded-xl hover:bg-stone-200 transition-colors">Revise Quote</button>
             )}
 
-            <div className="flex gap-2 pt-2">
-              <button onClick={() => handleDelete(selectedQuote.id)} className="flex-1 py-2 text-red-400 text-sm hover:text-red-600 transition-colors">Delete</button>
-            </div>
+            {selectedQuote.status === 'voided' && (
+              <div className="mt-2 p-3 bg-stone-50 border border-stone-200 rounded-xl">
+                <div className="text-xs font-semibold text-stone-400 uppercase tracking-wider mb-1">Void Reason</div>
+                <div className="text-sm text-stone-600">{selectedQuote.void_reason || '—'}</div>
+              </div>
+            )}
+
+            {selectedQuote.status !== 'voided' && (
+              <div className="flex gap-2 pt-2">
+                <button onClick={() => { setVoidModal(selectedQuote); setVoidReason('') }} className="flex-1 py-2 text-red-400 text-sm hover:text-red-600 transition-colors">Void Quote</button>
+              </div>
+            )}
           </div>
         </Modal>
       )}
@@ -1036,7 +1057,7 @@ export default function Quotes({ user }) {
               <div>
                 <label className="block text-xs font-medium text-stone-500 mb-1.5">Status</label>
                 <div className="flex gap-2 flex-wrap">
-                  {statusFlow.map(s => (
+                  {statusFlow.filter(s => s !== 'voided').map(s => (
                     <button key={s} type="button" onClick={() => setFormStatus(s)} className={`px-3 py-1.5 text-xs font-medium rounded-lg capitalize transition-colors ${formStatus === s ? statusColors[s] + ' ring-1 ring-offset-1' : 'bg-stone-50 text-stone-400 border border-stone-200'}`}>{s}</button>
                   ))}
                 </div>
@@ -1072,6 +1093,35 @@ export default function Quotes({ user }) {
           onCopyLink={() => copyQuoteLink(deliveryModal)}
           onClose={() => setDeliveryModal(null)}
         />
+      )}
+
+      {/* ── Void Quote Modal ── */}
+      {voidModal && (
+        <Modal onClose={() => { setVoidModal(null); setVoidReason('') }}>
+          <div className="flex items-center justify-between mb-5">
+            <h2 className="text-base font-bold text-stone-900">Void Quote {voidModal.quote_number}</h2>
+            <button onClick={() => { setVoidModal(null); setVoidReason('') }} className="p-1.5 text-stone-400 hover:text-stone-600">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+          </div>
+          <p className="text-sm text-stone-500 mb-4">Voiding is permanent and cannot be undone. The quote record will be preserved for audit purposes.</p>
+          <div className="mb-4">
+            <label className="block text-xs font-medium text-stone-500 mb-1.5">Reason for voiding *</label>
+            <textarea
+              value={voidReason}
+              onChange={e => setVoidReason(e.target.value)}
+              rows={3}
+              placeholder="e.g. Client changed mind, duplicate quote, price no longer valid…"
+              className="w-full px-3 py-2.5 bg-stone-50 border border-stone-200 rounded-xl text-sm text-stone-900 focus:outline-none focus:ring-2 focus:ring-red-400 resize-none"
+            />
+          </div>
+          <div className="flex gap-2">
+            <button onClick={() => { setVoidModal(null); setVoidReason('') }} className="flex-1 py-2.5 bg-stone-100 text-stone-600 text-sm font-medium rounded-xl hover:bg-stone-200 transition-colors">Cancel</button>
+            <button onClick={handleVoidQuote} disabled={voidSaving || !voidReason.trim()} className="flex-1 py-2.5 bg-red-600 text-white text-sm font-medium rounded-xl hover:bg-red-700 disabled:opacity-50 transition-colors">
+              {voidSaving ? 'Voiding…' : 'Void Quote'}
+            </button>
+          </div>
+        </Modal>
       )}
     </div>
   )

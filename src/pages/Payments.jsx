@@ -7,6 +7,7 @@ import DeliveryModal from '../components/DeliveryModal'
 import { formatCurrency } from '../lib/formatCurrency'
 import { formatName } from '../lib/formatAddress'
 import { logAudit } from '../lib/auditLog'
+import { reversePayment } from '../lib/financialActions'
 
 // Legacy color map for known method names (case-insensitive fallback)
 const METHOD_COLORS = {
@@ -54,6 +55,11 @@ export default function Payments({ user }) {
   const [filter, setFilter] = useState({ method: 'all', client: 'all', period: 'all' })
   const [search, setSearch] = useState('')
   const [errors, setErrors] = useState({})
+
+  // Reversal
+  const [reverseModal, setReverseModal] = useState(null)
+  const [reverseReason, setReverseReason] = useState('')
+  const [reverseSaving, setReverseSaving] = useState(false)
 
   useEffect(() => { loadAll() }, [effectiveOrgId])
 
@@ -289,18 +295,23 @@ export default function Payments({ user }) {
     loadAll()
   }
 
-  // ── Delete ──
+  // ── Reverse ──
 
-  async function handleDelete() {
-    if (!selectedPayment) return
-    const { error } = await supabase.from('payments').delete().eq('id', selectedPayment.id)
-    if (error) {
-      console.error('Failed to delete payment:', error)
-      showToast('Failed to delete payment. Please try again.', 'error')
-      return
+  async function handleReversePayment() {
+    if (!reverseModal || !reverseReason.trim()) return
+    setReverseSaving(true)
+    try {
+      await reversePayment({ supabase, paymentId: reverseModal.id, reason: reverseReason, user, adminViewOrg })
+      setReverseModal(null)
+      setReverseReason('')
+      setModal(null)
+      showToast('Payment reversed.')
+      loadAll()
+    } catch (err) {
+      showToast(err.message || 'Failed to reverse payment.', 'error')
+    } finally {
+      setReverseSaving(false)
     }
-    setModal(null)
-    loadAll()
   }
 
   // ── When client is selected, filter available invoices ──
@@ -396,10 +407,11 @@ export default function Payments({ user }) {
 
             {/* Rows */}
             {filtered.map(p => (
-              <div key={p.id} onClick={() => openView(p)} className="grid grid-cols-1 md:grid-cols-12 gap-2 md:gap-4 px-5 py-4 border-b border-stone-50 hover:bg-stone-50 cursor-pointer transition-colors items-center">
+              <div key={p.id} onClick={() => openView(p)} className={`grid grid-cols-1 md:grid-cols-12 gap-2 md:gap-4 px-5 py-4 border-b border-stone-50 hover:bg-stone-50 cursor-pointer transition-colors items-center ${p.reversed_at ? 'opacity-60' : ''}`}>
                 <div className="md:col-span-3">
-                  <div className="font-medium text-stone-900 text-sm">{formatName(p.clients?.first_name, p.clients?.last_name) || p.clients?.name || 'Unknown'}</div>
+                  <div className={`font-medium text-sm ${p.reversed_at ? 'text-stone-400 line-through' : 'text-stone-900'}`}>{formatName(p.clients?.first_name, p.clients?.last_name) || p.clients?.name || 'Unknown'}</div>
                   {p.invoices?.invoice_number && <div className="text-xs text-stone-400">Invoice #{p.invoices.invoice_number}</div>}
+                  {p.reversed_at && <span className="inline-block px-1.5 py-0.5 bg-stone-200 text-stone-500 text-[10px] font-semibold rounded uppercase tracking-wide">Reversed</span>}
                 </div>
                 <div className="md:col-span-2 text-sm text-stone-600">{formatDate(p.date)}</div>
                 <div className="md:col-span-2">
@@ -408,11 +420,13 @@ export default function Payments({ user }) {
                   </span>
                 </div>
                 <div className="md:col-span-2 text-sm text-stone-500 truncate">{p.reference || '—'}</div>
-                <div className="md:col-span-2 text-right font-semibold text-stone-900">{formatCurrency(p.amount, currencySymbol)}</div>
+                <div className={`md:col-span-2 text-right font-semibold ${p.reversed_at ? 'text-stone-400 line-through' : 'text-stone-900'}`}>{formatCurrency(p.amount, currencySymbol)}</div>
                 <div className="md:col-span-1 text-right">
-                  <button onClick={(e) => { e.stopPropagation(); openEdit(p) }} className="text-stone-400 hover:text-stone-600">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-                  </button>
+                  {!p.reversed_at && (
+                    <button onClick={(e) => { e.stopPropagation(); openEdit(p) }} className="text-stone-400 hover:text-stone-600">
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                    </button>
+                  )}
                 </div>
               </div>
             ))}
@@ -443,7 +457,10 @@ export default function Payments({ user }) {
         <Modal onClose={() => setModal(null)}>
           <div className="flex items-start justify-between mb-4">
             <div>
-              <h2 className="text-lg font-bold text-stone-900">Payment Details</h2>
+              <div className="flex items-center gap-2">
+                <h2 className="text-lg font-bold text-stone-900">Payment Details</h2>
+                {selectedPayment.reversed_at && <span className="px-2 py-0.5 bg-stone-200 text-stone-500 text-xs font-semibold rounded uppercase tracking-wide">Reversed</span>}
+              </div>
               <p className="text-sm text-stone-500">{selectedPayment.clients?.name}</p>
             </div>
             <button onClick={() => setModal(null)} className="p-1.5 text-stone-400 hover:text-stone-600">
@@ -461,17 +478,30 @@ export default function Payments({ user }) {
             {selectedPayment.notes && <InfoRow label="Notes" value={selectedPayment.notes} />}
           </div>
 
+          {selectedPayment.reversed_at && (
+            <div className="mb-4 p-3 bg-stone-50 border border-stone-200 rounded-xl">
+              <div className="text-xs font-semibold text-stone-400 uppercase tracking-wider mb-1">Reversal Reason</div>
+              <div className="text-sm text-stone-600">{selectedPayment.reversal_reason || '—'}</div>
+            </div>
+          )}
+
           <div className="space-y-2 pt-4 border-t border-stone-200">
-            <button
-              onClick={() => setDeliveryModal(selectedPayment)}
-              className="w-full py-2.5 bg-emerald-700 text-white text-sm font-medium rounded-xl hover:bg-emerald-800 transition-colors flex items-center justify-center gap-2"
-            >
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
-              Send Receipt
-            </button>
+            {!selectedPayment.reversed_at && (
+              <button
+                onClick={() => setDeliveryModal(selectedPayment)}
+                className="w-full py-2.5 bg-emerald-700 text-white text-sm font-medium rounded-xl hover:bg-emerald-800 transition-colors flex items-center justify-center gap-2"
+              >
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+                Send Receipt
+              </button>
+            )}
             <div className="flex gap-3">
-              <button onClick={() => openEdit(selectedPayment)} className="flex-1 py-2.5 bg-stone-100 text-stone-600 text-sm font-medium rounded-xl hover:bg-stone-200">Edit</button>
-              <button onClick={handleDelete} className="px-4 py-2.5 bg-red-50 text-red-600 text-sm font-medium rounded-xl hover:bg-red-100">Delete</button>
+              {!selectedPayment.reversed_at && (
+                <button onClick={() => openEdit(selectedPayment)} className="flex-1 py-2.5 bg-stone-100 text-stone-600 text-sm font-medium rounded-xl hover:bg-stone-200">Edit</button>
+              )}
+              {!selectedPayment.reversed_at && (
+                <button onClick={() => { setReverseModal(selectedPayment); setReverseReason('') }} className="flex-1 py-2.5 bg-red-50 text-red-600 text-sm font-medium rounded-xl hover:bg-red-100">Reverse Payment</button>
+              )}
             </div>
           </div>
         </Modal>
@@ -489,6 +519,36 @@ export default function Payments({ user }) {
           onCopyLink={() => copyReceiptLink(deliveryModal)}
           onClose={() => setDeliveryModal(null)}
         />
+      )}
+
+      {/* ── Reverse Payment Modal ── */}
+      {reverseModal && (
+        <Modal onClose={() => { setReverseModal(null); setReverseReason('') }}>
+          <div className="flex items-center justify-between mb-5">
+            <h2 className="text-base font-bold text-stone-900">Reverse Payment</h2>
+            <button onClick={() => { setReverseModal(null); setReverseReason('') }} className="p-1.5 text-stone-400 hover:text-stone-600">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+          </div>
+          <p className="text-sm text-stone-500 mb-1">Reversing {formatCurrency(reverseModal.amount, currencySymbol)} paid by {formatName(reverseModal.clients?.first_name, reverseModal.clients?.last_name) || reverseModal.clients?.name || 'client'} on {formatDate(reverseModal.date)}.</p>
+          <p className="text-sm text-stone-500 mb-4">A new offsetting payment record will be created. This cannot be undone.</p>
+          <div className="mb-4">
+            <label className="block text-xs font-medium text-stone-500 mb-1.5">Reason for reversal *</label>
+            <textarea
+              value={reverseReason}
+              onChange={e => setReverseReason(e.target.value)}
+              rows={3}
+              placeholder="e.g. Chargeback, incorrect amount, client requested refund…"
+              className="w-full px-3 py-2.5 bg-stone-50 border border-stone-200 rounded-xl text-sm text-stone-900 focus:outline-none focus:ring-2 focus:ring-red-400 resize-none"
+            />
+          </div>
+          <div className="flex gap-2">
+            <button onClick={() => { setReverseModal(null); setReverseReason('') }} className="flex-1 py-2.5 bg-stone-100 text-stone-600 text-sm font-medium rounded-xl hover:bg-stone-200 transition-colors">Cancel</button>
+            <button onClick={handleReversePayment} disabled={reverseSaving || !reverseReason.trim()} className="flex-1 py-2.5 bg-red-600 text-white text-sm font-medium rounded-xl hover:bg-red-700 disabled:opacity-50 transition-colors">
+              {reverseSaving ? 'Reversing…' : 'Reverse Payment'}
+            </button>
+          </div>
+        </Modal>
       )}
 
       {/* ── Add/Edit Payment Modal ── */}
@@ -570,7 +630,8 @@ export default function Payments({ user }) {
             {/* Date */}
             <div>
               <label className="block text-xs font-medium text-stone-500 mb-1.5">Date *</label>
-              <input type="date" value={form.date} onChange={e => { setForm(f => ({...f, date: e.target.value})); setErrors(er => { const n = {...er}; delete n.date; return n }) }} className="w-full px-3 py-2.5 bg-stone-50 border border-stone-200 rounded-xl text-sm text-stone-900 focus:outline-none focus:ring-2 focus:ring-emerald-600" />
+              <input type="date" value={form.date} onChange={e => { if (modal === 'edit') return; setForm(f => ({...f, date: e.target.value})); setErrors(er => { const n = {...er}; delete n.date; return n }) }} disabled={modal === 'edit'} className="w-full px-3 py-2.5 bg-stone-50 border border-stone-200 rounded-xl text-sm text-stone-900 focus:outline-none focus:ring-2 focus:ring-emerald-600 disabled:opacity-60 disabled:cursor-not-allowed" />
+              {modal === 'edit' && <p className="text-xs text-stone-400 mt-1">Payment date cannot be changed after recording.</p>}
               {errors.date && <p className="text-xs text-red-500 mt-1">{errors.date}</p>}
             </div>
 
