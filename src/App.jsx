@@ -6,6 +6,7 @@ import { ToastProvider } from './contexts/ToastContext'
 import { AdminOrgProvider } from './contexts/AdminOrgContext'
 import Login from './pages/Login'
 import Layout from './components/Layout'
+import ErrorBoundary from './components/ErrorBoundary'
 import Dashboard from './pages/Dashboard'
 import Clients from './pages/Clients'
 import Workers from './pages/Workers'
@@ -48,21 +49,21 @@ function AppRoutes({ user, session }) {
             path="/"
             element={session ? <Layout user={user} /> : <LandingRedirect />}
           >
-            <Route index element={<Dashboard user={user} />} />
-            <Route path="clients" element={<Clients user={user} />} />
-            <Route path="workers" element={<Workers user={user} />} />
-            <Route path="schedule" element={<Schedule user={user} />} />
-            <Route path="quotes" element={<Quotes user={user} />} />
-            <Route path="payments" element={<Payments user={user} />} />
-            <Route path="invoices" element={<Invoices user={user} />} />
-            <Route path="reports" element={<Reports user={user} />} />
-            <Route path="settings" element={<Settings user={user} />} />
+            <Route index element={<ErrorBoundary><Dashboard user={user} /></ErrorBoundary>} />
+            <Route path="clients" element={<ErrorBoundary><Clients user={user} /></ErrorBoundary>} />
+            <Route path="workers" element={<ErrorBoundary><Workers user={user} /></ErrorBoundary>} />
+            <Route path="schedule" element={<ErrorBoundary><Schedule user={user} /></ErrorBoundary>} />
+            <Route path="quotes" element={<ErrorBoundary><Quotes user={user} /></ErrorBoundary>} />
+            <Route path="payments" element={<ErrorBoundary><Payments user={user} /></ErrorBoundary>} />
+            <Route path="invoices" element={<ErrorBoundary><Invoices user={user} /></ErrorBoundary>} />
+            <Route path="reports" element={<ErrorBoundary><Reports user={user} /></ErrorBoundary>} />
+            <Route path="settings" element={<ErrorBoundary><Settings user={user} /></ErrorBoundary>} />
 
             {/* Platform admin routes */}
-            <Route path="admin" element={<AdminGuard user={user}><AdminDashboard /></AdminGuard>} />
-            <Route path="admin/orgs" element={<AdminGuard user={user}><AdminOrgs user={user} /></AdminGuard>} />
-            <Route path="admin/users" element={<AdminGuard user={user}><AdminUsers user={user} /></AdminGuard>} />
-            <Route path="admin/audit" element={<AdminGuard user={user}><AdminAudit /></AdminGuard>} />
+            <Route path="admin" element={<AdminGuard user={user}><ErrorBoundary><AdminDashboard /></ErrorBoundary></AdminGuard>} />
+            <Route path="admin/orgs" element={<AdminGuard user={user}><ErrorBoundary><AdminOrgs user={user} /></ErrorBoundary></AdminGuard>} />
+            <Route path="admin/users" element={<AdminGuard user={user}><ErrorBoundary><AdminUsers user={user} /></ErrorBoundary></AdminGuard>} />
+            <Route path="admin/audit" element={<AdminGuard user={user}><ErrorBoundary><AdminAudit /></ErrorBoundary></AdminGuard>} />
           </Route>
 
           {/* Public token-based pages — no auth required */}
@@ -282,11 +283,13 @@ function App() {
   }
 
   return (
-    <ToastProvider>
-      <AdminOrgProvider>
-        <AppRoutes user={user} session={session} />
-      </AdminOrgProvider>
-    </ToastProvider>
+    <ErrorBoundary>
+      <ToastProvider>
+        <AdminOrgProvider>
+          <AppRoutes user={user} session={session} />
+        </AdminOrgProvider>
+      </ToastProvider>
+    </ErrorBoundary>
   )
 }
 
