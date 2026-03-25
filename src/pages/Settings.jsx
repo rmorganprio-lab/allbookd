@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabase'
 import { useAdminOrg } from '../contexts/AdminOrgContext'
 import { useToast } from '../contexts/ToastContext'
 import { US_TIMEZONES, formatTime } from '../lib/timezone'
+import PricingImport from '../components/PricingImport'
 
 const COUNTRY_PRESETS = {
   US: { currency_code: 'USD', currency_symbol: '$', calling_code: '+1', payment_methods: ['Cash', 'Venmo', 'Zelle', 'Card', 'Bank Transfer', 'Check', 'Other'] },
@@ -74,6 +75,7 @@ export default function Settings({ user }) {
   const [selectedFrequency, setSelectedFrequency]     = useState('one_time')
   const [pricingData, setPricingData]                 = useState({})
   const [pricingSaving, setPricingSaving]             = useState(false)
+  const [showPricingImport, setShowPricingImport]     = useState(false)
 
   useEffect(() => { loadOrg() }, [effectiveOrgId])
   useEffect(() => { if (effectiveOrgId) loadPricing() }, [effectiveOrgId])
@@ -556,13 +558,24 @@ export default function Settings({ user }) {
             </div>
 
             {canEdit && (
-              <button
-                onClick={savePricing}
-                disabled={pricingSaving}
-                className="mt-4 px-4 py-2 bg-emerald-700 text-white text-sm font-medium rounded-xl hover:bg-emerald-800 disabled:opacity-50 transition-colors"
-              >
-                {pricingSaving ? 'Saving…' : 'Save Pricing'}
-              </button>
+              <div className="mt-4 flex gap-2 flex-wrap">
+                <button
+                  onClick={savePricing}
+                  disabled={pricingSaving}
+                  className="px-4 py-2 bg-emerald-700 text-white text-sm font-medium rounded-xl hover:bg-emerald-800 disabled:opacity-50 transition-colors"
+                >
+                  {pricingSaving ? 'Saving…' : 'Save Pricing'}
+                </button>
+                <button
+                  onClick={() => setShowPricingImport(true)}
+                  className="px-4 py-2 border border-stone-200 text-stone-600 text-sm font-medium rounded-xl hover:bg-stone-50 transition-colors flex items-center gap-1.5"
+                >
+                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
+                  </svg>
+                  Import CSV
+                </button>
+              </div>
             )}
           </>
         )}
@@ -576,6 +589,15 @@ export default function Settings({ user }) {
         >
           {saving ? 'Saving...' : 'Save Settings'}
         </button>
+      )}
+
+      {showPricingImport && (
+        <PricingImport
+          orgId={effectiveOrgId}
+          serviceTypes={serviceTypes}
+          onClose={() => setShowPricingImport(false)}
+          onImported={() => { setShowPricingImport(false); loadPricing() }}
+        />
       )}
     </div>
   )

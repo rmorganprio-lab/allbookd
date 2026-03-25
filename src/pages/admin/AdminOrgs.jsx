@@ -5,6 +5,7 @@ import { useToast } from '../../contexts/ToastContext'
 import { useAdminOrg } from '../../contexts/AdminOrgContext'
 import { logAudit } from '../../lib/auditLog'
 import { ADD_ONS } from '../../lib/tiers'
+import PricingImport from '../../components/PricingImport'
 
 // ─── Shared UI ────────────────────────────────────────────────
 
@@ -320,6 +321,7 @@ function OrgDetailPanel({ org, onClose, onUpdated, onViewOrg, adminUser }) {
   const [selectedFrequency, setSelectedFrequency]     = useState('one_time')
   const [pricingData, setPricingData]                 = useState({})
   const [pricingSaving, setPricingSaving]             = useState(false)
+  const [showPricingImport, setShowPricingImport]     = useState(false)
 
   function setField(k, v) {
     setForm(p => {
@@ -777,13 +779,24 @@ function OrgDetailPanel({ org, onClose, onUpdated, onViewOrg, adminUser }) {
                       </table>
                     </div>
 
-                    <button
-                      onClick={savePricingForOrg}
-                      disabled={pricingSaving}
-                      className="mt-3 w-full py-2 bg-emerald-700 text-white text-xs font-medium rounded-xl hover:bg-emerald-800 disabled:opacity-50"
-                    >
-                      {pricingSaving ? 'Saving…' : 'Save Pricing'}
-                    </button>
+                    <div className="mt-3 flex gap-2">
+                      <button
+                        onClick={savePricingForOrg}
+                        disabled={pricingSaving}
+                        className="flex-1 py-2 bg-emerald-700 text-white text-xs font-medium rounded-xl hover:bg-emerald-800 disabled:opacity-50"
+                      >
+                        {pricingSaving ? 'Saving…' : 'Save Pricing'}
+                      </button>
+                      <button
+                        onClick={() => setShowPricingImport(true)}
+                        className="flex-1 py-2 border border-stone-200 text-stone-600 text-xs font-medium rounded-xl hover:bg-stone-50 flex items-center justify-center gap-1"
+                      >
+                        <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
+                        </svg>
+                        Import CSV
+                      </button>
+                    </div>
                   </>
                 )}
               </div>
@@ -807,6 +820,15 @@ function OrgDetailPanel({ org, onClose, onUpdated, onViewOrg, adminUser }) {
           message={`Remove ${confirm.userName} from this org? This cannot be undone.`}
           onConfirm={() => removeUser(confirm.userId)}
           onCancel={() => setConfirm(null)}
+        />
+      )}
+
+      {showPricingImport && (
+        <PricingImport
+          orgId={org.id}
+          serviceTypes={pmServiceTypes}
+          onClose={() => setShowPricingImport(false)}
+          onImported={() => { setShowPricingImport(false); loadPricingForOrg() }}
         />
       )}
     </>
