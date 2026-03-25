@@ -20,7 +20,7 @@ const statusColors = {
 const emptyJob = {
   client_id: '', service_type_id: '', title: '', date: '', start_time: '09:00',
   duration_minutes: 120, status: 'scheduled', notes: '', price: '', frequency: 'one_time',
-  assignees: [],
+  assignees: [], explicitlyUnassigned: false,
 }
 
 export default function Schedule({ user }) {
@@ -45,6 +45,7 @@ export default function Schedule({ user }) {
   const [selectedJob, setSelectedJob] = useState(null)
   const [saving, setSaving] = useState(false)
   const [recurringAction, setRecurringAction] = useState(null) // 'this' | 'future' | 'all'
+  const [recurringWorkerChoice, setRecurringWorkerChoice] = useState(null) // 'all' | 'first_only'
   const [showRecurringOptions, setShowRecurringOptions] = useState(false)
   const [deleteConfirm, setDeleteConfirm] = useState(false)
   const [showDeleteRecurring, setShowDeleteRecurring] = useState(false)
@@ -74,7 +75,7 @@ export default function Schedule({ user }) {
 
   async function loadAll() {
     const [jobsRes, clientsRes, workersRes, typesRes] = await Promise.all([
-      supabase.from('jobs').select('*, clients(name, first_name, last_name, address_line_1, address_line_2, city, state_province, postal_code, country), job_assignments(user_id)').eq('org_id', effectiveOrgId).order('date').order('start_time'),
+      supabase.from('jobs').select('*, clients(name, first_name, last_name, address_line_1, address_line_2, city, state_province, postal_code, country, client_properties(*)), job_assignments(user_id)').eq('org_id', effectiveOrgId).order('date').order('start_time'),
       supabase.from('clients').select('id, first_name, last_name, name, email, phone, preferred_contact').eq('org_id', effectiveOrgId).eq('status', 'active').order('first_name'),
       supabase.from('users').select('id, name, availability').eq('org_id', effectiveOrgId).in('role', ['ceo', 'manager', 'worker']).order('name'),
       supabase.from('service_types').select('*').eq('org_id', effectiveOrgId).eq('is_active', true).order('name'),
@@ -131,6 +132,7 @@ export default function Schedule({ user }) {
     setForm({ ...emptyJob, date: date || today, client_id: clients[0]?.id || '', service_type_id: serviceTypes[0]?.id || '', title: serviceTypes[0]?.name || 'Cleaning' })
     setSelectedJob(null)
     setRecurringAction(null)
+    setRecurringWorkerChoice(null)
     setShowRecurringOptions(false)
     setDeleteConfirm(false)
     setShowDeleteRecurring(false)
@@ -181,6 +183,7 @@ export default function Schedule({ user }) {
       title: form.title, date: form.date, start_time: form.start_time,
       duration_minutes: Number(form.duration_minutes), status: form.status, notes: form.notes,
       price: form.price ? Number(form.price) : null, frequency: form.frequency,
+      needs_assignment_reminder: form.explicitlyUnassigned,
     }
 
     if (modal === 'add') {
@@ -195,14 +198,30 @@ export default function Schedule({ user }) {
           const nextDate = new Date(form.date + 'T12:00:00')
           if (form.frequency === 'monthly') nextDate.setMonth(nextDate.getMonth() + i)
           else { const interval = form.frequency === 'weekly' ? 7 : 14; nextDate.setDate(nextDate.getDate() + (interval * i)) }
-          recurringJobs.push({ ...jobData, date: toDateStr(nextDate), recurrence_group_id: jobId, recurrence_rule: { frequency: form.frequency, parent_id: jobId } })
+          // Future instances: if worker chose "first only", mark remaining as needing assignment
+          const futureNeedsReminder = form.explicitlyUnassigned || recurringWorkerChoice === 'first_only'
+          recurringJobs.push({ ...jobData, date: toDateStr(nextDate), recurrence_group_id: jobId, recurrence_rule: { frequency: form.frequency, parent_id: jobId }, needs_assignment_reminder: futureNeedsReminder })
         }
         await supabase.from('jobs').insert(recurringJobs)
       }
 
-      // Add assignments
+      // Add assignments to first job
       if (jobId && form.assignees.length > 0) {
         await supabase.from('job_assignments').insert(form.assignees.map(uid => ({ job_id: jobId, user_id: uid })))
+      }
+
+      // If recurring + worker + chose 'all', assign worker to all instances too
+      // TODO: Wire up needs_assignment_reminder to automated reminder notifications
+      // when the reminders system is built. jobs with needs_assignment_reminder=true
+      // and no job_assignment should trigger a notification to the org owner 24h before job date.
+      if (form.frequency !== 'one_time' && form.assignees.length > 0 && recurringWorkerChoice === 'all' && jobId) {
+        const { data: recurringInstances } = await supabase.from('jobs')
+          .select('id').eq('recurrence_group_id', jobId).neq('id', jobId)
+        if (recurringInstances) {
+          const assignmentRows = recurringInstances.flatMap(j => form.assignees.map(uid => ({ job_id: j.id, user_id: uid })))
+          if (assignmentRows.length > 0) await supabase.from('job_assignments').insert(assignmentRows)
+          await supabase.from('jobs').update({ needs_assignment_reminder: false }).in('id', recurringInstances.map(j => j.id))
+        }
       }
     } else {
       // Editing existing job
@@ -458,7 +477,12 @@ export default function Schedule({ user }) {
   function timeToMinutes(t) { if (!t) return 0; const [h, m] = t.split(':').map(Number); return h * 60 + m }
 
   function toggleAssignee(id) {
-    setForm(f => ({ ...f, assignees: f.assignees.includes(id) ? f.assignees.filter(a => a !== id) : [...f.assignees, id] }))
+    setForm(f => {
+      const next = f.assignees.includes(id) ? f.assignees.filter(a => a !== id) : [...f.assignees, id]
+      return { ...f, assignees: next, explicitlyUnassigned: false }
+    })
+    // Reset recurring worker choice when assignees change
+    setRecurringWorkerChoice(null)
   }
 
   function handleServiceTypeChange(id) {
@@ -507,7 +531,7 @@ export default function Schedule({ user }) {
       {/* Views */}
       {view === 'month' && <MonthView days={getMonthDays()} year={year} month={month} today={today} jobsOnDate={jobsOnDate} dateStr={dateStr} timeFormat={timeFormat} onDayClick={(d) => { setView('day'); setCurrentDate(new Date(year, month, d)) }} />}
       {view === 'week' && <WeekView days={getWeekDays()} today={today} jobsOnDate={jobsOnDate} onJobClick={openView} onAddJob={(d) => openAdd(toDateStr(d))} timeFormat={timeFormat} />}
-      {view === 'day' && <DayView date={currentDate} today={today} jobs={jobsOnDate(toDateStr(currentDate))} onJobClick={openView} onAddJob={() => openAdd(toDateStr(currentDate))} workerName={workerName} clientName={clientName} onCheckIn={handleCheckIn} tz={tz} timeFormat={timeFormat} currencySymbol={currencySymbol} />}
+      {view === 'day' && <DayView date={currentDate} today={today} jobs={jobsOnDate(toDateStr(currentDate))} onJobClick={openView} onAddJob={() => openAdd(toDateStr(currentDate))} workerName={workerName} clientName={clientName} onCheckIn={handleCheckIn} tz={tz} timeFormat={timeFormat} currencySymbol={currencySymbol} isWorker={user?.role === 'worker'} />}
 
       {/* ── Recurring Edit Choice Modal ── */}
       {modal === 'recurring_choose' && selectedJob && (
@@ -569,6 +593,33 @@ export default function Schedule({ user }) {
               <div className="flex flex-wrap gap-2">{selectedJob.job_assignments.map(a => <span key={a.user_id} className="px-2.5 py-1 bg-emerald-50 text-emerald-700 rounded-full text-xs font-medium">{workerName(a.user_id)}</span>)}</div>
             </div>
           )}
+
+          {/* Property access details — shown when present */}
+          {(() => {
+            const prop = selectedJob.clients?.client_properties?.[0]
+            if (!prop) return null
+            const items = [
+              prop.alarm_code && { label: 'Alarm Code', value: prop.alarm_code },
+              prop.key_info && { label: 'Key / Access', value: prop.key_info },
+              prop.parking_instructions && { label: 'Parking', value: prop.parking_instructions },
+              prop.pet_details && { label: 'Pets', value: prop.pet_details },
+              prop.special_notes && { label: 'Notes', value: prop.special_notes },
+            ].filter(Boolean)
+            if (items.length === 0) return null
+            return (
+              <div className="mb-4 p-3 bg-sky-50 border border-sky-200 rounded-xl">
+                <div className="text-xs font-semibold text-sky-700 uppercase tracking-wider mb-2">Property Details</div>
+                <div className="space-y-1">
+                  {items.map(item => (
+                    <div key={item.label} className="flex gap-2 text-xs">
+                      <span className="font-semibold text-sky-800 shrink-0 w-24">{item.label}</span>
+                      <span className="text-sky-900">{item.value}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )
+          })()}
 
           {selectedJob.status === 'scheduled' && <button onClick={() => handleCheckIn(selectedJob, 'arrive')} className="w-full py-2.5 bg-blue-600 text-white text-sm font-medium rounded-xl hover:bg-blue-700 mb-2">Mark as Arrived</button>}
           {selectedJob.status === 'in_progress' && <button onClick={() => handleCheckIn(selectedJob, 'complete')} className="w-full py-2.5 bg-emerald-700 text-white text-sm font-medium rounded-xl hover:bg-emerald-800 mb-2">Mark as Completed</button>}
@@ -751,15 +802,42 @@ export default function Schedule({ user }) {
             </div>
 
             <div>
-              <label className="block text-xs font-medium text-stone-500 mb-1.5">Assign Workers</label>
+              <label className="block text-xs font-medium text-stone-500 mb-1.5">Assign Worker *</label>
               <div className="flex flex-wrap gap-2">
                 {workers.map(w => (
                   <button key={w.id} type="button" onClick={() => toggleAssignee(w.id)} className={`px-3 py-1.5 rounded-full text-xs font-medium ${form.assignees.includes(w.id) ? 'bg-emerald-100 text-emerald-700 ring-2 ring-emerald-200' : w.availability !== 'available' ? 'bg-stone-50 text-stone-300 border border-stone-200' : 'bg-stone-50 text-stone-500 border border-stone-200 hover:border-stone-300'}`}>
                     {w.name}{w.availability !== 'available' && ` (${w.availability === 'vacation' ? '🏖' : 'off'})`}
                   </button>
                 ))}
+                <button
+                  type="button"
+                  onClick={() => { setForm(f => ({ ...f, assignees: [], explicitlyUnassigned: true })); setRecurringWorkerChoice(null) }}
+                  className={`px-3 py-1.5 rounded-full text-xs font-medium ${form.explicitlyUnassigned ? 'bg-amber-100 text-amber-700 ring-2 ring-amber-200' : 'bg-stone-50 text-stone-500 border border-stone-200 hover:border-amber-300 hover:text-amber-600'}`}
+                >
+                  Unassigned — assign before job date
+                </button>
               </div>
+              {form.assignees.length === 0 && !form.explicitlyUnassigned && (
+                <p className="text-xs text-red-500 mt-1">Select a worker or choose Unassigned to continue.</p>
+              )}
             </div>
+
+            {/* Recurring worker assignment prompt — shown when frequency is set and a worker is selected */}
+            {modal === 'add' && form.frequency !== 'one_time' && form.assignees.length > 0 && (
+              <div className="p-3 bg-blue-50 border border-blue-200 rounded-xl">
+                <p className="text-sm font-medium text-blue-800 mb-3">
+                  Assign {form.assignees.length === 1 ? workers.find(w => w.id === form.assignees[0])?.name || 'this worker' : 'selected workers'} to all occurrences in this series?
+                </p>
+                <div className="flex gap-2">
+                  <button type="button" onClick={() => setRecurringWorkerChoice('all')} className={`flex-1 py-2 text-xs font-medium rounded-xl ${recurringWorkerChoice === 'all' ? 'bg-blue-700 text-white' : 'bg-white text-blue-700 border border-blue-200 hover:bg-blue-50'}`}>
+                    Yes — assign to all
+                  </button>
+                  <button type="button" onClick={() => setRecurringWorkerChoice('first_only')} className={`flex-1 py-2 text-xs font-medium rounded-xl ${recurringWorkerChoice === 'first_only' ? 'bg-stone-700 text-white' : 'bg-white text-stone-600 border border-stone-200 hover:bg-stone-50'}`}>
+                    No — this job only
+                  </button>
+                </div>
+              </div>
+            )}
 
             {conflicts.length > 0 && (
               <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl">
@@ -773,7 +851,15 @@ export default function Schedule({ user }) {
 
           <div className="flex gap-3 mt-6 pt-4 border-t border-stone-200">
             <button onClick={() => setModal(null)} className="flex-1 py-2.5 bg-stone-100 text-stone-600 text-sm font-medium rounded-xl hover:bg-stone-200">Cancel</button>
-            <button onClick={handleSave} disabled={saving || !form.client_id || !form.date || !form.title.trim()} className="flex-1 py-2.5 bg-emerald-700 text-white text-sm font-medium rounded-xl hover:bg-emerald-800 disabled:opacity-50">
+            <button
+              onClick={handleSave}
+              disabled={
+                saving || !form.client_id || !form.date || !form.title.trim()
+                || (!form.explicitlyUnassigned && form.assignees.length === 0)
+                || (modal === 'add' && form.frequency !== 'one_time' && form.assignees.length > 0 && recurringWorkerChoice === null)
+              }
+              className="flex-1 py-2.5 bg-emerald-700 text-white text-sm font-medium rounded-xl hover:bg-emerald-800 disabled:opacity-50"
+            >
               {saving ? 'Saving...' : modal === 'add' ? 'Create Job' : 'Save Changes'}
             </button>
           </div>
@@ -841,7 +927,7 @@ function WeekView({ days, today, jobsOnDate, onJobClick, onAddJob, timeFormat })
   )
 }
 
-function DayView({ date, today, jobs, onJobClick, onAddJob, workerName, clientName, onCheckIn, tz, timeFormat, currencySymbol = '$' }) {
+function DayView({ date, today, jobs, onJobClick, onAddJob, workerName, clientName, onCheckIn, tz, timeFormat, currencySymbol = '$', isWorker = false }) {
   const ds = toDateStr(date); const isToday = ds === today
   const sorted = [...jobs].sort((a, b) => (a.start_time||'').localeCompare(b.start_time||''))
   return (
@@ -870,6 +956,29 @@ function DayView({ date, today, jobs, onJobClick, onAddJob, workerName, clientNa
                 </div>
               </div>
               {job.job_assignments?.length > 0 && <div className="flex gap-1 mt-2">{job.job_assignments.map(a => <span key={a.user_id} className="text-xs text-stone-500">{workerName(a.user_id)}</span>)}</div>}
+              {/* Property access details for workers */}
+              {isWorker && (() => {
+                const prop = job.clients?.client_properties?.[0]
+                if (!prop) return null
+                const items = [
+                  prop.alarm_code && { label: 'Alarm', value: prop.alarm_code },
+                  prop.key_info && { label: 'Key', value: prop.key_info },
+                  prop.parking_instructions && { label: 'Parking', value: prop.parking_instructions },
+                  prop.pet_details && { label: 'Pets', value: prop.pet_details },
+                  prop.special_notes && { label: 'Notes', value: prop.special_notes },
+                ].filter(Boolean)
+                if (items.length === 0) return null
+                return (
+                  <div className="mt-2 p-2 bg-sky-50 border border-sky-200 rounded-lg" onClick={e => e.stopPropagation()}>
+                    {items.map(item => (
+                      <div key={item.label} className="flex gap-2 text-xs">
+                        <span className="font-semibold text-sky-700 shrink-0 w-16">{item.label}</span>
+                        <span className="text-sky-900">{item.value}</span>
+                      </div>
+                    ))}
+                  </div>
+                )
+              })()}
               {isToday && (
                 <div className="flex gap-2 mt-3" onClick={e => e.stopPropagation()}>
                   {job.status === 'scheduled' && <button onClick={() => onCheckIn(job, 'arrive')} className="px-3 py-1.5 bg-blue-600 text-white text-xs font-medium rounded-lg hover:bg-blue-700">Arrived</button>}

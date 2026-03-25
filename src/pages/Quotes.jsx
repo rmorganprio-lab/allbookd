@@ -233,6 +233,14 @@ export default function Quotes({ user }) {
     setFormLines(lines => lines.filter((_, i) => i !== idx))
   }
 
+  // ── Pricing matrix empty check ──
+  // Returns true if the matrix has no entries for the given service type (or is entirely empty)
+  function matrixEmptyForLine(line) {
+    if (pricingMatrix.length === 0) return true
+    if (!line.service_type_id) return false
+    return !pricingMatrix.some(p => p.service_type_id === line.service_type_id)
+  }
+
   // ── Calculated totals ──
 
   const lineTotal = (line) => Number(line.quantity) * Number(line.unit_price)
@@ -847,6 +855,18 @@ export default function Quotes({ user }) {
               </div>
             )}
 
+            {/* Pricing matrix empty state prompt */}
+            {pricingMatrix.length === 0 && (
+              <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl flex items-start justify-between gap-3">
+                <div className="text-xs text-amber-800">
+                  <span className="font-semibold">Pricing matrix not set up</span> — prices won't auto-fill until you add your rates.
+                </div>
+                <Link to="/settings" className="shrink-0 text-xs font-medium text-amber-700 hover:text-amber-900 underline whitespace-nowrap">
+                  Set up pricing →
+                </Link>
+              </div>
+            )}
+
             {/* Line items */}
             <div>
               <div className="flex items-center justify-between mb-2">
@@ -889,8 +909,11 @@ export default function Quotes({ user }) {
                       <div className="col-span-2">
                         <div className="relative">
                           <span className="absolute left-2 top-1/2 -translate-y-1/2 text-stone-400 text-xs">{currencySymbol}</span>
-                          <input type="number" value={line.unit_price} onChange={e => updateLine(idx, 'unit_price', e.target.value)} step="0.01" className="w-full pl-5 pr-2 py-2 bg-white border border-stone-200 rounded-lg text-sm text-stone-900 focus:outline-none focus:ring-2 focus:ring-emerald-600" />
+                          <input type="number" value={line.unit_price} onChange={e => updateLine(idx, 'unit_price', e.target.value)} step="0.01" className={`w-full pl-5 pr-2 py-2 bg-white border rounded-lg text-sm text-stone-900 focus:outline-none focus:ring-2 focus:ring-emerald-600 ${pricingMatrix.length > 0 && line.service_type_id && matrixEmptyForLine(line) && Number(line.unit_price) === 0 ? 'border-amber-300' : 'border-stone-200'}`} />
                         </div>
+                        {pricingMatrix.length > 0 && line.service_type_id && matrixEmptyForLine(line) && Number(line.unit_price) === 0 && (
+                          <div className="text-[10px] text-amber-600 mt-0.5">No rate set for this service type</div>
+                        )}
                       </div>
                       <div className="col-span-1 text-right text-sm font-medium text-stone-700">{currencySymbol}{lineTotal(line).toFixed(0)}</div>
                       <div className="col-span-1 text-right">
