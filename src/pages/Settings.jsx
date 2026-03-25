@@ -48,6 +48,8 @@ export default function Settings({ user }) {
   const [timezone, setTimezone] = useState('America/Los_Angeles')
   const [timeFormat, setTimeFormat] = useState('12h')
   const [taxRate, setTaxRate] = useState(0)
+  const [taxLabel, setTaxLabel] = useState('Tax')
+  const [vatNumber, setVatNumber] = useState('')
   const [country, setCountry] = useState('US')
   const [currencyCode, setCurrencyCode] = useState('USD')
   const [currencySymbol, setCurrencySymbol] = useState('$')
@@ -63,7 +65,7 @@ export default function Settings({ user }) {
     setLoading(true)
     const { data, error } = await supabase
       .from('organizations')
-      .select('id, name, settings')
+      .select('id, name, settings, default_tax_rate, tax_label, vat_number')
       .eq('id', effectiveOrgId)
       .single()
     if (error) {
@@ -77,7 +79,9 @@ export default function Settings({ user }) {
       setOrgName(data.name || '')
       setTimezone(data.settings?.timezone || 'America/Los_Angeles')
       setTimeFormat(data.settings?.time_format || '12h')
-      setTaxRate(data.settings?.tax_rate ?? 0)
+      setTaxRate(data.default_tax_rate ?? data.settings?.tax_rate ?? 0)
+      setTaxLabel(data.tax_label || 'Tax')
+      setVatNumber(data.vat_number || '')
       setCountry(data.settings?.country || 'US')
       setCurrencyCode(data.settings?.currency || 'USD')
       setCurrencySymbol(data.settings?.currency_symbol || '$')
@@ -138,7 +142,13 @@ export default function Settings({ user }) {
 
     const { error } = await supabase
       .from('organizations')
-      .update({ name: orgName.trim(), settings: newSettings })
+      .update({
+        name: orgName.trim(),
+        settings: newSettings,
+        default_tax_rate: Number(taxRate) || null,
+        tax_label: taxLabel.trim() || 'Tax',
+        vat_number: vatNumber.trim() || null,
+      })
       .eq('id', effectiveOrgId)
 
     if (error) {
@@ -275,6 +285,34 @@ export default function Settings({ user }) {
             </div>
             {errors.taxRate && <p className="text-xs text-red-500 mt-1">{errors.taxRate}</p>}
             <p className="text-xs text-stone-400 mt-1">Applied automatically when creating new invoices.</p>
+          </div>
+
+          <div>
+            <label className="block text-xs font-medium text-stone-500 mb-1.5">Tax Label</label>
+            <input
+              type="text"
+              value={taxLabel}
+              onChange={e => setTaxLabel(e.target.value)}
+              disabled={!canEdit}
+              maxLength={20}
+              placeholder="Tax"
+              className="w-full max-w-[200px] px-3 py-2.5 bg-stone-50 border border-stone-200 rounded-xl text-sm text-stone-900 focus:outline-none focus:ring-2 focus:ring-emerald-600 disabled:opacity-60"
+            />
+            <p className="text-xs text-stone-400 mt-1">How the tax line is labelled on invoices — e.g. VAT, GST, Sales Tax.</p>
+          </div>
+
+          <div>
+            <label className="block text-xs font-medium text-stone-500 mb-1.5">VAT / Tax Registration Number <span className="font-normal text-stone-400">(optional)</span></label>
+            <input
+              type="text"
+              value={vatNumber}
+              onChange={e => setVatNumber(e.target.value)}
+              disabled={!canEdit}
+              maxLength={50}
+              placeholder="e.g. GB123456789"
+              className="w-full max-w-[280px] px-3 py-2.5 bg-stone-50 border border-stone-200 rounded-xl text-sm text-stone-900 focus:outline-none focus:ring-2 focus:ring-emerald-600 disabled:opacity-60"
+            />
+            <p className="text-xs text-stone-400 mt-1">Printed on invoice PDFs where required by law.</p>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">

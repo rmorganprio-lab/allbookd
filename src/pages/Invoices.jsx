@@ -21,7 +21,9 @@ const emptyLine = { description: '', quantity: 1, unit_price: 0, job_id: '' }
 
 export default function Invoices({ user }) {
   const tz = user?.organizations?.settings?.timezone || 'America/Los_Angeles'
-  const taxRate = user?.organizations?.settings?.tax_rate || 0
+  const taxRate = user?.organizations?.default_tax_rate ?? user?.organizations?.settings?.tax_rate ?? 0
+  const taxLabel = user?.organizations?.tax_label || 'Tax'
+  const vatNumber = user?.organizations?.vat_number || null
   const currencySymbol = user?.organizations?.settings?.currency_symbol || '$'
   const paymentMethods = user?.organizations?.settings?.payment_methods || ['Cash', 'Venmo', 'Zelle', 'Card', 'Check']
   const orgId = user?.org_id
@@ -249,6 +251,7 @@ export default function Invoices({ user }) {
       client_id: formClient,
       invoice_number: selectedInvoice?.invoice_number || getNextInvoiceNumber(),
       subtotal: formSubtotal,
+      tax_rate: formTax > 0 ? taxRate : null,
       tax_amount: formTax,
       total: formTotal,
       status: formStatus,
@@ -560,6 +563,14 @@ export default function Invoices({ user }) {
       doc.text(`PAID: ${invoice.paid_date}`, pageWidth - 20, 53, { align: 'right' })
     }
 
+    // VAT / registration number (left side, below org name)
+    if (vatNumber) {
+      doc.setFontSize(9)
+      doc.setFont('helvetica', 'normal')
+      doc.setTextColor(120, 113, 108)
+      doc.text(`${taxLabel} No: ${vatNumber}`, 20, 33)
+    }
+
     // Bill To
     doc.setTextColor(120, 113, 108)
     doc.setFontSize(9)
@@ -621,7 +632,8 @@ export default function Invoices({ user }) {
     if (Number(invoice.tax_amount) > 0) {
       rowY += 7
       doc.setTextColor(120, 113, 108)
-      doc.text('Tax:', 140, rowY, { align: 'right' })
+      const taxLineLabel = invoice.tax_rate ? `${taxLabel} (${invoice.tax_rate}%):` : `${taxLabel}:`
+      doc.text(taxLineLabel, 140, rowY, { align: 'right' })
       doc.setTextColor(28, 25, 23)
       doc.text(currencySymbol + Number(invoice.tax_amount).toFixed(2), pageWidth - 24, rowY, { align: 'right' })
     }
@@ -831,7 +843,7 @@ export default function Invoices({ user }) {
           {/* Totals */}
           <div className="mb-4 space-y-1 text-right">
             <div className="text-sm text-stone-500">Subtotal: {formatCurrency(selectedInvoice.subtotal, currencySymbol)}</div>
-            {Number(selectedInvoice.tax_amount) > 0 && <div className="text-sm text-stone-500">Tax: {formatCurrency(selectedInvoice.tax_amount, currencySymbol)}</div>}
+            {Number(selectedInvoice.tax_amount) > 0 && <div className="text-sm text-stone-500">{taxLabel}{selectedInvoice.tax_rate ? ` (${selectedInvoice.tax_rate}%)` : ''}: {formatCurrency(selectedInvoice.tax_amount, currencySymbol)}</div>}
             <div className="text-lg font-bold text-stone-900">Total: {formatCurrency(selectedInvoice.total, currencySymbol)}</div>
           </div>
 
@@ -1011,7 +1023,7 @@ export default function Invoices({ user }) {
             {/* Totals */}
             <div className="text-right space-y-1 p-3 bg-stone-50 rounded-xl">
               <div className="text-sm text-stone-500">Subtotal: {formatCurrency(formSubtotal, currencySymbol)}</div>
-              {taxRate > 0 && <div className="text-sm text-stone-500">Tax ({taxRate}%): {formatCurrency(formTax, currencySymbol)}</div>}
+              {taxRate > 0 && <div className="text-sm text-stone-500">{taxLabel} ({taxRate}%): {formatCurrency(formTax, currencySymbol)}</div>}
               <div className="text-lg font-bold text-stone-900">Total: {formatCurrency(formTotal, currencySymbol)}</div>
             </div>
 

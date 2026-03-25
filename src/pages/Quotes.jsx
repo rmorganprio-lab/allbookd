@@ -259,7 +259,8 @@ export default function Quotes({ user }) {
 
   const lineTotal = (line) => Number(line.quantity) * Number(line.unit_price)
   const formSubtotal = formLines.reduce((sum, l) => sum + lineTotal(l), 0)
-  const taxRate = user?.organizations?.settings?.tax_rate || 0
+  const taxRate = user?.organizations?.default_tax_rate ?? user?.organizations?.settings?.tax_rate ?? 0
+  const taxLabel = user?.organizations?.tax_label || 'Tax'
   const formTax = formSubtotal * (taxRate / 100)
   const formTotal = formSubtotal + formTax
 
@@ -754,7 +755,7 @@ export default function Quotes({ user }) {
           {/* Totals */}
           <div className="mb-4 space-y-1 text-right">
             <div className="text-sm text-stone-500">Subtotal: {formatCurrency(selectedQuote.subtotal, currencySymbol)}</div>
-            {Number(selectedQuote.tax_amount) > 0 && <div className="text-sm text-stone-500">Tax: {formatCurrency(selectedQuote.tax_amount, currencySymbol)}</div>}
+            {Number(selectedQuote.tax_amount) > 0 && <div className="text-sm text-stone-500">{taxLabel}{taxRate > 0 ? ` (${taxRate}%)` : ''}: {formatCurrency(selectedQuote.tax_amount, currencySymbol)}</div>}
             <div className="text-lg font-bold text-stone-900">Total: {formatCurrency(selectedQuote.total, currencySymbol)}</div>
           </div>
 
@@ -1019,7 +1020,7 @@ export default function Quotes({ user }) {
             {/* Totals */}
             <div className="text-right space-y-1 p-3 bg-stone-50 rounded-xl">
               <div className="text-sm text-stone-500">Subtotal: {formatCurrency(formSubtotal, currencySymbol)}</div>
-              {taxRate > 0 && <div className="text-sm text-stone-500">Tax ({taxRate}%): {formatCurrency(formTax, currencySymbol)}</div>}
+              {taxRate > 0 && <div className="text-sm text-stone-500">{taxLabel} ({taxRate}%): {formatCurrency(formTax, currencySymbol)}</div>}
               <div className="text-lg font-bold text-stone-900">Total: {formatCurrency(formTotal, currencySymbol)}</div>
             </div>
             {errors.total && <p className="text-xs text-red-500 mt-1">{errors.total}</p>}
