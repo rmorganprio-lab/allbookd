@@ -97,6 +97,7 @@ public/
 - Toast notifications: `const { showToast } = useToast()` — never use `alert()`
 - Admin scoping: `const { adminViewOrg } = useAdminOrg()` — all pages that touch data must implement this
 - Error handling on Supabase writes: always capture `{ error }` and show a toast, never silent fail
+- Use US English spelling throughout — code, comments, UI text, and documentation (e.g., "organization" not "organisation", "color" not "colour")
 
 ## Pricing tiers
 Defined in `src/lib/tiers.js`:

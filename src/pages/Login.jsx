@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 
 const sessionExpired = new URLSearchParams(window.location.search).get('expired') === '1'
@@ -312,6 +313,11 @@ export default function Login() {
           >
             Clear &amp; Reload
           </button>
+        </p>
+        <p className="text-center mt-3 text-xs text-stone-400">
+          <Link to="/terms" className="hover:text-stone-600 underline">Terms of Service</Link>
+          {' · '}
+          <Link to="/privacy" className="hover:text-stone-600 underline">Privacy Policy</Link>
         </p>
       </div>
     </div>
