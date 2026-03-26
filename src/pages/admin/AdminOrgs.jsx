@@ -124,7 +124,8 @@ async function applyProfilesToOrg(orgId, profileIds, profileNameMap = {}) {
   }
 
   if (toInsert.length > 0) {
-    await supabase.from('service_types').insert(toInsert)
+    const { error: insertErr } = await supabase.from('service_types').insert(toInsert)
+    if (insertErr) throw new Error(`Failed to copy service types: ${insertErr.message}`)
   }
 
   const records = profileIds.map(pid => ({ org_id: orgId, profile_id: pid }))
@@ -570,19 +571,27 @@ function OrgDetailPanel({ org, onClose, onUpdated, onViewOrg, adminUser }) {
   async function saveProfiles() {
     if (selectedProfileIds.length === 0) return
     setProfilesSaving(true)
-    const nameMap = Object.fromEntries(availableProfiles.map(p => [p.id, p.name]))
-    const result = await applyProfilesToOrg(org.id, selectedProfileIds, nameMap)
-    showToast(buildApplyToast(result))
-    await loadProfilesForOrg()
+    try {
+      const nameMap = Object.fromEntries(availableProfiles.map(p => [p.id, p.name]))
+      const result = await applyProfilesToOrg(org.id, selectedProfileIds, nameMap)
+      showToast(buildApplyToast(result))
+      await loadProfilesForOrg()
+    } catch (err) {
+      showToast(err.message, 'error')
+    }
     setProfilesSaving(false)
   }
 
   async function reapplyProfiles() {
     if (appliedProfileIds.length === 0) return
     setProfilesSaving(true)
-    const nameMap = Object.fromEntries(availableProfiles.map(p => [p.id, p.name]))
-    const result = await applyProfilesToOrg(org.id, appliedProfileIds, nameMap)
-    showToast(buildApplyToast(result))
+    try {
+      const nameMap = Object.fromEntries(availableProfiles.map(p => [p.id, p.name]))
+      const result = await applyProfilesToOrg(org.id, appliedProfileIds, nameMap)
+      showToast(buildApplyToast(result))
+    } catch (err) {
+      showToast(err.message, 'error')
+    }
     setProfilesSaving(false)
   }
 
