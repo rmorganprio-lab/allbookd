@@ -70,34 +70,33 @@ function validateRow(row, serviceTypes) {
   }
 }
 
-const TEMPLATE_DEF = {
-  headers: ['service_type', 'bedrooms', 'bathrooms', 'frequency', 'price'],
-  required: ['service_type', 'bedrooms', 'bathrooms', 'frequency', 'price'],
-  sample:  { service_type: 'Standard Clean', bedrooms: '2', bathrooms: '1', frequency: 'one_time',  price: '120' },
-  sample2: { service_type: 'Standard Clean', bedrooms: '3', bathrooms: '2', frequency: 'biweekly',  price: '150' },
-  instructions: [
-    ['TimelyOps — Pricing Matrix Import Template', '', ''],
-    ['', '', ''],
-    ['Column', 'Required?', 'Notes'],
-    ['Service Type', 'Yes', 'Must match a service type name (or it will be created). Case-insensitive.'],
-    ['Bedrooms',     'Yes', 'Whole number, e.g. 1, 2, 3, 4, 5'],
-    ['Bathrooms',    'Yes', 'Whole number, e.g. 1, 2, 3, 4'],
-    ['Frequency',    'Yes', 'one_time  |  weekly  |  biweekly  |  monthly'],
-    ['Price',        'Yes', 'Dollar amount — no $ sign (e.g. 120 or 149.99)'],
-    ['', '', ''],
-    ['Accepted frequency values', '', ''],
-    ['one_time',  '', 'Also: once, 1x'],
-    ['weekly',    '', 'Also: week, wk'],
-    ['biweekly',  '', 'Also: bi-weekly, every 2 weeks, fortnightly'],
-    ['monthly',   '', 'Also: month, mo'],
-    ['', '', ''],
-    ['Notes', '', ''],
-    ['- If a price already exists for the same combination, it will be updated.', '', ''],
-    ['- If a Service Type name is not found, it will be created automatically.', '', ''],
-  ],
-}
+const PRICING_INSTRUCTIONS = [
+  ['TimelyOps — Pricing Matrix Import Template', '', ''],
+  ['', '', ''],
+  ['Column', 'Required?', 'Notes'],
+  ['Service Type', 'Yes', 'Must match a service type name (or it will be created). Case-insensitive.'],
+  ['Bedrooms',     'Yes', 'Whole number, e.g. 1, 2, 3, 4, 5'],
+  ['Bathrooms',    'Yes', 'Whole number, e.g. 1, 2, 3, 4'],
+  ['Frequency',    'Yes', 'one_time  |  weekly  |  biweekly  |  monthly'],
+  ['Price',        'Yes', 'Dollar amount — no $ sign (e.g. 120 or 149.99)'],
+  ['', '', ''],
+  ['Accepted frequency values', '', ''],
+  ['one_time',  '', 'Also: once, 1x'],
+  ['weekly',    '', 'Also: week, wk'],
+  ['biweekly',  '', 'Also: bi-weekly, every 2 weeks, fortnightly'],
+  ['monthly',   '', 'Also: month, mo'],
+  ['', '', ''],
+  ['Notes', '', ''],
+  ['- If a price already exists for the same combination, it will be updated.', '', ''],
+  ['- If a Service Type name is not found, it will be created automatically.', '', ''],
+  ['- Leave the Price column blank for combinations you do not offer.', '', ''],
+]
 
-export default function PricingImport({ orgId, serviceTypes, onClose, onImported }) {
+const BED_OPTIONS  = [1, 2, 3, 4, 5]
+const BATH_OPTIONS = [1, 2, 3, 4]
+const FREQ_OPTIONS = ['one_time', 'weekly', 'biweekly', 'monthly']
+
+export default function PricingImport({ orgId, serviceTypes, orgName, onClose, onImported }) {
   const [step, setStep] = useState('upload') // upload | preview | importing | done
   const [rows, setRows] = useState([])
   const [parseError, setParseError] = useState(null)
@@ -111,7 +110,23 @@ export default function PricingImport({ orgId, serviceTypes, onClose, onImported
   ]
 
   function downloadTemplate() {
-    downloadXLSXTemplate('TOPricingTemplate.xlsx', TEMPLATE_DEF)
+    const rows = []
+    for (const st of serviceTypes) {
+      for (const freq of FREQ_OPTIONS) {
+        for (const beds of BED_OPTIONS) {
+          for (const baths of BATH_OPTIONS) {
+            rows.push([st.name, beds, baths, freq, ''])
+          }
+        }
+      }
+    }
+    const safeName = (orgName || 'Org').replace(/[^a-zA-Z0-9]+/g, '_').replace(/^_+|_+$/g, '')
+    downloadXLSXTemplate(`TimelyOps_Pricing_Template_${safeName}.xlsx`, {
+      headers:      ['service_type', 'bedrooms', 'bathrooms', 'frequency', 'price'],
+      required:     ['service_type', 'bedrooms', 'bathrooms', 'frequency', 'price'],
+      rows,
+      instructions: PRICING_INSTRUCTIONS,
+    })
   }
 
   async function handleFileSelect(e) {
@@ -310,16 +325,22 @@ export default function PricingImport({ orgId, serviceTypes, onClose, onImported
             )}
 
             <div className="mt-4 flex items-center justify-between">
-              <p className="text-xs text-stone-400">Not sure of the format?</p>
-              <button
-                onClick={downloadTemplate}
-                className="flex items-center gap-1.5 text-xs text-emerald-700 font-medium hover:underline"
-              >
-                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
-                </svg>
-                Download Template
-              </button>
+              {serviceTypes.length === 0 ? (
+                <p className="text-xs text-amber-600">Add service types first before downloading the pricing template.</p>
+              ) : (
+                <>
+                  <p className="text-xs text-stone-400">Not sure of the format?</p>
+                  <button
+                    onClick={downloadTemplate}
+                    className="flex items-center gap-1.5 text-xs text-emerald-700 font-medium hover:underline"
+                  >
+                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
+                    </svg>
+                    Download Template
+                  </button>
+                </>
+              )}
             </div>
           </div>
         )}

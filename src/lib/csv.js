@@ -114,11 +114,15 @@ export function downloadXLSXTemplate(filename, templateDef) {
     })
 
     const dataRows = [displayHeaders]
-    if (templateDef.sample) {
-      dataRows.push(templateDef.headers.map(h => templateDef.sample[h] ?? ''))
-    }
-    if (templateDef.sample2) {
-      dataRows.push(templateDef.headers.map(h => templateDef.sample2[h] ?? ''))
+    if (templateDef.rows && templateDef.rows.length > 0) {
+      for (const row of templateDef.rows) dataRows.push(row)
+    } else {
+      if (templateDef.sample) {
+        dataRows.push(templateDef.headers.map(h => templateDef.sample[h] ?? ''))
+      }
+      if (templateDef.sample2) {
+        dataRows.push(templateDef.headers.map(h => templateDef.sample2[h] ?? ''))
+      }
     }
 
     const dataSheet = XLSX.utils.aoa_to_sheet(dataRows)

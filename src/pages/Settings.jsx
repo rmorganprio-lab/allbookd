@@ -92,6 +92,7 @@ export default function Settings({ user }) {
   const [appliedProfileIds, setAppliedProfileIds]     = useState([])
   const [selectedProfileIds, setSelectedProfileIds]   = useState([])
   const [profilesSaving, setProfilesSaving]           = useState(false)
+  const [profilesLoading, setProfilesLoading]         = useState(true)
   const [removeProfileConfirm, setRemoveProfileConfirm] = useState(null)
 
   useEffect(() => { loadOrg() }, [effectiveOrgId])
@@ -249,14 +250,16 @@ export default function Settings({ user }) {
   }
 
   async function loadProfiles() {
-    const [{ data: allProfiles }, { data: applied }] = await Promise.all([
+    setProfilesLoading(true)
+    const [profilesResult, appliedResult] = await Promise.all([
       supabase.from('industry_profiles').select('id, name, description').eq('is_active', true).order('sort_order'),
       supabase.from('organization_profiles').select('profile_id').eq('org_id', effectiveOrgId),
     ])
-    const appliedIds = (applied || []).map(r => r.profile_id)
-    setAvailableProfiles(allProfiles || [])
+    const appliedIds = (appliedResult.data || []).map(r => r.profile_id)
+    setAvailableProfiles(profilesResult.data || [])
     setAppliedProfileIds(appliedIds)
     setSelectedProfileIds(appliedIds)
+    setProfilesLoading(false)
   }
 
   async function saveProfiles() {
@@ -618,61 +621,69 @@ export default function Settings({ user }) {
       </div>
 
       {/* Industry Profiles */}
-      {canEdit && availableProfiles.length > 0 && (
+      {canEdit && (
         <div className="bg-white rounded-2xl border border-stone-200 p-6 mb-4">
           <h2 className="text-sm font-semibold text-stone-500 uppercase tracking-wider mb-1">Industry Profiles</h2>
           <p className="text-xs text-stone-400 mb-4">
             Select your industry to get started with pre-built service types. You can customize them after.
           </p>
 
-          {appliedProfileIds.length > 0 && (
-            <div className="mb-4">
-              <p className="text-xs font-medium text-stone-500 mb-2">Applied profiles</p>
-              <div className="flex flex-wrap gap-2">
-                {availableProfiles
-                  .filter(p => appliedProfileIds.includes(p.id))
-                  .map(p => (
-                    <span key={p.id} className="inline-flex items-center gap-1 pl-3 pr-1.5 py-1 bg-emerald-50 text-emerald-700 rounded-full text-sm font-medium">
-                      {p.name}
-                      <button
-                        onClick={() => initiateRemoveProfile(p)}
-                        className="ml-0.5 w-4 h-4 flex items-center justify-center rounded-full hover:bg-emerald-200 text-emerald-500 hover:text-emerald-800"
-                        title="Remove this profile"
-                      >
-                        ×
-                      </button>
-                    </span>
-                  ))}
-              </div>
-            </div>
-          )}
-
-          <div className="space-y-2 mb-4">
-            {availableProfiles.map(p => (
-              <label key={p.id} className="flex items-start gap-3 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={selectedProfileIds.includes(p.id)}
-                  onChange={() => setSelectedProfileIds(prev =>
-                    prev.includes(p.id) ? prev.filter(x => x !== p.id) : [...prev, p.id]
-                  )}
-                  className="w-4 h-4 mt-0.5 rounded accent-emerald-700 flex-shrink-0"
-                />
-                <div>
-                  <span className="text-sm font-medium text-stone-700">{p.name}</span>
-                  {p.description && <span className="text-xs text-stone-400 ml-2">{p.description}</span>}
+          {profilesLoading ? (
+            <p className="text-sm text-stone-400">Loading profiles…</p>
+          ) : availableProfiles.length === 0 ? (
+            <p className="text-sm text-stone-400">No industry profiles have been configured yet.</p>
+          ) : (
+            <>
+              {appliedProfileIds.length > 0 && (
+                <div className="mb-4">
+                  <p className="text-xs font-medium text-stone-500 mb-2">Applied profiles</p>
+                  <div className="flex flex-wrap gap-2">
+                    {availableProfiles
+                      .filter(p => appliedProfileIds.includes(p.id))
+                      .map(p => (
+                        <span key={p.id} className="inline-flex items-center gap-1 pl-3 pr-1.5 py-1 bg-emerald-50 text-emerald-700 rounded-full text-sm font-medium">
+                          {p.name}
+                          <button
+                            onClick={() => initiateRemoveProfile(p)}
+                            className="ml-0.5 w-4 h-4 flex items-center justify-center rounded-full hover:bg-emerald-200 text-emerald-500 hover:text-emerald-800"
+                            title="Remove this profile"
+                          >
+                            ×
+                          </button>
+                        </span>
+                      ))}
+                  </div>
                 </div>
-              </label>
-            ))}
-          </div>
+              )}
 
-          <button
-            onClick={saveProfiles}
-            disabled={profilesSaving || selectedProfileIds.length === 0}
-            className="px-4 py-2 bg-emerald-700 text-white text-sm font-medium rounded-xl hover:bg-emerald-800 disabled:opacity-50 transition-colors"
-          >
-            {profilesSaving ? 'Applying…' : 'Apply Selected'}
-          </button>
+              <div className="space-y-2 mb-4">
+                {availableProfiles.map(p => (
+                  <label key={p.id} className="flex items-start gap-3 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={selectedProfileIds.includes(p.id)}
+                      onChange={() => setSelectedProfileIds(prev =>
+                        prev.includes(p.id) ? prev.filter(x => x !== p.id) : [...prev, p.id]
+                      )}
+                      className="w-4 h-4 mt-0.5 rounded accent-emerald-700 flex-shrink-0"
+                    />
+                    <div>
+                      <span className="text-sm font-medium text-stone-700">{p.name}</span>
+                      {p.description && <span className="text-xs text-stone-400 ml-2">{p.description}</span>}
+                    </div>
+                  </label>
+                ))}
+              </div>
+
+              <button
+                onClick={saveProfiles}
+                disabled={profilesSaving || selectedProfileIds.length === 0}
+                className="px-4 py-2 bg-emerald-700 text-white text-sm font-medium rounded-xl hover:bg-emerald-800 disabled:opacity-50 transition-colors"
+              >
+                {profilesSaving ? 'Applying…' : 'Apply Selected'}
+              </button>
+            </>
+          )}
         </div>
       )}
 
@@ -959,6 +970,7 @@ export default function Settings({ user }) {
         <PricingImport
           orgId={effectiveOrgId}
           serviceTypes={serviceTypes}
+          orgName={orgName}
           onClose={() => setShowPricingImport(false)}
           onImported={() => { setShowPricingImport(false); loadPricing() }}
         />

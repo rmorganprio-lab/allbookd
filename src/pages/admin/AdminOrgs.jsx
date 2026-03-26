@@ -1186,6 +1186,7 @@ function OrgDetailPanel({ org, onClose, onUpdated, onViewOrg, adminUser }) {
         <PricingImport
           orgId={org.id}
           serviceTypes={pmServiceTypes}
+          orgName={org.name}
           onClose={() => setShowPricingImport(false)}
           onImported={() => { setShowPricingImport(false); loadPricingForOrg() }}
         />
