@@ -51,41 +51,26 @@ export default function BookingPage() {
   const bottomRef = useRef(null)
   const inputRef = useRef(null)
 
-  // Validate that the org exists and has the booking agent enabled
+  // Validate org and start conversation via the Edge Function (uses service role — no RLS issue)
   useEffect(() => {
     async function init() {
-      // Send an empty probe — the Edge Function will either return 404/403 or start the chat
-      // Instead, just check org name via a lightweight Supabase query using anon key
-      // (slug is public — no sensitive data exposed)
-      const { data: org } = await supabase
-        .from('organizations')
-        .select('name, subscription_tier, add_ons')
-        .eq('slug', slug)
-        .maybeSingle()
+      try {
+        const { data, error: fnErr } = await supabase.functions.invoke('booking-agent', {
+          body: { org_slug: slug, message: 'Hello' },
+        })
 
-      if (!org) {
+        if (fnErr || data?.error) {
+          setPageState('not_found')
+          return
+        }
+
+        if (data.org_name) setOrgName(data.org_name)
+        if (data.conversation_id) setConversationId(data.conversation_id)
+        setMessages([{ role: 'assistant', content: data.reply }])
+        setPageState('chat')
+      } catch {
         setPageState('not_found')
-        return
       }
-
-      // Check feature client-side (mirrors Edge Function check)
-      const tierFeatures = {
-        growth: ['ai_lead_agents', 'client_booking_portal', 'quickbooks_sync', 'supply_tracking'],
-      }
-      const addOns = Array.isArray(org.add_ons) ? org.add_ons : []
-      const tierHas = (tierFeatures[org.subscription_tier] || []).includes('ai_lead_agents')
-      const addonHas = addOns.includes('ai_lead_agents')
-
-      if (!tierHas && !addonHas) {
-        setPageState('not_found')
-        return
-      }
-
-      setOrgName(org.name)
-      setPageState('chat')
-
-      // Send a welcome prompt to get the first assistant message
-      await sendMessage('Hello', null, true)
     }
     init()
   }, [slug])
@@ -95,15 +80,14 @@ export default function BookingPage() {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages, sending])
 
-  async function sendMessage(text, convId = conversationId, isInit = false) {
-    if (!isInit) setSending(true)
+  async function sendMessage(text) {
     setError(null)
 
     try {
       const { data, error: fnErr } = await supabase.functions.invoke('booking-agent', {
         body: {
           org_slug: slug,
-          conversation_id: convId,
+          conversation_id: conversationId,
           message: text,
         },
       })
@@ -113,20 +97,19 @@ export default function BookingPage() {
         return
       }
 
-      if (!conversationId && data.conversation_id) {
+      if (data.conversation_id && !conversationId) {
         setConversationId(data.conversation_id)
       }
 
       setMessages((prev) => [...prev, { role: 'assistant', content: data.reply }])
 
       if (data.job_created) {
-        // Give the customer a moment to read the final message, then show confirmation
         setTimeout(() => setPageState('confirmed'), 1800)
       }
     } catch {
       setError('Connection error. Please try again.')
     } finally {
-      if (!isInit) setSending(false)
+      setSending(false)
       inputRef.current?.focus()
     }
   }
@@ -137,7 +120,7 @@ export default function BookingPage() {
     setInput('')
     setMessages((prev) => [...prev, { role: 'user', content: text }])
     setSending(true)
-    sendMessage(text).finally(() => setSending(false))
+    sendMessage(text)
   }
 
   function handleKeyDown(e) {

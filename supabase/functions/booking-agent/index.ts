@@ -511,7 +511,7 @@ Conversational rules:
       .update({ messages: updatedMessages, state: updatedState, updated_at: now })
       .eq('id', conv.id)
 
-    return json({ conversation_id: conv.id, reply, job_created: jobCreated })
+    return json({ conversation_id: conv.id, reply, job_created: jobCreated, org_name: org.name })
   } catch (err) {
     const msg = err instanceof Error ? err.message : 'Unknown error'
     console.error('[booking-agent] Error:', msg)
