@@ -1,6 +1,6 @@
 # TimelyOps — Project Status Board
 
-Last updated: 2026-03-25 (Phase 2–4 complete: structural refactor + UI/UX updates)
+Last updated: 2026-03-26 (booking agent deployed; /terms and /privacy legal pages added)
 
 ---
 
@@ -17,10 +17,13 @@ Last updated: 2026-03-25 (Phase 2–4 complete: structural refactor + UI/UX upda
 | `/payments` | Payments.jsx | ✅ Full | Log payments, delivery modal, filter by method/client/period |
 | `/reports` | Reports.jsx | ✅ Full | Charts (Recharts), export modal (XLSX/CSV zip), feature-gated |
 | `/settings` | Settings.jsx | ✅ Full | Org name, timezone, time format (12h/24h), tax rate — ceo + platform_admin |
-| `/login` | Login.jsx | ✅ Full | Phone OTP primary, email magic link fallback |
+| `/login` | Login.jsx | ✅ Full | Phone OTP primary, email magic link fallback. Footer links to /terms and /privacy. |
 | `/approve/:token` | QuoteApproval.jsx | ✅ Full | Public, no auth; approve/decline with reason |
 | `/invoice/:token` | InvoiceView.jsx | ✅ Full | Public, no auth; shows invoice with line items |
 | `/receipt/:token` | PaymentReceipt.jsx | ✅ Full | Public, no auth; shows payment receipt |
+| `/book/:slug` | BookingPage.jsx | ✅ Full | Public, no auth; web widget that drives the booking-agent Edge Function. Growth tier only. |
+| `/terms` | Terms.jsx | ✅ Full | Public, no auth; Terms of Service (20 sections, v2 dated 2026-03-26). |
+| `/privacy` | Privacy.jsx | ✅ Full | Public, no auth; Privacy Policy (15 sections, v2 dated 2026-03-26, GDPR-compliant). |
 | `/admin` | AdminDashboard.jsx | ✅ Full | Platform-wide stats, tier breakdown |
 | `/admin/orgs` | AdminOrgs.jsx | ✅ Full | Org CRUD, tier/status changes, add users, "View As" org scoping |
 | `/admin/users` | AdminUsers.jsx | ✅ Full | User directory, platform admin toggle, credential updates |
@@ -74,8 +77,15 @@ id, job_id (FK → jobs CASCADE), user_id
 ### `service_types`
 id, org_id, name, description, default_price, default_duration_minutes, is_active
 
+**Hilda's org (a1b2c3d4-…):** Standard Clean (11111111, 2hr), Deep Clean (22222222, 4hr), Move-in/Move-out Clean (33333333, 5hr)
+
 ### `pricing_matrix`
-id, org_id, service_type_id, bedrooms, bathrooms, frequency, price
+id, org_id, service_type_id, bedrooms, bathrooms, frequency (`weekly`/`biweekly`/`monthly`/`one_time`), price
+
+**Hilda's org:** 49 rows of realistic pricing loaded 2026-03-26. Standard Clean: 1–4BR/1–3BA × 4 frequencies ($95–$350). Deep Clean: 1–4BR/1–3BA × one_time + monthly ($195–$525). Move-in/Out: 1–4BR/1–3BA × one_time only ($275–$620).
+
+### `booking_conversations`
+id, org_id, channel (`web`/`sms`), messages (jsonb array of `{role, content, ts}`), state (jsonb — accumulated booking info), job_id (FK → jobs, nullable), contact_name, contact_phone, updated_at
 
 ### `quotes`
 id, org_id, client_id, quote_number, subtotal, tax_amount, total, status (`draft`/`sent`/`approved`/`declined`/`expired`), valid_until, sent_at, approved_at, notes, converted_job_id, created_at, approval_token, declined_at, decline_reason
@@ -135,6 +145,14 @@ Deleting an invoice NULLs: `payments.invoice_id`, `jobs.invoice_id`
 **Actions:** `get_quote` (by approval_token), `approve_quote`, `decline_quote`, `get_invoice` (by view_token), `get_receipt` (by payment view_token)
 **Security:** Public responses stripped of client email/phone/id and org id — only display fields returned. `approve_quote` enforces `valid_until` expiry (returns 410 if expired). `decline_reason` capped at 1000 chars. All user data HTML-escaped in notification emails.
 **Env vars:** `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`
+
+### `booking-agent` (v1 — deployed 2026-03-26)
+**What:** AI-powered booking agent for the `/book/:slug` web widget. Accepts `{ org_slug, conversation_id?, message }`. Runs an agentic loop (up to 6 Claude calls) using tools: `get_service_types`, `check_availability`, `get_pricing` (looks up `pricing_matrix`), `create_pending_job` (creates client + job at status `pending_confirmation`, notifies org owner via SMS).
+**Auth:** `--no-verify-jwt` — public endpoint. Gated by `hasFeature(org, 'ai_lead_agents')` (Growth tier).
+**Rate limit:** Max 10 messages per conversation.
+**Model:** `claude-sonnet-4-6` (claude-sonnet-4-20250514)
+**Stores:** Conversation in `booking_conversations` table. Created jobs have `source = 'web_booking'`, `status = 'pending_confirmation'`.
+**Env vars:** `ANTHROPIC_API_KEY`, `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_PHONE_NUMBER`, `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`
 
 ### `admin-update-auth-user` (v1 — new)
 **What:** Updates email/phone in `auth.users` using service role. Called from AdminUsers.jsx when a user's credentials change.
@@ -251,8 +269,8 @@ Clicking a job card on the Dashboard calls `routerNavigate('/schedule', { state:
 - [ ] Wire `logAudit()` to core page actions (clients, invoices, payments, quotes)
 - [ ] Automated reminders system (Professional tier) — wire `needs_assignment_reminder` to 24h-before notification
 - [ ] Stripe integration for online payment on `/invoice/:token` page
-- [ ] Growth tier AI agent system (inbound/outbound comms via Claude API + Twilio)
-- [ ] Client booking portal (Professional tier)
+- [ ] AI booking agent outbound follow-up (inbound web widget ✅ done — Growth tier)
+- [ ] Client booking portal (Growth tier)
 - [ ] Worker GPS check-in (Professional tier)
 - [ ] Auto review requests (Professional tier)
 - [ ] QuickBooks sync (Growth tier)
