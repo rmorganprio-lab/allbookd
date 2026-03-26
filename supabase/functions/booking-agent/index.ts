@@ -326,7 +326,12 @@ Conversational rules:
 
         if (clientErr || !client) {
           console.error('[booking-agent] Client insert error:', clientErr?.message)
-          return { success: false, error: `Failed to create client: ${clientErr?.message}` }
+          return {
+            success: false,
+            booking_saved: false,
+            error: `Failed to create client record: ${clientErr?.message}`,
+            agent_instruction: `BOOKING FAILED — do NOT tell the customer their booking was submitted. Say: "I wasn't able to complete your booking right now. Please contact ${org.name} directly and they'll get you scheduled."`,
+          }
         }
 
         // Create job
@@ -353,7 +358,12 @@ Conversational rules:
 
         if (jobErr || !job) {
           console.error('[booking-agent] Job insert error:', jobErr?.message)
-          return { success: false, error: `Failed to create job: ${jobErr?.message}` }
+          return {
+            success: false,
+            booking_saved: false,
+            error: `Failed to create job record: ${jobErr?.message}`,
+            agent_instruction: `BOOKING FAILED — do NOT tell the customer their booking was submitted. Say: "I wasn't able to complete your booking right now. Please contact ${org.name} directly and they'll get you scheduled."`,
+          }
         }
 
         jobCreated = true
@@ -420,8 +430,9 @@ Conversational rules:
 
         return {
           success: true,
+          booking_saved: true,
           job_id: job.id,
-          message: 'Booking request created. The team will confirm shortly.',
+          message: 'Booking request saved successfully. The team will review and confirm shortly.',
         }
       }
 
