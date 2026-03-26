@@ -4,6 +4,7 @@ import { useAdminOrg } from '../contexts/AdminOrgContext'
 import { useToast } from '../contexts/ToastContext'
 import { US_TIMEZONES, formatTime } from '../lib/timezone'
 import PricingImport from '../components/PricingImport'
+import { applyProfilesToOrg, buildApplyToast } from '../lib/industryProfiles'
 
 const COUNTRY_PRESETS = {
   US: { currency_code: 'USD', currency_symbol: '$', calling_code: '+1', payment_methods: ['Cash', 'Venmo', 'Zelle', 'Card', 'Bank Transfer', 'Check', 'Other'] },
@@ -86,8 +87,15 @@ export default function Settings({ user }) {
   const [stSaving, setStSaving]                       = useState(false)
   const [stConfirm, setStConfirm]                     = useState(null)
 
+  // Industry profiles state
+  const [availableProfiles, setAvailableProfiles]     = useState([])
+  const [appliedProfileIds, setAppliedProfileIds]     = useState([])
+  const [selectedProfileIds, setSelectedProfileIds]   = useState([])
+  const [profilesSaving, setProfilesSaving]           = useState(false)
+  const [removeProfileConfirm, setRemoveProfileConfirm] = useState(null)
+
   useEffect(() => { loadOrg() }, [effectiveOrgId])
-  useEffect(() => { if (effectiveOrgId) { loadPricing(); loadAllServiceTypes() } }, [effectiveOrgId])
+  useEffect(() => { if (effectiveOrgId) { loadPricing(); loadAllServiceTypes(); loadProfiles() } }, [effectiveOrgId])
 
   async function loadOrg() {
     setLoading(true)
@@ -238,6 +246,64 @@ export default function Settings({ user }) {
     if (error) { showToast('Failed to delete service type.', 'error') }
     else { await loadAllServiceTypes(); await loadPricing() }
     setStConfirm(null)
+  }
+
+  async function loadProfiles() {
+    const [{ data: allProfiles }, { data: applied }] = await Promise.all([
+      supabase.from('industry_profiles').select('id, name, description').eq('is_active', true).order('sort_order'),
+      supabase.from('organization_profiles').select('profile_id').eq('org_id', effectiveOrgId),
+    ])
+    const appliedIds = (applied || []).map(r => r.profile_id)
+    setAvailableProfiles(allProfiles || [])
+    setAppliedProfileIds(appliedIds)
+    setSelectedProfileIds(appliedIds)
+  }
+
+  async function saveProfiles() {
+    if (selectedProfileIds.length === 0) return
+    setProfilesSaving(true)
+    try {
+      const nameMap = Object.fromEntries(availableProfiles.map(p => [p.id, p.name]))
+      const result = await applyProfilesToOrg(effectiveOrgId, selectedProfileIds, nameMap)
+      showToast(buildApplyToast(result))
+      await loadProfiles()
+      await loadAllServiceTypes()
+      await loadPricing()
+    } catch (err) {
+      showToast(err.message, 'error')
+    }
+    setProfilesSaving(false)
+  }
+
+  async function initiateRemoveProfile(profile) {
+    const [{ data: psts }, { data: orgSTs }] = await Promise.all([
+      supabase.from('profile_service_types').select('name').eq('profile_id', profile.id),
+      supabase.from('service_types').select('id, name').eq('org_id', effectiveOrgId),
+    ])
+    const templateNames = new Set((psts || []).map(s => s.name.toLowerCase()))
+    const matchingSTs = (orgSTs || []).filter(st => templateNames.has(st.name.toLowerCase()))
+    const matchingIds = matchingSTs.map(st => st.id)
+
+    let pricingCount = 0
+    if (matchingIds.length > 0) {
+      const { data: pmRows } = await supabase.from('pricing_matrix').select('id').in('service_type_id', matchingIds)
+      pricingCount = pmRows?.length ?? 0
+    }
+
+    setRemoveProfileConfirm({ profileId: profile.id, profileName: profile.name, matchingIds, pricingCount })
+  }
+
+  async function doRemoveProfile(deleteServiceTypes) {
+    const { profileId, matchingIds } = removeProfileConfirm
+    await supabase.from('organization_profiles').delete().eq('org_id', effectiveOrgId).eq('profile_id', profileId)
+    if (deleteServiceTypes && matchingIds.length > 0) {
+      await supabase.from('service_types').delete().in('id', matchingIds)
+    }
+    showToast(deleteServiceTypes ? 'Profile and service types removed' : 'Profile removed')
+    setRemoveProfileConfirm(null)
+    await loadProfiles()
+    await loadAllServiceTypes()
+    await loadPricing()
   }
 
   function getPricingValue(stId, freq, beds, baths) {
@@ -551,6 +617,65 @@ export default function Settings({ user }) {
         {errors.paymentMethods && <p className="text-xs text-red-500 mt-2">{errors.paymentMethods}</p>}
       </div>
 
+      {/* Industry Profiles */}
+      {canEdit && availableProfiles.length > 0 && (
+        <div className="bg-white rounded-2xl border border-stone-200 p-6 mb-4">
+          <h2 className="text-sm font-semibold text-stone-500 uppercase tracking-wider mb-1">Industry Profiles</h2>
+          <p className="text-xs text-stone-400 mb-4">
+            Select your industry to get started with pre-built service types. You can customize them after.
+          </p>
+
+          {appliedProfileIds.length > 0 && (
+            <div className="mb-4">
+              <p className="text-xs font-medium text-stone-500 mb-2">Applied profiles</p>
+              <div className="flex flex-wrap gap-2">
+                {availableProfiles
+                  .filter(p => appliedProfileIds.includes(p.id))
+                  .map(p => (
+                    <span key={p.id} className="inline-flex items-center gap-1 pl-3 pr-1.5 py-1 bg-emerald-50 text-emerald-700 rounded-full text-sm font-medium">
+                      {p.name}
+                      <button
+                        onClick={() => initiateRemoveProfile(p)}
+                        className="ml-0.5 w-4 h-4 flex items-center justify-center rounded-full hover:bg-emerald-200 text-emerald-500 hover:text-emerald-800"
+                        title="Remove this profile"
+                      >
+                        ×
+                      </button>
+                    </span>
+                  ))}
+              </div>
+            </div>
+          )}
+
+          <div className="space-y-2 mb-4">
+            {availableProfiles.map(p => (
+              <label key={p.id} className="flex items-start gap-3 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={selectedProfileIds.includes(p.id)}
+                  onChange={() => setSelectedProfileIds(prev =>
+                    prev.includes(p.id) ? prev.filter(x => x !== p.id) : [...prev, p.id]
+                  )}
+                  className="w-4 h-4 mt-0.5 rounded accent-emerald-700 flex-shrink-0"
+                />
+                <div>
+                  <span className="text-sm font-medium text-stone-700">{p.name}</span>
+                  {p.description && <span className="text-xs text-stone-400 ml-2">{p.description}</span>}
+                </div>
+              </label>
+            ))}
+          </div>
+
+          <button
+            onClick={saveProfiles}
+            disabled={profilesSaving || selectedProfileIds.length === 0}
+            className="px-4 py-2 bg-emerald-700 text-white text-sm font-medium rounded-xl hover:bg-emerald-800 disabled:opacity-50 transition-colors"
+          >
+            {profilesSaving ? 'Applying…' : 'Apply Selected'}
+          </button>
+        </div>
+      )}
+
       {/* Service Types */}
       {canEdit && (
         <div className="bg-white rounded-2xl border border-stone-200 p-6 mb-6">
@@ -837,6 +962,45 @@ export default function Settings({ user }) {
           onClose={() => setShowPricingImport(false)}
           onImported={() => { setShowPricingImport(false); loadPricing() }}
         />
+      )}
+
+      {removeProfileConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6">
+            <h3 className="font-bold text-stone-900 mb-2">Remove profile</h3>
+            <p className="text-stone-500 text-sm mb-1">
+              Remove <span className="font-medium text-stone-700">{removeProfileConfirm.profileName}</span> from your account?
+            </p>
+            {removeProfileConfirm.matchingIds.length > 0 && (
+              <p className="text-stone-400 text-xs mb-4">
+                {removeProfileConfirm.matchingIds.length} matching service type{removeProfileConfirm.matchingIds.length !== 1 ? 's' : ''} found
+                {removeProfileConfirm.pricingCount > 0 ? ` (${removeProfileConfirm.pricingCount} pricing entr${removeProfileConfirm.pricingCount !== 1 ? 'ies' : 'y'} will also be deleted)` : ''}.
+              </p>
+            )}
+            <div className="flex flex-col gap-2">
+              {removeProfileConfirm.matchingIds.length > 0 && (
+                <button
+                  onClick={() => doRemoveProfile(true)}
+                  className="w-full py-2.5 bg-red-600 hover:bg-red-700 text-white text-sm font-medium rounded-xl"
+                >
+                  Remove profile and service types
+                </button>
+              )}
+              <button
+                onClick={() => doRemoveProfile(false)}
+                className="w-full py-2.5 border border-stone-200 text-stone-700 text-sm font-medium rounded-xl hover:bg-stone-50"
+              >
+                Remove profile only
+              </button>
+              <button
+                onClick={() => setRemoveProfileConfirm(null)}
+                className="w-full py-2.5 text-stone-400 text-sm hover:text-stone-600"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   )
