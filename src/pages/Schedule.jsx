@@ -16,6 +16,7 @@ const statusColors = {
   in_progress: 'bg-amber-100 text-amber-700 border-amber-200',
   completed: 'bg-emerald-100 text-emerald-700 border-emerald-200',
   cancelled: 'bg-stone-100 text-stone-500 border-stone-200',
+  pending_confirmation: 'bg-amber-100 text-amber-700 border-amber-200',
 }
 
 const emptyJob = {
@@ -78,8 +79,8 @@ export default function Schedule({ user }) {
 
   async function loadAll() {
     const [jobsRes, clientsRes, workersRes, typesRes] = await Promise.all([
-      supabase.from('jobs').select('*, clients(name, first_name, last_name, address_line_1, address_line_2, city, state_province, postal_code, country, client_properties(*)), job_assignments(user_id), payments(id)').eq('org_id', effectiveOrgId).order('date').order('start_time'),
-      supabase.from('clients').select('id, first_name, last_name, name, email, phone, preferred_contact').eq('org_id', effectiveOrgId).eq('status', 'active').order('first_name'),
+      supabase.from('jobs').select('*, clients(name, first_name, last_name, phone, address_line_1, address_line_2, city, state_province, postal_code, country, client_properties(*)), job_assignments(user_id), payments(id)').eq('org_id', effectiveOrgId).order('date').order('start_time'),
+      supabase.from('clients').select('id, first_name, last_name, name, email, phone, preferred_contact').eq('org_id', effectiveOrgId).in('status', ['active', 'lead']).order('first_name'),
       supabase.from('users').select('id, name, availability').eq('org_id', effectiveOrgId).in('role', ['ceo', 'manager', 'worker']).order('name'),
       supabase.from('service_types').select('*').eq('org_id', effectiveOrgId).eq('is_active', true).order('name'),
     ])
@@ -568,6 +569,23 @@ export default function Schedule({ user }) {
     setForm(f => ({ ...f, service_type_id: id, title: st?.name || f.title, duration_minutes: st?.default_duration_minutes || f.duration_minutes }))
   }
 
+  async function handleConfirmJob(job) {
+    const { error } = await supabase.from('jobs').update({ status: 'scheduled' }).eq('id', job.id)
+    if (error) { showToast('Failed to confirm booking. Please try again.', 'error'); return }
+    await supabase.from('clients').update({ status: 'active' }).eq('id', job.client_id)
+    showToast('Booking confirmed.')
+    loadAll()
+    setModal(null)
+  }
+
+  async function handleDeclineJob(job) {
+    const { error } = await supabase.from('jobs').update({ status: 'cancelled' }).eq('id', job.id)
+    if (error) { showToast('Failed to decline booking. Please try again.', 'error'); return }
+    showToast('Booking declined.')
+    loadAll()
+    setModal(null)
+  }
+
   const clientName = (id) => { const c = clients.find(c => c.id === id); return c ? (formatName(c.first_name, c.last_name) || c.name || 'Unknown') : 'Unknown' }
   const workerName = (id) => workers.find(w => w.id === id)?.name || 'Unknown'
 
@@ -700,6 +718,26 @@ export default function Schedule({ user }) {
             )
           })()}
 
+          {selectedJob.status === 'pending_confirmation' && (
+            <div className="mb-4 p-4 bg-amber-50 border border-amber-200 rounded-xl">
+              <div className="flex items-center gap-2 mb-3">
+                <span className="px-2.5 py-1 bg-amber-100 text-amber-700 rounded-full text-xs font-semibold">Pending Confirmation</span>
+                {selectedJob.source === 'web_booking' && (
+                  <span className="text-xs text-stone-400">Booked via web agent</span>
+                )}
+              </div>
+              {selectedJob.clients?.phone && (
+                <div className="text-sm text-stone-700 mb-3">
+                  <span className="font-medium text-stone-500">Phone: </span>
+                  <a href={`tel:${selectedJob.clients.phone}`} className="text-emerald-700 font-medium hover:underline">{selectedJob.clients.phone}</a>
+                </div>
+              )}
+              <div className="flex gap-2">
+                <button onClick={() => handleConfirmJob(selectedJob)} className="flex-1 py-2.5 bg-emerald-700 text-white text-sm font-medium rounded-xl hover:bg-emerald-800 transition-colors">Confirm Booking</button>
+                <button onClick={() => handleDeclineJob(selectedJob)} className="flex-1 py-2.5 bg-red-50 text-red-600 text-sm font-medium rounded-xl hover:bg-red-100 transition-colors">Decline</button>
+              </div>
+            </div>
+          )}
           {selectedJob.status === 'scheduled' && <button onClick={() => handleCheckIn(selectedJob, 'arrive')} className="w-full py-2.5 bg-blue-600 text-white text-sm font-medium rounded-xl hover:bg-blue-700 mb-2">Mark as Arrived</button>}
           {selectedJob.status === 'in_progress' && <button onClick={() => handleCheckIn(selectedJob, 'complete')} className="w-full py-2.5 bg-emerald-700 text-white text-sm font-medium rounded-xl hover:bg-emerald-800 mb-2">Mark as Completed</button>}
           {selectedJob.status === 'completed' && (

@@ -22,6 +22,7 @@ export default function Dashboard({ user }) {
     todayJobs: [], weekJobs: [], workers: [],
     overdueInvoices: [], recentPayments: [],
     totalClients: 0, totalOutstanding: 0,
+    pendingBookings: [],
   })
   const [loading, setLoading] = useState(true)
 
@@ -32,19 +33,20 @@ export default function Dashboard({ user }) {
     const weekEnd = addDays(today, 7)
 
     const queries = [
-      supabase.from('jobs').select('*, clients(name, first_name, last_name, address_line_1, address_line_2, city, state_province, postal_code, country), job_assignments(user_id)').eq('org_id', effectiveOrgId).eq('date', today).neq('status', 'cancelled').order('start_time'),
-      supabase.from('jobs').select('*, clients(name, first_name, last_name, address_line_1, address_line_2, city, state_province, postal_code, country)').eq('org_id', effectiveOrgId).gte('date', today).lte('date', weekEnd).neq('status', 'cancelled').order('date').order('start_time'),
+      supabase.from('jobs').select('*, clients(name, first_name, last_name, address_line_1, address_line_2, city, state_province, postal_code, country), job_assignments(user_id)').eq('org_id', effectiveOrgId).eq('date', today).neq('status', 'cancelled').neq('status', 'pending_confirmation').order('start_time'),
+      supabase.from('jobs').select('*, clients(name, first_name, last_name, address_line_1, address_line_2, city, state_province, postal_code, country)').eq('org_id', effectiveOrgId).gte('date', today).lte('date', weekEnd).neq('status', 'cancelled').neq('status', 'pending_confirmation').order('date').order('start_time'),
       supabase.from('users').select('id, name, role, availability').eq('org_id', effectiveOrgId).in('role', ['ceo', 'manager', 'worker']).order('name'),
       supabase.from('invoices').select('*, clients(name)').eq('org_id', effectiveOrgId).eq('status', 'overdue'),
       supabase.from('payments').select('*, clients(name)').eq('org_id', effectiveOrgId).order('date', { ascending: false }).limit(5),
       supabase.from('clients').select('id', { count: 'exact', head: true }).eq('org_id', effectiveOrgId),
+      supabase.from('jobs').select('*, clients(name, first_name, last_name, phone)').eq('org_id', effectiveOrgId).eq('status', 'pending_confirmation').order('date').order('start_time'),
     ]
 
-    const [jobsToday, jobsWeek, workers, overdue, payments, clients] = await Promise.all(queries)
+    const [jobsToday, jobsWeek, workers, overdue, payments, clients, pendingBookings] = await Promise.all(queries)
 
-    const hasError = [jobsToday, jobsWeek, workers, overdue, payments, clients].some(r => r.error)
+    const hasError = [jobsToday, jobsWeek, workers, overdue, payments, clients, pendingBookings].some(r => r.error)
     if (hasError) {
-      const errorResult = [jobsToday, jobsWeek, workers, overdue, payments, clients].find(r => r.error)
+      const errorResult = [jobsToday, jobsWeek, workers, overdue, payments, clients, pendingBookings].find(r => r.error)
       console.error('Dashboard load error:', errorResult.error)
       showToast('Failed to load dashboard data. Please try again.', 'error')
       setLoading(false)
@@ -62,6 +64,7 @@ export default function Dashboard({ user }) {
       recentPayments: payments.data || [],
       totalClients: clients.count || 0,
       totalOutstanding,
+      pendingBookings: pendingBookings.data || [],
     })
     setLoading(false)
   }
@@ -101,6 +104,21 @@ export default function Dashboard({ user }) {
     return data.todayJobs.filter(job => 
       job.job_assignments?.some(a => a.user_id === user.id)
     )
+  }
+
+  async function handleConfirmBooking(job) {
+    const { error } = await supabase.from('jobs').update({ status: 'scheduled' }).eq('id', job.id)
+    if (error) { showToast('Failed to confirm booking. Please try again.', 'error'); return }
+    await supabase.from('clients').update({ status: 'active' }).eq('id', job.client_id)
+    showToast('Booking confirmed.')
+    loadDashboard()
+  }
+
+  async function handleDeclineBooking(job) {
+    const { error } = await supabase.from('jobs').update({ status: 'cancelled' }).eq('id', job.id)
+    if (error) { showToast('Failed to decline booking. Please try again.', 'error'); return }
+    showToast('Booking declined.')
+    loadDashboard()
   }
 
   function handleJobClick(job) {
@@ -160,6 +178,54 @@ export default function Dashboard({ user }) {
           <span className="text-stone-400">{getTimezoneAbbr(tz)}</span>
         </p>
       </div>
+
+      {/* ── Booking Requests ── */}
+      {data.pendingBookings.length > 0 && (
+        <div className="mb-8">
+          <div className="flex items-center gap-3 mb-4">
+            <h2 className="font-semibold text-amber-800">Booking Requests</h2>
+            <span className="px-2 py-0.5 bg-amber-100 text-amber-700 rounded-full text-xs font-semibold">
+              {data.pendingBookings.length} pending
+            </span>
+          </div>
+          <div className="bg-amber-50 rounded-2xl border border-amber-200 divide-y divide-amber-100">
+            {data.pendingBookings.map(job => (
+              <div key={job.id} className="px-5 py-4">
+                <div className="flex items-start justify-between gap-4">
+                  <div className="min-w-0">
+                    <div className="text-sm font-semibold text-stone-900">
+                      {formatName(job.clients?.first_name, job.clients?.last_name) || job.clients?.name || 'Unknown'}
+                    </div>
+                    {job.clients?.phone && (
+                      <a href={`tel:${job.clients.phone}`} className="text-xs text-emerald-700 hover:underline mt-0.5 block">{job.clients.phone}</a>
+                    )}
+                    <div className="text-sm text-stone-700 mt-1">{job.title}</div>
+                    <div className="text-xs text-stone-400 mt-0.5">
+                      {new Date(job.date + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
+                      {job.start_time && ` · ${formatTime(job.start_time, timeFormat)}`}
+                      {job.price != null && ` · ${formatCurrency(job.price, currencySymbol)}`}
+                    </div>
+                  </div>
+                  <div className="flex gap-2 shrink-0">
+                    <button
+                      onClick={() => handleConfirmBooking(job)}
+                      className="px-3 py-1.5 bg-emerald-700 text-white text-xs font-medium rounded-lg hover:bg-emerald-800 transition-colors"
+                    >
+                      Confirm
+                    </button>
+                    <button
+                      onClick={() => handleDeclineBooking(job)}
+                      className="px-3 py-1.5 bg-red-50 text-red-600 text-xs font-medium rounded-lg hover:bg-red-100 transition-colors"
+                    >
+                      Decline
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* My Jobs Today — shown when owner/manager has assigned jobs */}
       {myJobs.length > 0 && (
