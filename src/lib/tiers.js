@@ -1,6 +1,6 @@
 export const TIERS = {
-  starter: {
-    name: 'Starter',
+  essentials: {
+    name: 'Essentials',
     price: 99,
     maxStaff: 5,
     features: [
@@ -16,8 +16,8 @@ export const TIERS = {
       'worker_checkin_time',
     ]
   },
-  professional: {
-    name: 'Professional',
+  pro: {
+    name: 'Pro',
     price: 149,
     maxStaff: 10,
     features: [
@@ -28,17 +28,18 @@ export const TIERS = {
       'auto_review_requests',
     ]
   },
-  growth: {
-    name: 'Growth',
-    price: 249,
-    maxStaff: 15,
-    features: [
-      'ai_lead_agents',
-      'client_booking_portal',
-      'quickbooks_sync',
-      'supply_tracking',
-    ]
-  }
+  // Future tier — not active
+  // growth: {
+  //   name: 'Growth',
+  //   price: 249,
+  //   maxStaff: 15,
+  //   features: [
+  //     'ai_lead_agents',
+  //     'client_booking_portal',
+  //     'quickbooks_sync',
+  //     'supply_tracking',
+  //   ]
+  // }
 };
 
 export const ADD_ONS = {
@@ -55,8 +56,8 @@ export const ADD_ONS = {
 
 export function hasFeature(org, featureSlug) {
   if (!org) return false;
-  const tierOrder = ['starter', 'professional', 'growth'];
-  const orgTierIndex = tierOrder.indexOf(org.subscription_tier || 'starter');
+  const tierOrder = ['essentials', 'pro'];
+  const orgTierIndex = tierOrder.indexOf(org.subscription_tier || 'essentials');
   for (let i = 0; i <= orgTierIndex; i++) {
     if (TIERS[tierOrder[i]].features.includes(featureSlug)) return true;
   }

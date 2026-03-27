@@ -31,7 +31,7 @@ export default function Workers({ user }) {
   const { showToast } = useToast()
   const effectiveOrgId = adminViewOrg?.id ?? user?.org_id
   const { tier } = useSubscription()
-  const tierData = TIERS[tier] || TIERS.starter
+  const tierData = TIERS[tier] || TIERS.essentials
   const staffLimit = tierData.maxStaff
   const tierName = tierData.name
   const isAdminView = !!adminViewOrg

@@ -12,7 +12,7 @@ export function SubscriptionProvider({ user, children }) {
 
   const value = {
     org,
-    tier:             org?.subscription_tier    ?? 'starter',
+    tier:             org?.subscription_tier    ?? 'essentials',
     status:           org?.subscription_status  ?? 'active',
     addOns:           org?.add_ons              ?? [],
     trialEndsAt:      org?.trial_ends_at        ?? null,

@@ -18,13 +18,12 @@ function hasFeature(
   org: { subscription_tier: string; add_ons: unknown },
   slug: string
 ): boolean {
-  const tierOrder = ['starter', 'professional', 'growth']
+  const tierOrder = ['essentials', 'pro']
   const tierFeatures: Record<string, string[]> = {
-    starter: ['dashboard', 'clients', 'workers', 'schedule', 'quotes', 'payments', 'invoices', 'reports_view', 'client_timeline', 'worker_checkin_time'],
-    professional: ['reports_export', 'automated_reminders', 'job_checklists', 'worker_gps_checkin', 'auto_review_requests'],
-    growth: ['ai_lead_agents', 'client_booking_portal', 'quickbooks_sync', 'supply_tracking'],
+    essentials: ['dashboard', 'clients', 'workers', 'schedule', 'quotes', 'payments', 'invoices', 'reports_view', 'client_timeline', 'worker_checkin_time'],
+    pro: ['reports_export', 'automated_reminders', 'job_checklists', 'worker_gps_checkin', 'auto_review_requests'],
   }
-  const orgTierIndex = tierOrder.indexOf(org.subscription_tier || 'starter')
+  const orgTierIndex = tierOrder.indexOf(org.subscription_tier || 'essentials')
   for (let i = 0; i <= orgTierIndex; i++) {
     if ((tierFeatures[tierOrder[i]] || []).includes(slug)) return true
   }

@@ -517,18 +517,29 @@
 
     /* ─── PRICING ──────────────────────────────────────────── */
     .pricing-wrap {
-      display: flex;
-      justify-content: center;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
       margin-top: 48px;
+      max-width: 860px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+
+    @media (max-width: 640px) {
+      .pricing-wrap { grid-template-columns: 1fr; }
     }
 
     .pricing-card {
       background: var(--white);
-      border: 2px solid var(--emerald-700);
+      border: 2px solid var(--stone-200);
       border-radius: var(--radius-lg);
-      padding: 40px;
-      max-width: 480px;
+      padding: 36px;
       width: 100%;
+    }
+
+    .pricing-card.pricing-card--featured {
+      border-color: var(--emerald-700);
       box-shadow: 0 12px 40px rgba(4,120,87,0.12);
     }
 
@@ -964,14 +975,13 @@
 
     <div class="pricing-wrap">
       <div class="pricing-card">
-        <div class="pricing-badge">Early Access</div>
-        <div class="pricing-plan">TimelyOps for your business</div>
+        <div class="pricing-plan">Essentials</div>
         <div class="pricing-price">
           <span class="price-dollar">$</span>
           <span class="price-amount">99</span>
           <span class="price-period">/month</span>
         </div>
-        <div class="pricing-note">Includes unlimited team members during early access.</div>
+        <div class="pricing-note">Up to 5 team members.</div>
         <ul class="pricing-features">
           <li>AI inbound agent (phone, SMS, web)</li>
           <li>Instant quotes with auto-pricing</li>
@@ -983,7 +993,27 @@
           <li>Mobile-first — works on any phone or tablet</li>
           <li>Personal onboarding and setup</li>
         </ul>
-        <a href="mailto:info@timelyops.com?subject=Early Access — Get Started" class="btn-cta-full">Get Started →</a>
+        <a href="mailto:info@timelyops.com?subject=Get Started — Essentials" class="btn-cta-full">Get Started →</a>
+      </div>
+
+      <div class="pricing-card pricing-card--featured">
+        <div class="pricing-badge">Most Popular</div>
+        <div class="pricing-plan">Pro</div>
+        <div class="pricing-price">
+          <span class="price-dollar">$</span>
+          <span class="price-amount">149</span>
+          <span class="price-period">/month</span>
+        </div>
+        <div class="pricing-note">Up to 10 team members.</div>
+        <ul class="pricing-features">
+          <li>Everything in Essentials</li>
+          <li>Reports export for your accountant</li>
+          <li>Automated appointment reminders</li>
+          <li>Job checklists for your team</li>
+          <li>Worker GPS check-in</li>
+          <li>Automatic review requests</li>
+        </ul>
+        <a href="mailto:info@timelyops.com?subject=Get Started — Pro" class="btn-cta-full">Get Started →</a>
       </div>
     </div>
   </div>

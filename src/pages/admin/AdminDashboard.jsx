@@ -38,9 +38,8 @@ export default function AdminDashboard() {
       totalOrgs:       orgs.length,
       activeOrgs:      orgs.filter(o => ['active', 'trialing'].includes(o.subscription_status)).length,
       totalUsers:      usersRes.count || 0,
-      starter:         orgs.filter(o => o.subscription_tier === 'starter').length,
-      professional:    orgs.filter(o => o.subscription_tier === 'professional').length,
-      growth:          orgs.filter(o => o.subscription_tier === 'growth').length,
+      essentials:      orgs.filter(o => o.subscription_tier === 'essentials').length,
+      pro:             orgs.filter(o => o.subscription_tier === 'pro').length,
       founding:        orgs.filter(o => o.is_founding_customer).length,
       pausedCancelled: orgs.filter(o => ['paused', 'cancelled'].includes(o.subscription_status)).length,
     })
@@ -63,7 +62,7 @@ export default function AdminDashboard() {
         <StatCard
           label="By Tier"
           value=""
-          sub={`${stats.starter} starter · ${stats.professional} professional · ${stats.growth} growth`}
+          sub={`${stats.essentials} essentials · ${stats.pro} pro`}
         />
         <StatCard label="Founding Customers" value={stats.founding} />
         <StatCard label="Paused / Cancelled" value={stats.pausedCancelled} />

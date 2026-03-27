@@ -12,9 +12,8 @@ import { applyProfilesToOrg, buildApplyToast } from '../../lib/industryProfiles'
 
 function TierBadge({ tier }) {
   const cls = {
-    starter:      'bg-stone-100 text-stone-600',
-    professional: 'bg-blue-100 text-blue-700',
-    growth:       'bg-emerald-100 text-emerald-700',
+    essentials: 'bg-stone-100 text-stone-600',
+    pro:        'bg-blue-100 text-blue-700',
   }
   return (
     <span className={`px-2 py-0.5 rounded-full text-xs font-medium capitalize ${cls[tier] || 'bg-stone-100 text-stone-600'}`}>
@@ -142,7 +141,7 @@ function CreateOrgModal({ onClose, onCreated, adminUser }) {
   const { showToast } = useToast()
   const [form, setForm] = useState({
     name: '', ownerName: '', ownerEmail: '', ownerPhone: '',
-    tier: 'starter', status: 'active', isFoundingCustomer: false, trialEndsAt: '',
+    tier: 'essentials', status: 'active', isFoundingCustomer: false, trialEndsAt: '',
   })
   const [loading, setLoading]               = useState(false)
   const [created, setCreated]               = useState(null)
@@ -275,9 +274,8 @@ function CreateOrgModal({ onClose, onCreated, adminUser }) {
             <p className="text-xs font-semibold text-stone-400 uppercase tracking-wide mb-3">Subscription</p>
             <div className="grid grid-cols-2 gap-2 mb-2">
               <select value={form.tier} onChange={e => set('tier', e.target.value)} className={INPUT}>
-                <option value="starter">Starter ($79/mo)</option>
-                <option value="professional">Professional ($129/mo)</option>
-                <option value="growth">Growth ($249/mo)</option>
+                <option value="essentials">Essentials ($99/mo)</option>
+                <option value="pro">Pro ($149/mo)</option>
               </select>
               <select value={form.status} onChange={e => set('status', e.target.value)} className={INPUT}>
                 <option value="active">Active</option>
