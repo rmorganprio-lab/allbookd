@@ -1,6 +1,6 @@
 # TimelyOps — Project Status Board
 
-Last updated: 2026-03-26 (booking agent deployed; /terms and /privacy legal pages added)
+Last updated: 2026-03-29 (ai_inbound_agent added to Essentials; route_planning added to Pro; ai_lead_agents renamed to ai_outbound_agents)
 
 ---
 
@@ -21,7 +21,7 @@ Last updated: 2026-03-26 (booking agent deployed; /terms and /privacy legal page
 | `/approve/:token` | QuoteApproval.jsx | ✅ Full | Public, no auth; approve/decline with reason |
 | `/invoice/:token` | InvoiceView.jsx | ✅ Full | Public, no auth; shows invoice with line items |
 | `/receipt/:token` | PaymentReceipt.jsx | ✅ Full | Public, no auth; shows payment receipt |
-| `/book/:slug` | BookingPage.jsx | ✅ Full | Public, no auth; web widget that drives the booking-agent Edge Function. Growth tier only. |
+| `/book/:slug` | BookingPage.jsx | ✅ Full | Public, no auth; web widget that drives the booking-agent Edge Function. All tiers (Essentials+). |
 | `/terms` | Terms.jsx | ✅ Full | Public, no auth; Terms of Service (20 sections, v2 dated 2026-03-26). |
 | `/privacy` | Privacy.jsx | ✅ Full | Public, no auth; Privacy Policy (15 sections, v2 dated 2026-03-26, GDPR-compliant). |
 | `/admin` | AdminDashboard.jsx | ✅ Full | Platform-wide stats, tier breakdown |
@@ -148,7 +148,7 @@ Deleting an invoice NULLs: `payments.invoice_id`, `jobs.invoice_id`
 
 ### `booking-agent` (v1 — deployed 2026-03-26)
 **What:** AI-powered booking agent for the `/book/:slug` web widget. Accepts `{ org_slug, conversation_id?, message }`. Runs an agentic loop (up to 6 Claude calls) using tools: `get_service_types`, `check_availability`, `get_pricing` (looks up `pricing_matrix`), `create_pending_job` (creates client + job at status `pending_confirmation`, notifies org owner via SMS).
-**Auth:** `--no-verify-jwt` — public endpoint. Gated by `hasFeature(org, 'ai_lead_agents')` (Growth tier).
+**Auth:** `--no-verify-jwt` — public endpoint. Gated by `hasFeature(org, 'ai_inbound_agent')` (Essentials tier — all orgs).
 **Rate limit:** Max 10 messages per conversation.
 **Model:** `claude-sonnet-4-6` (claude-sonnet-4-20250514)
 **Stores:** Conversation in `booking_conversations` table. Created jobs have `source = 'web_booking'`, `status = 'pending_confirmation'`.
@@ -269,9 +269,10 @@ Clicking a job card on the Dashboard calls `routerNavigate('/schedule', { state:
 - [ ] Wire `logAudit()` to core page actions (clients, invoices, payments, quotes)
 - [ ] Automated reminders system (Professional tier) — wire `needs_assignment_reminder` to 24h-before notification
 - [ ] Stripe integration for online payment on `/invoice/:token` page
-- [ ] AI booking agent outbound follow-up (inbound web widget ✅ done — Growth tier)
-- [ ] Client booking portal (Growth tier)
-- [ ] Worker GPS check-in (Professional tier)
-- [ ] Auto review requests (Professional tier)
-- [ ] QuickBooks sync (Growth tier)
-- [ ] Supply tracking (Growth tier)
+- [ ] AI outbound sequences add-on (`ai_outbound_agents`) — follow-ups, payment chasing
+- [ ] Route planning (Pro tier) — feature slug added to tiers.js, UI not yet built
+- [ ] Client booking portal (add-on)
+- [ ] Worker GPS check-in (Pro tier)
+- [ ] Auto review requests (Pro tier)
+- [ ] QuickBooks sync (add-on)
+- [ ] Supply tracking (add-on)

@@ -101,8 +101,8 @@ public/
 
 ## Pricing tiers
 Defined in `src/lib/tiers.js`:
-- **Essentials** $99/mo, up to 5 staff — dashboard, clients, workers, schedule, quotes, payments, invoices, reports view, client timeline, worker check-in time
-- **Pro** $149/mo, up to 10 staff — adds reports export, automated reminders, job checklists, worker GPS check-in, auto review requests
+- **Essentials** $99/mo, up to 5 staff — dashboard, clients, workers, schedule, quotes, payments, invoices, reports view, client timeline, worker check-in time, AI inbound agent
+- **Pro** $149/mo, up to 10 staff — adds reports export, automated reminders, job checklists, worker GPS check-in, auto review requests, route planning
 - **Add-ons** available per `ADD_ONS` in tiers.js
 - $500 implementation fee for all new customers
 - Founding customer discount structure in place (Hilda)
