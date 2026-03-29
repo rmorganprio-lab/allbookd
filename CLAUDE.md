@@ -101,9 +101,8 @@ public/
 
 ## Pricing tiers
 Defined in `src/lib/tiers.js`:
-- **Starter** $99/mo — dashboard, clients, workers, schedule, quotes, payments, invoices, basic reports, AI inbound agent (phone, SMS, web)
-- **Professional** $149/mo — adds reports export, automated reminders, job checklists, worker GPS check-in, auto review requests
-- **Growth** $249/mo — adds full AI loop (inbound + outbound), client booking portal, QuickBooks sync, supply tracking
+- **Essentials** $99/mo, up to 5 staff — dashboard, clients, workers, schedule, quotes, payments, invoices, reports view, client timeline, worker check-in time
+- **Pro** $149/mo, up to 10 staff — adds reports export, automated reminders, job checklists, worker GPS check-in, auto review requests
 - **Add-ons** available per `ADD_ONS` in tiers.js
 - $500 implementation fee for all new customers
 - Founding customer discount structure in place (Hilda)
