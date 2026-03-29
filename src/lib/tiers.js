@@ -14,6 +14,7 @@ export const TIERS = {
       'reports_view',
       'client_timeline',
       'worker_checkin_time',
+      'ai_inbound_agent',
     ]
   },
   pro: {
@@ -26,6 +27,7 @@ export const TIERS = {
       'job_checklists',
       'worker_gps_checkin',
       'auto_review_requests',
+      'route_planning',
     ]
   },
   // Future tier — not active
@@ -49,7 +51,7 @@ export const ADD_ONS = {
   worker_gps_checkin:     { name: 'Worker GPS Check-in',             price: 9  },
   auto_review_requests:   { name: 'Auto Review Requests',            price: 9  },
   client_booking_portal:  { name: 'Client Booking Portal',           price: 19 },
-  ai_lead_agents:         { name: 'AI Lead Agents',                  price: 79 },
+  ai_outbound_agents:     { name: 'AI Outbound Sequences',           price: 79 },
   quickbooks_sync:        { name: 'QuickBooks Sync',                 price: 19 },
   supply_tracking:        { name: 'Supply Tracking',                 price: 9  },
 };
