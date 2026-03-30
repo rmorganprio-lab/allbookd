@@ -10,6 +10,7 @@ import { formatCurrency } from '../lib/formatCurrency'
 import { formatName, formatAddress, formatAddressLines } from '../lib/formatAddress'
 import { logAudit } from '../lib/auditLog'
 import { voidInvoice, createCreditNote } from '../lib/financialActions'
+import { useTranslation } from 'react-i18next'
 
 const statusColors = {
   draft: 'bg-stone-100 text-stone-600',
@@ -22,6 +23,7 @@ const statusColors = {
 const emptyLine = { description: '', quantity: 1, unit_price: 0, job_id: '' }
 
 export default function Invoices({ user }) {
+  const { t } = useTranslation()
   const tz = user?.organizations?.settings?.timezone || 'America/Los_Angeles'
   const taxRate = user?.organizations?.default_tax_rate ?? user?.organizations?.settings?.tax_rate ?? 0
   const taxLabel = user?.organizations?.tax_label || 'Tax'
@@ -85,7 +87,7 @@ export default function Invoices({ user }) {
     ])
     if (invRes.error) {
       console.error('Failed to load invoices:', invRes.error)
-      showToast('Failed to load invoices. Please try again.', 'error')
+      showToast(t('common.error.failed_load_invoices'), 'error')
     }
     if (clientsRes.error) console.error('Failed to load clients for invoices:', clientsRes.error)
     if (jobsRes.error) console.error('Failed to load jobs for invoices:', jobsRes.error)
@@ -246,10 +248,10 @@ export default function Invoices({ user }) {
 
   function validateInvoice() {
     const errs = {}
-    if (!formClient) errs.client = 'Please select a client.'
-    if (formLines.length === 0 || !formLines.some(l => l.description.trim())) errs.lines = 'Add at least one line item with a description.'
+    if (!formClient) errs.client = t('invoices.error_client')
+    if (formLines.length === 0 || !formLines.some(l => l.description.trim())) errs.lines = t('invoices.error_lines')
     const todayStr = todayInTimezone(tz)
-    if (formDueDate && formDueDate < todayStr) errs.due_date = 'Due date cannot be in the past.'
+    if (formDueDate && formDueDate < todayStr) errs.due_date = t('invoices.error_due_date')
     return errs
   }
 
@@ -280,7 +282,7 @@ export default function Invoices({ user }) {
       const { data, error: invoiceError } = await supabase.from('invoices').insert(invoiceData).select().single()
       if (invoiceError) {
         console.error('Failed to create invoice:', invoiceError)
-        showToast('Failed to save changes. Please try again.', 'error')
+        showToast(t('common.error.failed_save'), 'error')
         setSaving(false)
         return
       }
@@ -305,7 +307,7 @@ export default function Invoices({ user }) {
       const { error: invoiceError } = await supabase.from('invoices').update(invoiceData).eq('id', selectedInvoice.id)
       if (invoiceError) {
         console.error('Failed to update invoice:', invoiceError)
-        showToast('Failed to save changes. Please try again.', 'error')
+        showToast(t('common.error.failed_save'), 'error')
         setSaving(false)
         return
       }
@@ -449,7 +451,7 @@ export default function Invoices({ user }) {
     const { error } = await supabase.from('invoices').update(updateData).eq('id', invoice.id)
     if (error) {
       console.error('Failed to update invoice status:', error)
-      showToast('Something went wrong. Please try again.', 'error')
+      showToast(t('common.toast.something_went_wrong'), 'error')
       return
     }
 
@@ -493,7 +495,7 @@ export default function Invoices({ user }) {
 
     if (payError) {
       console.error('Failed to record payment:', payError)
-      showToast('Failed to save changes. Please try again.', 'error')
+      showToast(t('common.error.failed_save'), 'error')
       setPaymentSaving(false)
       return
     }
@@ -538,7 +540,7 @@ export default function Invoices({ user }) {
       setVoidModal(null)
       setVoidReason('')
       setModal(null)
-      showToast('Invoice voided.')
+      showToast(t('common.toast.invoice_voided'))
       loadAll()
     } catch (err) {
       showToast(err.message || 'Failed to void invoice.', 'error')
@@ -558,7 +560,7 @@ export default function Invoices({ user }) {
       setCreditAmount('')
       setCreditReason('')
       setModal(null)
-      showToast('Credit note created.')
+      showToast(t('common.toast.credit_note_created'))
       loadAll()
     } catch (err) {
       showToast(err.message || 'Failed to create credit note.', 'error')
@@ -704,7 +706,7 @@ export default function Invoices({ user }) {
     doc.save(`${invoice.invoice_number}-${pdfClientName.replace(/\s+/g, '-')}.pdf`)
   }
 
-  if (loading) return <div className="p-6 md:p-8 text-stone-400">Loading invoices...</div>
+  if (loading) return <div className="p-6 md:p-8 text-stone-400">{t('invoices.loading')}</div>
 
   // ── Stats ──
   const totalOutstanding = invoices.filter(i => i.status === 'sent' || i.status === 'overdue').reduce((s, i) => s + Number(i.total || 0), 0)
@@ -716,10 +718,10 @@ export default function Invoices({ user }) {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-stone-900">Invoices</h1>
+          <h1 className="text-2xl font-bold text-stone-900">{t('invoices.heading')}</h1>
           <p className="text-stone-500 text-sm mt-1">
-            {invoices.length} total
-            {overdueCount > 0 && <span className="text-red-600"> · {overdueCount} overdue</span>}
+            {t('invoices.total', { count: invoices.length })}
+            {overdueCount > 0 && <span className="text-red-600"> · {t('invoices.overdue_badge', { count: overdueCount })}</span>}
           </p>
         </div>
         <div className="flex gap-2">
@@ -727,14 +729,14 @@ export default function Invoices({ user }) {
             <div className="relative group">
               <button className="inline-flex items-center gap-2 px-4 py-2.5 bg-blue-50 text-blue-700 text-sm font-medium rounded-xl hover:bg-blue-100 transition-colors">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-                {completedJobs.length} jobs ready to invoice
+                {t('invoices.jobs_ready', { count: completedJobs.length })}
               </button>
             </div>
           )}
           {tab === 'invoices' && (
             <button onClick={() => openAdd()} className="inline-flex items-center gap-2 px-4 py-2.5 bg-emerald-700 text-white text-sm font-medium rounded-xl hover:bg-emerald-800 transition-colors">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-              New Invoice
+              {t('invoices.new_invoice')}
             </button>
           )}
         </div>
@@ -742,9 +744,9 @@ export default function Invoices({ user }) {
 
       {/* Tab switcher */}
       <div className="flex gap-1 bg-stone-100 rounded-xl p-1 mb-6 w-fit">
-        <button onClick={() => setTab('invoices')} className={`px-4 py-1.5 text-sm font-medium rounded-lg transition-colors ${tab === 'invoices' ? 'bg-white text-stone-900 shadow-sm' : 'text-stone-500 hover:text-stone-700'}`}>Invoices</button>
+        <button onClick={() => setTab('invoices')} className={`px-4 py-1.5 text-sm font-medium rounded-lg transition-colors ${tab === 'invoices' ? 'bg-white text-stone-900 shadow-sm' : 'text-stone-500 hover:text-stone-700'}`}>{t('invoices.tab_invoices')}</button>
         <button onClick={() => setTab('credit_notes')} className={`px-4 py-1.5 text-sm font-medium rounded-lg transition-colors ${tab === 'credit_notes' ? 'bg-white text-stone-900 shadow-sm' : 'text-stone-500 hover:text-stone-700'}`}>
-          Credit Notes {creditNotes.length > 0 && <span className="ml-1 text-xs text-stone-400">({creditNotes.length})</span>}
+          {t('invoices.tab_credit_notes')} {creditNotes.length > 0 && <span className="ml-1 text-xs text-stone-400">({creditNotes.length})</span>}
         </button>
       </div>
 
@@ -753,15 +755,15 @@ export default function Invoices({ user }) {
       {/* Stats */}
       <div className="grid grid-cols-3 gap-3 mb-6">
         <div className="bg-white rounded-2xl border border-stone-200 p-4">
-          <div className="text-xs font-medium text-stone-500 mb-1">Outstanding</div>
+          <div className="text-xs font-medium text-stone-500 mb-1">{t('invoices.stat_outstanding')}</div>
           <div className={`text-2xl font-bold ${totalOutstanding > 0 ? 'text-amber-600' : 'text-stone-400'}`}>{currencySymbol}{totalOutstanding.toFixed(0)}</div>
         </div>
         <div className={`rounded-2xl border p-4 ${overdueCount > 0 ? 'bg-red-50 border-red-200' : 'bg-white border-stone-200'}`}>
-          <div className="text-xs font-medium text-stone-500 mb-1">Overdue</div>
+          <div className="text-xs font-medium text-stone-500 mb-1">{t('invoices.stat_overdue')}</div>
           <div className={`text-2xl font-bold ${overdueCount > 0 ? 'text-red-700' : 'text-stone-400'}`}>{overdueCount}</div>
         </div>
         <div className="bg-white rounded-2xl border border-stone-200 p-4">
-          <div className="text-xs font-medium text-stone-500 mb-1">Collected</div>
+          <div className="text-xs font-medium text-stone-500 mb-1">{t('invoices.stat_collected')}</div>
           <div className="text-2xl font-bold text-emerald-700">{currencySymbol}{totalPaid.toFixed(0)}</div>
         </div>
       </div>
@@ -769,7 +771,7 @@ export default function Invoices({ user }) {
       {/* Uninvoiced completed jobs banner */}
       {completedJobs.length > 0 && (
         <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-2xl">
-          <div className="text-sm font-medium text-blue-800 mb-2">Completed jobs ready to invoice</div>
+          <div className="text-sm font-medium text-blue-800 mb-2">{t('invoices.completed_jobs_title')}</div>
           <div className="flex flex-wrap gap-2">
             {completedJobs.slice(0, 5).map(job => (
               <button key={job.id} onClick={() => openAdd(job)} className="inline-flex items-center gap-2 px-3 py-2 bg-white border border-blue-200 rounded-xl text-xs hover:bg-blue-100 transition-colors">
@@ -790,10 +792,10 @@ export default function Invoices({ user }) {
 
       {/* Filters */}
       <div className="flex flex-wrap gap-3 mb-4">
-        <input type="text" placeholder="Search client or invoice #..." value={search} onChange={e => setSearch(e.target.value)} className="px-3 py-2 bg-white border border-stone-200 rounded-xl text-sm text-stone-900 placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-emerald-600 w-full sm:w-64" />
+        <input type="text" placeholder={t('invoices.search_placeholder')} value={search} onChange={e => setSearch(e.target.value)} className="px-3 py-2 bg-white border border-stone-200 rounded-xl text-sm text-stone-900 placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-emerald-600 w-full sm:w-64" />
         <div className="flex gap-1 bg-white border border-stone-200 rounded-xl p-1">
           {['all', 'draft', 'sent', 'overdue', 'paid', 'voided'].map(s => (
-            <button key={s} onClick={() => setFilter(s)} className={`px-3 py-1.5 text-xs font-medium rounded-lg capitalize transition-colors ${filter === s ? 'bg-emerald-700 text-white' : 'text-stone-500 hover:text-stone-700'}`}>{s}</button>
+            <button key={s} onClick={() => setFilter(s)} className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${filter === s ? 'bg-emerald-700 text-white' : 'text-stone-500 hover:text-stone-700'}`}>{t('invoices.status_' + s)}</button>
           ))}
         </div>
       </div>
@@ -802,20 +804,20 @@ export default function Invoices({ user }) {
       <div className="bg-white rounded-2xl border border-stone-200 overflow-hidden">
         {filtered.length === 0 ? (
           <div className="text-center py-12">
-            <p className="text-stone-400 text-sm mb-3">{invoices.length === 0 ? 'No invoices yet.' : 'No invoices match your filter.'}</p>
+            <p className="text-stone-400 text-sm mb-3">{invoices.length === 0 ? t('invoices.empty_no_invoices') : t('invoices.empty_no_match')}</p>
             {invoices.length === 0 && completedJobs.length > 0 && (
-              <button onClick={() => openAdd(completedJobs[0])} className="px-4 py-2 bg-emerald-700 text-white text-sm font-medium rounded-xl hover:bg-emerald-800">Invoice First Completed Job</button>
+              <button onClick={() => openAdd(completedJobs[0])} className="px-4 py-2 bg-emerald-700 text-white text-sm font-medium rounded-xl hover:bg-emerald-800">{t('invoices.first_invoice_btn')}</button>
             )}
           </div>
         ) : (
           <div>
             <div className="hidden md:grid grid-cols-12 gap-4 px-5 py-3 border-b border-stone-100 text-xs font-semibold text-stone-400 uppercase tracking-wider">
-              <div className="col-span-1">#</div>
-              <div className="col-span-3">Client</div>
-              <div className="col-span-2">Issued</div>
-              <div className="col-span-2">Status</div>
-              <div className="col-span-2 text-right">Total</div>
-              <div className="col-span-2 text-right">Due</div>
+              <div className="col-span-1">{t('invoices.col_number')}</div>
+              <div className="col-span-3">{t('invoices.col_client')}</div>
+              <div className="col-span-2">{t('invoices.col_issued')}</div>
+              <div className="col-span-2">{t('invoices.col_status')}</div>
+              <div className="col-span-2 text-right">{t('invoices.col_total')}</div>
+              <div className="col-span-2 text-right">{t('invoices.col_due')}</div>
             </div>
             {filtered.map(inv => (
               <div key={inv.id} onClick={() => openView(inv)} className={`grid grid-cols-1 md:grid-cols-12 gap-2 md:gap-4 px-5 py-4 border-b border-stone-50 hover:bg-stone-50 cursor-pointer transition-colors items-center ${inv.status === 'voided' ? 'opacity-60' : ''}`}>
@@ -823,7 +825,7 @@ export default function Invoices({ user }) {
                 <div className={`md:col-span-3 font-medium text-sm ${inv.status === 'voided' ? 'text-stone-400 line-through' : 'text-stone-900'}`}>{formatName(inv.clients?.first_name, inv.clients?.last_name) || inv.clients?.name}</div>
                 <div className="md:col-span-2 text-sm text-stone-600">{formatDate(inv.issue_date)}</div>
                 <div className="md:col-span-2">
-                  <span className={`inline-block px-2.5 py-0.5 rounded-full text-xs font-medium capitalize ${statusColors[inv.status] || 'bg-stone-100 text-stone-400'}`}>{inv.status}</span>
+                  <span className={`inline-block px-2.5 py-0.5 rounded-full text-xs font-medium ${statusColors[inv.status] || 'bg-stone-100 text-stone-400'}`}>{t('invoices.status_' + inv.status)}</span>
                 </div>
                 <div className={`md:col-span-2 text-right font-semibold ${inv.status === 'voided' ? 'text-stone-400 line-through' : 'text-stone-900'}`}>{formatCurrency(inv.total, currencySymbol)}</div>
                 <div className="md:col-span-2 text-right text-sm text-stone-400">{inv.due_date ? formatDate(inv.due_date) : '—'}</div>
@@ -838,17 +840,17 @@ export default function Invoices({ user }) {
       <div className="bg-white rounded-2xl border border-stone-200 overflow-hidden">
         {creditNotes.length === 0 ? (
           <div className="text-center py-12">
-            <p className="text-stone-400 text-sm">No credit notes yet. Create one from an invoice's detail view.</p>
+            <p className="text-stone-400 text-sm">{t('invoices.credit_empty')}</p>
           </div>
         ) : (
           <div>
             <div className="hidden md:grid grid-cols-12 gap-4 px-5 py-3 border-b border-stone-100 text-xs font-semibold text-stone-400 uppercase tracking-wider">
-              <div className="col-span-2">#</div>
-              <div className="col-span-2">Invoice</div>
-              <div className="col-span-3">Client</div>
-              <div className="col-span-2">Status</div>
-              <div className="col-span-1">Created</div>
-              <div className="col-span-2 text-right">Total</div>
+              <div className="col-span-2">{t('invoices.cn_col_number')}</div>
+              <div className="col-span-2">{t('invoices.cn_col_invoice')}</div>
+              <div className="col-span-3">{t('invoices.cn_col_client')}</div>
+              <div className="col-span-2">{t('invoices.cn_col_status')}</div>
+              <div className="col-span-1">{t('invoices.cn_col_created')}</div>
+              <div className="col-span-2 text-right">{t('invoices.cn_col_total')}</div>
             </div>
             {creditNotes.map(cn => (
               <div key={cn.id} className="grid grid-cols-1 md:grid-cols-12 gap-2 md:gap-4 px-5 py-4 border-b border-stone-50 items-center">
@@ -875,7 +877,7 @@ export default function Invoices({ user }) {
             <div>
               <div className="flex items-center gap-3">
                 <h2 className="text-lg font-bold text-stone-900">Invoice {selectedInvoice.invoice_number}</h2>
-                <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium capitalize ${statusColors[selectedInvoice.status]}`}>{selectedInvoice.status}</span>
+                <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium ${statusColors[selectedInvoice.status]}`}>{t('invoices.status_' + selectedInvoice.status)}</span>
               </div>
               <p className="text-sm text-stone-500 mt-0.5">{formatName(selectedInvoice.clients?.first_name, selectedInvoice.clients?.last_name) || selectedInvoice.clients?.name}</p>
             </div>
@@ -893,19 +895,19 @@ export default function Invoices({ user }) {
 
           {/* Dates */}
           <div className="flex gap-4 mb-4 text-sm">
-            <div><span className="text-stone-400 text-xs">Issued:</span> <span className="text-stone-700">{formatDate(selectedInvoice.issue_date)}</span></div>
-            {selectedInvoice.due_date && <div><span className="text-stone-400 text-xs">Due:</span> <span className="text-stone-700">{formatDate(selectedInvoice.due_date)}</span></div>}
-            {selectedInvoice.paid_date && <div><span className="text-stone-400 text-xs">Paid:</span> <span className="text-emerald-700">{formatDate(selectedInvoice.paid_date)}</span></div>}
+            <div><span className="text-stone-400 text-xs">{t('invoices.date_issued')}</span> <span className="text-stone-700">{formatDate(selectedInvoice.issue_date)}</span></div>
+            {selectedInvoice.due_date && <div><span className="text-stone-400 text-xs">{t('invoices.date_due')}</span> <span className="text-stone-700">{formatDate(selectedInvoice.due_date)}</span></div>}
+            {selectedInvoice.paid_date && <div><span className="text-stone-400 text-xs">{t('invoices.date_paid')}</span> <span className="text-emerald-700">{formatDate(selectedInvoice.paid_date)}</span></div>}
           </div>
 
           {/* Line items */}
           <div className="mb-4">
             <div className="border border-stone-200 rounded-xl overflow-hidden">
               <div className="grid grid-cols-12 gap-2 px-4 py-2 bg-stone-50 text-xs font-semibold text-stone-500">
-                <div className="col-span-6">Description</div>
-                <div className="col-span-2 text-center">Qty</div>
-                <div className="col-span-2 text-right">Price</div>
-                <div className="col-span-2 text-right">Total</div>
+                <div className="col-span-6">{t('invoices.col_description')}</div>
+                <div className="col-span-2 text-center">{t('invoices.col_qty')}</div>
+                <div className="col-span-2 text-right">{t('invoices.col_price')}</div>
+                <div className="col-span-2 text-right">{t('invoices.col_total')}</div>
               </div>
               {(selectedInvoice.invoice_line_items || []).map((li, i) => (
                 <div key={i} className="grid grid-cols-12 gap-2 px-4 py-2.5 border-t border-stone-100 text-sm">
@@ -920,16 +922,16 @@ export default function Invoices({ user }) {
 
           {/* Totals */}
           <div className="mb-4 space-y-1 text-right">
-            <div className="text-sm text-stone-500">Subtotal: {formatCurrency(selectedInvoice.subtotal, currencySymbol)}</div>
+            <div className="text-sm text-stone-500">{t('invoices.subtotal')} {formatCurrency(selectedInvoice.subtotal, currencySymbol)}</div>
             {Number(selectedInvoice.tax_amount) > 0 && <div className="text-sm text-stone-500">{taxLabel}{selectedInvoice.tax_rate ? ` (${selectedInvoice.tax_rate}%)` : ''}: {formatCurrency(selectedInvoice.tax_amount, currencySymbol)}</div>}
-            <div className="text-lg font-bold text-stone-900">Total: {formatCurrency(selectedInvoice.total, currencySymbol)}</div>
+            <div className="text-lg font-bold text-stone-900">{t('invoices.total_label')} {formatCurrency(selectedInvoice.total, currencySymbol)}</div>
           </div>
 
           {selectedInvoice.notes && <div className="mb-4 p-3 bg-stone-50 rounded-xl text-sm text-stone-600">{selectedInvoice.notes}</div>}
 
           <button onClick={() => generatePDF(selectedInvoice)} className="w-full py-2.5 bg-stone-100 text-stone-700 text-sm font-medium rounded-xl hover:bg-stone-200 transition-colors mb-2 flex items-center justify-center gap-2">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-            Download PDF
+            {t('invoices.btn_download_pdf')}
           </button>
 
           {/* ── Connected flow actions ── */}
@@ -937,15 +939,15 @@ export default function Invoices({ user }) {
             {selectedInvoice.status === 'draft' && (
               <div className="space-y-2">
                 <div className="flex gap-2">
-                  <button onClick={() => openEdit(selectedInvoice)} className="flex-1 py-2.5 bg-stone-100 text-stone-600 text-sm font-medium rounded-xl hover:bg-stone-200 transition-colors">Edit</button>
-                  <button onClick={() => updateStatus(selectedInvoice, 'sent')} className="flex-1 py-2.5 bg-stone-100 text-stone-600 text-sm font-medium rounded-xl hover:bg-stone-200 transition-colors">Mark as Sent</button>
+                  <button onClick={() => openEdit(selectedInvoice)} className="flex-1 py-2.5 bg-stone-100 text-stone-600 text-sm font-medium rounded-xl hover:bg-stone-200 transition-colors">{t('common.actions.edit')}</button>
+                  <button onClick={() => updateStatus(selectedInvoice, 'sent')} className="flex-1 py-2.5 bg-stone-100 text-stone-600 text-sm font-medium rounded-xl hover:bg-stone-200 transition-colors">{t('invoices.btn_mark_sent')}</button>
                 </div>
                 <button
                   onClick={() => setDeliveryModal(selectedInvoice)}
                   className="w-full py-2.5 bg-emerald-700 text-white text-sm font-medium rounded-xl hover:bg-emerald-800 transition-colors flex items-center justify-center gap-2"
                 >
                   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
-                  Send Invoice
+                  {t('invoices.btn_send_invoice')}
                 </button>
               </div>
             )}
@@ -957,30 +959,32 @@ export default function Invoices({ user }) {
                   className="w-full py-2.5 bg-stone-100 text-stone-600 text-sm font-medium rounded-xl hover:bg-stone-200 transition-colors flex items-center justify-center gap-2"
                 >
                   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
-                  Resend Invoice
+                  {t('invoices.btn_resend_invoice')}
                 </button>
                 <button onClick={() => { setPayAmount(String(selectedInvoice.total)); setPayMethod(paymentMethods[0] || 'Cash'); setShowPayment(true) }} className="w-full py-2.5 bg-emerald-700 text-white text-sm font-medium rounded-xl hover:bg-emerald-800 transition-colors">
-                  Record Payment →
+                  {t('invoices.btn_record_payment')}
                 </button>
               </div>
             )}
 
             {selectedInvoice.status === 'paid' && (
-              <div className="py-2.5 text-center text-emerald-600 text-sm font-medium">✓ Paid{selectedInvoice.paid_date ? ` on ${formatDate(selectedInvoice.paid_date)}` : ''}</div>
+              <div className="py-2.5 text-center text-emerald-600 text-sm font-medium">
+                {selectedInvoice.paid_date ? t('invoices.status_paid_on', { date: formatDate(selectedInvoice.paid_date) }) : t('invoices.status_paid_no_date')}
+              </div>
             )}
 
             {/* Inline payment form */}
             {showPayment && (
               <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-xl space-y-3">
-                <div className="text-sm font-medium text-emerald-800">Record payment for this invoice</div>
+                <div className="text-sm font-medium text-emerald-800">{t('invoices.payment_title')}</div>
                 <div>
-                  <div className="text-xs text-emerald-600 mb-1">Amount (Invoice total: {formatCurrency(selectedInvoice.total, currencySymbol)})</div>
+                  <div className="text-xs text-emerald-600 mb-1">{t('invoices.payment_amount_hint', { total: formatCurrency(selectedInvoice.total, currencySymbol) })}</div>
                   <div className="relative">
                     <span className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-400 text-sm">{currencySymbol}</span>
                     <input type="number" value={payAmount} onChange={e => setPayAmount(e.target.value)} step="0.01" className="w-full pl-7 pr-3 py-2.5 bg-white border border-emerald-200 rounded-xl text-sm text-stone-900 focus:outline-none focus:ring-2 focus:ring-emerald-600" />
                   </div>
                   {payAmount && Number(payAmount) < Number(selectedInvoice.total) && (
-                    <div className="text-xs text-amber-600 mt-1">Partial — {formatCurrency(Number(selectedInvoice.total) - Number(payAmount), currencySymbol)} remaining</div>
+                    <div className="text-xs text-amber-600 mt-1">{t('invoices.payment_partial', { remaining: formatCurrency(Number(selectedInvoice.total) - Number(payAmount), currencySymbol) })}</div>
                   )}
                 </div>
                 <div className="flex gap-1.5 flex-wrap">
@@ -989,9 +993,9 @@ export default function Invoices({ user }) {
                   ))}
                 </div>
                 <div className="flex gap-2">
-                  <button onClick={() => setShowPayment(false)} className="flex-1 py-2 bg-white text-stone-600 text-sm font-medium rounded-xl border border-stone-200 hover:bg-stone-50 transition-colors">Cancel</button>
+                  <button onClick={() => setShowPayment(false)} className="flex-1 py-2 bg-white text-stone-600 text-sm font-medium rounded-xl border border-stone-200 hover:bg-stone-50 transition-colors">{t('common.actions.cancel')}</button>
                   <button onClick={handleInvoicePayment} disabled={paymentSaving || !payAmount || Number(payAmount) <= 0} className="flex-1 py-2 bg-emerald-700 text-white text-sm font-medium rounded-xl hover:bg-emerald-800 disabled:opacity-50 transition-colors">
-                    {paymentSaving ? 'Saving...' : 'Save Payment'}
+                    {paymentSaving ? t('invoices.payment_saving') : t('invoices.payment_save')}
                   </button>
                 </div>
               </div>
@@ -999,18 +1003,18 @@ export default function Invoices({ user }) {
 
             {selectedInvoice.status === 'voided' && (
               <div className="mt-2 p-3 bg-stone-50 border border-stone-200 rounded-xl">
-                <div className="text-xs font-semibold text-stone-400 uppercase tracking-wider mb-1">Void Reason</div>
+                <div className="text-xs font-semibold text-stone-400 uppercase tracking-wider mb-1">{t('invoices.void_reason_title')}</div>
                 <div className="text-sm text-stone-600">{selectedInvoice.void_reason || '—'}</div>
               </div>
             )}
 
             <div className="flex gap-2 pt-2">
-              {selectedInvoice.status === 'draft' && <button onClick={() => openEdit(selectedInvoice)} className="flex-1 py-2 text-stone-500 text-sm hover:text-stone-700 transition-colors">Edit</button>}
+              {selectedInvoice.status === 'draft' && <button onClick={() => openEdit(selectedInvoice)} className="flex-1 py-2 text-stone-500 text-sm hover:text-stone-700 transition-colors">{t('common.actions.edit')}</button>}
               {selectedInvoice.status !== 'voided' && selectedInvoice.status !== 'paid' && (
-                <button onClick={() => { setVoidModal(selectedInvoice); setVoidReason('') }} className="flex-1 py-2 text-red-400 text-sm hover:text-red-600 transition-colors">Void Invoice</button>
+                <button onClick={() => { setVoidModal(selectedInvoice); setVoidReason('') }} className="flex-1 py-2 text-red-400 text-sm hover:text-red-600 transition-colors">{t('invoices.btn_void_invoice')}</button>
               )}
               {selectedInvoice.status !== 'voided' && (
-                <button onClick={() => { setCreditModal(selectedInvoice); setCreditAmount(''); setCreditReason('') }} className="flex-1 py-2 text-amber-600 text-sm hover:text-amber-800 transition-colors">Credit Note</button>
+                <button onClick={() => { setCreditModal(selectedInvoice); setCreditAmount(''); setCreditReason('') }} className="flex-1 py-2 text-amber-600 text-sm hover:text-amber-800 transition-colors">{t('invoices.btn_credit_note')}</button>
               )}
             </div>
           </div>
@@ -1021,7 +1025,7 @@ export default function Invoices({ user }) {
       {(modal === 'add' || modal === 'edit') && (
         <Modal onClose={() => setModal(null)} wide>
           <div className="flex items-center justify-between mb-6">
-            <h2 className="text-lg font-bold text-stone-900">{modal === 'add' ? 'New Invoice' : 'Edit Invoice'}</h2>
+            <h2 className="text-lg font-bold text-stone-900">{modal === 'add' ? t('invoices.modal_add') : t('invoices.modal_edit')}</h2>
             <button onClick={() => setModal(null)} className="p-1.5 text-stone-400 hover:text-stone-600">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
             </button>
@@ -1030,9 +1034,9 @@ export default function Invoices({ user }) {
           <div className="space-y-5 max-h-[65vh] overflow-y-auto pr-1">
             {/* Client */}
             <div>
-              <label className="block text-xs font-medium text-stone-500 mb-1.5">Client *</label>
+              <label className="block text-xs font-medium text-stone-500 mb-1.5">{t('invoices.client_label')}</label>
               <select value={formClient} onChange={e => { handleClientChange(e.target.value); setErrors(er => { const n = {...er}; delete n.client; return n }) }} className="w-full px-3 py-2.5 bg-stone-50 border border-stone-200 rounded-xl text-sm text-stone-900 focus:outline-none focus:ring-2 focus:ring-emerald-600">
-                <option value="">Select client...</option>
+                <option value="">{t('invoices.select_client')}</option>
                 {clients.map(c => <option key={c.id} value={c.id}>{formatName(c.first_name, c.last_name) || c.name}</option>)}
               </select>
               {errors.client && <p className="text-xs text-red-500 mt-1">{errors.client}</p>}
@@ -1041,7 +1045,7 @@ export default function Invoices({ user }) {
             {/* Completed jobs for this client — quick add */}
             {formClient && getClientJobs(formClient).length > 0 && (
               <div className="p-3 bg-blue-50 border border-blue-200 rounded-xl">
-                <div className="text-xs font-semibold text-blue-700 mb-2">Completed jobs to invoice</div>
+                <div className="text-xs font-semibold text-blue-700 mb-2">{t('invoices.completed_jobs_quick_title')}</div>
                 <div className="flex flex-wrap gap-2">
                   {getClientJobs(formClient).map(job => {
                     const added = formLines.some(l => l.job_id === job.id)
@@ -1059,8 +1063,8 @@ export default function Invoices({ user }) {
             {/* Line items */}
             <div>
               <div className="flex items-center justify-between mb-2">
-                <label className="text-xs font-medium text-stone-500">Line Items</label>
-                <button onClick={addLine} className="text-xs text-emerald-700 hover:text-emerald-800 font-medium">+ Add line</button>
+                <label className="text-xs font-medium text-stone-500">{t('invoices.line_items_label')}</label>
+                <button onClick={addLine} className="text-xs text-emerald-700 hover:text-emerald-800 font-medium">{t('invoices.add_line')}</button>
               </div>
               <div className="space-y-3">
                 {formLines.map((line, idx) => (
@@ -1087,7 +1091,7 @@ export default function Invoices({ user }) {
                         )}
                       </div>
                     </div>
-                    {line.job_id && <div className="text-[10px] text-blue-500 mt-1">Linked to completed job</div>}
+                    {line.job_id && <div className="text-[10px] text-blue-500 mt-1">{t('invoices.linked_job')}</div>}
                   </div>
                 ))}
               </div>
@@ -1096,23 +1100,23 @@ export default function Invoices({ user }) {
 
             {/* Totals */}
             <div className="text-right space-y-1 p-3 bg-stone-50 rounded-xl">
-              <div className="text-sm text-stone-500">Subtotal: {formatCurrency(formSubtotal, currencySymbol)}</div>
+              <div className="text-sm text-stone-500">{t('invoices.subtotal')} {formatCurrency(formSubtotal, currencySymbol)}</div>
               {taxRate > 0 && <div className="text-sm text-stone-500">{taxLabel} ({taxRate}%): {formatCurrency(formTax, currencySymbol)}</div>}
-              <div className="text-lg font-bold text-stone-900">Total: {formatCurrency(formTotal, currencySymbol)}</div>
+              <div className="text-lg font-bold text-stone-900">{t('invoices.total_label')} {formatCurrency(formTotal, currencySymbol)}</div>
             </div>
 
             {/* Issue date (edit only) */}
             {modal === 'edit' && (
               <div>
-                <label className="block text-xs font-medium text-stone-500 mb-1.5">Issue Date</label>
+                <label className="block text-xs font-medium text-stone-500 mb-1.5">{t('invoices.issue_date_label')}</label>
                 <input type="date" value={formIssueDate} disabled={!!selectedInvoice?.sent_at} onChange={e => setFormIssueDate(e.target.value)} className="w-full px-3 py-2.5 bg-stone-50 border border-stone-200 rounded-xl text-sm text-stone-900 focus:outline-none focus:ring-2 focus:ring-emerald-600 disabled:opacity-60 disabled:cursor-not-allowed" />
-                {selectedInvoice?.sent_at && <p className="text-xs text-stone-400 mt-1">Issue date is locked — invoice has been sent.</p>}
+                {selectedInvoice?.sent_at && <p className="text-xs text-stone-400 mt-1">{t('invoices.issue_date_locked')}</p>}
               </div>
             )}
 
             {/* Due date */}
             <div>
-              <label className="block text-xs font-medium text-stone-500 mb-1.5">Due Date</label>
+              <label className="block text-xs font-medium text-stone-500 mb-1.5">{t('invoices.due_date_label')}</label>
               <input type="date" value={formDueDate} onChange={e => { setFormDueDate(e.target.value); setErrors(er => { const n = {...er}; delete n.due_date; return n }) }} className="w-full px-3 py-2.5 bg-stone-50 border border-stone-200 rounded-xl text-sm text-stone-900 focus:outline-none focus:ring-2 focus:ring-emerald-600" />
               {errors.due_date && <p className="text-xs text-red-500 mt-1">{errors.due_date}</p>}
             </div>
@@ -1120,10 +1124,10 @@ export default function Invoices({ user }) {
             {/* Status (edit only) */}
             {modal === 'edit' && (
               <div>
-                <label className="block text-xs font-medium text-stone-500 mb-1.5">Status</label>
+                <label className="block text-xs font-medium text-stone-500 mb-1.5">{t('invoices.status_field')}</label>
                 <div className="flex gap-2 flex-wrap">
                   {['draft', 'sent', 'paid', 'overdue'].map(s => (
-                    <button key={s} type="button" onClick={() => setFormStatus(s)} className={`px-3 py-1.5 text-xs font-medium rounded-lg capitalize transition-colors ${formStatus === s ? statusColors[s] + ' ring-1 ring-offset-1' : 'bg-stone-50 text-stone-400 border border-stone-200'}`}>{s}</button>
+                    <button key={s} type="button" onClick={() => setFormStatus(s)} className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${formStatus === s ? statusColors[s] + ' ring-1 ring-offset-1' : 'bg-stone-50 text-stone-400 border border-stone-200'}`}>{t('invoices.status_' + s)}</button>
                   ))}
                 </div>
               </div>
@@ -1131,16 +1135,16 @@ export default function Invoices({ user }) {
 
             {/* Notes */}
             <div>
-              <label className="block text-xs font-medium text-stone-500 mb-1.5">Notes</label>
-              <textarea value={formNotes} onChange={e => setFormNotes(e.target.value)} placeholder="Any notes for this invoice..." rows={2} className="w-full px-3 py-2.5 bg-stone-50 border border-stone-200 rounded-xl text-sm text-stone-900 placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-emerald-600 resize-none" />
+              <label className="block text-xs font-medium text-stone-500 mb-1.5">{t('invoices.notes_label')}</label>
+              <textarea value={formNotes} onChange={e => setFormNotes(e.target.value)} placeholder={t('invoices.notes_ph')} rows={2} className="w-full px-3 py-2.5 bg-stone-50 border border-stone-200 rounded-xl text-sm text-stone-900 placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-emerald-600 resize-none" />
             </div>
           </div>
 
           {/* Actions */}
           <div className="flex gap-3 mt-6 pt-4 border-t border-stone-200">
-            <button onClick={() => setModal(null)} className="flex-1 py-2.5 bg-stone-100 text-stone-600 text-sm font-medium rounded-xl hover:bg-stone-200 transition-colors">Cancel</button>
+            <button onClick={() => setModal(null)} className="flex-1 py-2.5 bg-stone-100 text-stone-600 text-sm font-medium rounded-xl hover:bg-stone-200 transition-colors">{t('common.actions.cancel')}</button>
             <button onClick={handleSave} disabled={saving} className="flex-1 py-2.5 bg-emerald-700 text-white text-sm font-medium rounded-xl hover:bg-emerald-800 disabled:opacity-50 transition-colors">
-              {saving ? 'Saving...' : modal === 'add' ? 'Create Invoice' : 'Save Changes'}
+              {saving ? t('common.actions.saving') : modal === 'add' ? t('invoices.btn_create') : t('invoices.btn_save')}
             </button>
           </div>
         </Modal>
@@ -1164,26 +1168,26 @@ export default function Invoices({ user }) {
       {voidModal && (
         <Modal onClose={() => { setVoidModal(null); setVoidReason('') }}>
           <div className="flex items-center justify-between mb-5">
-            <h2 className="text-base font-bold text-stone-900">Void Invoice {voidModal.invoice_number}</h2>
+            <h2 className="text-base font-bold text-stone-900">{t('invoices.void_title', { number: voidModal.invoice_number })}</h2>
             <button onClick={() => { setVoidModal(null); setVoidReason('') }} className="p-1.5 text-stone-400 hover:text-stone-600">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
             </button>
           </div>
-          <p className="text-sm text-stone-500 mb-4">Voiding is permanent and cannot be undone. The invoice record will be preserved for audit purposes.</p>
+          <p className="text-sm text-stone-500 mb-4">{t('invoices.void_warning')}</p>
           <div className="mb-4">
-            <label className="block text-xs font-medium text-stone-500 mb-1.5">Reason for voiding *</label>
+            <label className="block text-xs font-medium text-stone-500 mb-1.5">{t('invoices.void_reason_label')}</label>
             <textarea
               value={voidReason}
               onChange={e => setVoidReason(e.target.value)}
               rows={3}
-              placeholder="e.g. Duplicate invoice, client cancelled, billing error…"
+              placeholder={t('invoices.void_reason_ph')}
               className="w-full px-3 py-2.5 bg-stone-50 border border-stone-200 rounded-xl text-sm text-stone-900 focus:outline-none focus:ring-2 focus:ring-red-400 resize-none"
             />
           </div>
           <div className="flex gap-2">
-            <button onClick={() => { setVoidModal(null); setVoidReason('') }} className="flex-1 py-2.5 bg-stone-100 text-stone-600 text-sm font-medium rounded-xl hover:bg-stone-200 transition-colors">Cancel</button>
+            <button onClick={() => { setVoidModal(null); setVoidReason('') }} className="flex-1 py-2.5 bg-stone-100 text-stone-600 text-sm font-medium rounded-xl hover:bg-stone-200 transition-colors">{t('common.actions.cancel')}</button>
             <button onClick={handleVoidInvoice} disabled={voidSaving || !voidReason.trim()} className="flex-1 py-2.5 bg-red-600 text-white text-sm font-medium rounded-xl hover:bg-red-700 disabled:opacity-50 transition-colors">
-              {voidSaving ? 'Voiding…' : 'Void Invoice'}
+              {voidSaving ? t('invoices.voiding') : t('invoices.void_btn')}
             </button>
           </div>
         </Modal>
@@ -1193,33 +1197,33 @@ export default function Invoices({ user }) {
       {creditModal && (
         <Modal onClose={() => { setCreditModal(null); setCreditAmount(''); setCreditReason('') }}>
           <div className="flex items-center justify-between mb-5">
-            <h2 className="text-base font-bold text-stone-900">Credit Note — Invoice {creditModal.invoice_number}</h2>
+            <h2 className="text-base font-bold text-stone-900">{t('invoices.cn_title', { number: creditModal.invoice_number })}</h2>
             <button onClick={() => { setCreditModal(null); setCreditAmount(''); setCreditReason('') }} className="p-1.5 text-stone-400 hover:text-stone-600">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
             </button>
           </div>
-          <p className="text-sm text-stone-500 mb-4">A credit note offsets part or all of the invoice amount. Tax is applied at the invoice's rate ({creditModal.tax_rate ?? 0}%).</p>
+          <p className="text-sm text-stone-500 mb-4">{t('invoices.cn_desc', { rate: creditModal.tax_rate ?? 0 })}</p>
           <div className="mb-4">
-            <label className="block text-xs font-medium text-stone-500 mb-1.5">Credit amount (pre-tax) *</label>
+            <label className="block text-xs font-medium text-stone-500 mb-1.5">{t('invoices.cn_amount_label')}</label>
             <div className="relative">
               <span className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-400 text-sm">{currencySymbol}</span>
               <input type="number" value={creditAmount} onChange={e => setCreditAmount(e.target.value)} step="0.01" min="0.01" placeholder="0.00" className="w-full pl-7 pr-3 py-2.5 bg-stone-50 border border-stone-200 rounded-xl text-sm text-stone-900 focus:outline-none focus:ring-2 focus:ring-amber-400" />
             </div>
           </div>
           <div className="mb-4">
-            <label className="block text-xs font-medium text-stone-500 mb-1.5">Reason *</label>
+            <label className="block text-xs font-medium text-stone-500 mb-1.5">{t('invoices.cn_reason_label')}</label>
             <textarea
               value={creditReason}
               onChange={e => setCreditReason(e.target.value)}
               rows={3}
-              placeholder="e.g. Service adjustment, overcharge correction…"
+              placeholder={t('invoices.cn_reason_ph')}
               className="w-full px-3 py-2.5 bg-stone-50 border border-stone-200 rounded-xl text-sm text-stone-900 focus:outline-none focus:ring-2 focus:ring-amber-400 resize-none"
             />
           </div>
           <div className="flex gap-2">
-            <button onClick={() => { setCreditModal(null); setCreditAmount(''); setCreditReason('') }} className="flex-1 py-2.5 bg-stone-100 text-stone-600 text-sm font-medium rounded-xl hover:bg-stone-200 transition-colors">Cancel</button>
+            <button onClick={() => { setCreditModal(null); setCreditAmount(''); setCreditReason('') }} className="flex-1 py-2.5 bg-stone-100 text-stone-600 text-sm font-medium rounded-xl hover:bg-stone-200 transition-colors">{t('common.actions.cancel')}</button>
             <button onClick={handleCreateCreditNote} disabled={creditSaving || !creditReason.trim() || !creditAmount || Number(creditAmount) <= 0} className="flex-1 py-2.5 bg-amber-600 text-white text-sm font-medium rounded-xl hover:bg-amber-700 disabled:opacity-50 transition-colors">
-              {creditSaving ? 'Creating…' : 'Create Credit Note'}
+              {creditSaving ? t('invoices.cn_creating') : t('invoices.cn_create_btn')}
             </button>
           </div>
         </Modal>

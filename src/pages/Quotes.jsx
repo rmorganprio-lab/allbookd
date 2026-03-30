@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { supabase } from '../lib/supabase'
 import { useAdminOrg } from '../contexts/AdminOrgContext'
 import { useToast } from '../contexts/ToastContext'
@@ -26,6 +27,7 @@ const emptyLine = { description: '', quantity: 1, unit_price: 0, frequency: 'one
 function isValidEmail(v) { return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v) }
 
 export default function Quotes({ user }) {
+  const { t } = useTranslation()
   const tz = user?.organizations?.settings?.timezone || 'America/Los_Angeles'
   const currencySymbol = user?.organizations?.settings?.currency_symbol || '$'
   const orgId = user?.org_id
@@ -84,7 +86,7 @@ export default function Quotes({ user }) {
     ])
     if (quotesRes.error) {
       console.error('Failed to load quotes:', quotesRes.error)
-      showToast('Failed to load quotes. Please try again.', 'error')
+      showToast(t('common.error.failed_load_quotes'), 'error')
     }
     if (clientsRes.error) console.error('Failed to load clients for quotes:', clientsRes.error)
     if (typesRes.error) console.error('Failed to load service types for quotes:', typesRes.error)
@@ -301,17 +303,17 @@ export default function Quotes({ user }) {
 
   function validate() {
     const errs = {}
-    if (!formClient && !isNewClient) errs.client = 'Please select a client.'
-    if (isNewClient && !newClient.name.trim()) errs.client = 'Client name is required.'
-    if (formLines.length === 0) errs.lines = 'Add at least one line item.'
+    if (!formClient && !isNewClient) errs.client = t('quotes.error_client')
+    if (isNewClient && !newClient.name.trim()) errs.client = t('quotes.error_client_name')
+    if (formLines.length === 0) errs.lines = t('quotes.error_lines_empty')
     const lineErrs = formLines.map((l, i) => {
-      if (!l.description.trim()) return `Line ${i + 1}: description is required.`
-      if (Number(l.quantity) <= 0) return `Line ${i + 1}: quantity must be greater than 0.`
-      if (Number(l.unit_price) < 0) return `Line ${i + 1}: price cannot be negative.`
+      if (!l.description.trim()) return t('quotes.error_line_desc', { n: i + 1 })
+      if (Number(l.quantity) <= 0) return t('quotes.error_line_qty', { n: i + 1 })
+      if (Number(l.unit_price) < 0) return t('quotes.error_line_price', { n: i + 1 })
       return null
     }).filter(Boolean)
     if (lineErrs.length > 0) errs.lines = lineErrs[0]
-    if (formSubtotal <= 0) errs.total = 'Total must be greater than 0.'
+    if (formSubtotal <= 0) errs.total = t('quotes.error_total')
     return errs
   }
 
@@ -339,7 +341,7 @@ export default function Quotes({ user }) {
 
       if (clientError || !createdClient) {
         console.error('Failed to create new client:', clientError)
-        showToast('Failed to save changes. Please try again.', 'error')
+        showToast(t('common.error.failed_save'), 'error')
         setSaving(false)
         return
       }
@@ -387,7 +389,7 @@ export default function Quotes({ user }) {
       const { data, error: quoteError } = await supabase.from('quotes').insert(quoteData).select().single()
       if (quoteError) {
         console.error('Failed to create quote:', quoteError)
-        showToast('Failed to save changes. Please try again.', 'error')
+        showToast(t('common.error.failed_save'), 'error')
         setSaving(false)
         return
       }
@@ -412,7 +414,7 @@ export default function Quotes({ user }) {
       const { error: quoteError } = await supabase.from('quotes').update(quoteData).eq('id', selectedQuote.id)
       if (quoteError) {
         console.error('Failed to update quote:', quoteError)
-        showToast('Failed to save changes. Please try again.', 'error')
+        showToast(t('common.error.failed_save'), 'error')
         setSaving(false)
         return
       }
@@ -533,7 +535,7 @@ export default function Quotes({ user }) {
     const { error } = await supabase.from('quotes').update({ status: newStatus }).eq('id', quote.id)
     if (error) {
       console.error('Failed to update quote status:', error)
-      showToast('Something went wrong. Please try again.', 'error')
+      showToast(t('common.toast.something_went_wrong'), 'error')
       return
     }
 
@@ -632,7 +634,7 @@ export default function Quotes({ user }) {
       setVoidModal(null)
       setVoidReason('')
       setModal(null)
-      showToast('Quote voided.')
+      showToast(t('common.toast.quote_voided'))
       loadAll()
     } catch (err) {
       showToast(err.message || 'Failed to void quote.', 'error')
@@ -643,7 +645,7 @@ export default function Quotes({ user }) {
 
   const clientName = (id) => { const c = clients.find(c => c.id === id); return c ? (formatName(c.first_name, c.last_name) || c.name || 'Unknown') : 'Unknown' }
 
-  if (loading) return <div className="p-6 md:p-8 text-stone-400">Loading quotes...</div>
+  if (loading) return <div className="p-6 md:p-8 text-stone-400">{t('quotes.loading')}</div>
 
   // ── Stats ──
   const draftCount = quotes.filter(q => q.status === 'draft').length
@@ -655,42 +657,42 @@ export default function Quotes({ user }) {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-stone-900">Quotes</h1>
+          <h1 className="text-2xl font-bold text-stone-900">{t('quotes.heading')}</h1>
           <p className="text-stone-500 text-sm mt-1">
-            {quotes.length} total
-            {draftCount > 0 && <span className="text-stone-400"> · {draftCount} drafts</span>}
-            {sentCount > 0 && <span className="text-blue-600"> · {sentCount} awaiting response</span>}
+            {t('quotes.total', { count: quotes.length })}
+            {draftCount > 0 && <span className="text-stone-400"> · {t('quotes.drafts_badge', { count: draftCount })}</span>}
+            {sentCount > 0 && <span className="text-blue-600"> · {t('quotes.awaiting_badge', { count: sentCount })}</span>}
           </p>
         </div>
         <button onClick={openAdd} className="inline-flex items-center gap-2 px-4 py-2.5 bg-emerald-700 text-white text-sm font-medium rounded-xl hover:bg-emerald-800 transition-colors">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-          New Quote
+          {t('quotes.new_quote')}
         </button>
       </div>
 
       {/* Stats */}
       <div className="grid grid-cols-3 gap-3 mb-6">
         <div className="bg-white rounded-2xl border border-stone-200 p-4">
-          <div className="text-xs font-medium text-stone-500 mb-1">Drafts</div>
+          <div className="text-xs font-medium text-stone-500 mb-1">{t('quotes.stat_drafts')}</div>
           <div className="text-2xl font-bold text-stone-700">{draftCount}</div>
         </div>
         <div className="bg-white rounded-2xl border border-stone-200 p-4">
-          <div className="text-xs font-medium text-stone-500 mb-1">Awaiting Response</div>
+          <div className="text-xs font-medium text-stone-500 mb-1">{t('quotes.stat_awaiting')}</div>
           <div className="text-2xl font-bold text-blue-700">{sentCount}</div>
         </div>
         <div className="bg-white rounded-2xl border border-stone-200 p-4">
-          <div className="text-xs font-medium text-stone-500 mb-1">Approved Value</div>
+          <div className="text-xs font-medium text-stone-500 mb-1">{t('quotes.stat_approved_value')}</div>
           <div className="text-2xl font-bold text-emerald-700">{currencySymbol}{approvedTotal.toFixed(0)}</div>
         </div>
       </div>
 
       {/* Filters */}
       <div className="flex flex-wrap gap-3 mb-4">
-        <input type="text" placeholder="Search client or quote #..." value={search} onChange={e => setSearch(e.target.value)} className="px-3 py-2 bg-white border border-stone-200 rounded-xl text-sm text-stone-900 placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-emerald-600 w-full sm:w-64" />
+        <input type="text" placeholder={t('quotes.search_placeholder')} value={search} onChange={e => setSearch(e.target.value)} className="px-3 py-2 bg-white border border-stone-200 rounded-xl text-sm text-stone-900 placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-emerald-600 w-full sm:w-64" />
         <div className="flex gap-1 bg-white border border-stone-200 rounded-xl p-1">
           {['all', ...statusFlow].map(s => (
-            <button key={s} onClick={() => setFilter(s)} className={`px-3 py-1.5 text-xs font-medium rounded-lg capitalize transition-colors ${filter === s ? 'bg-emerald-700 text-white' : 'text-stone-500 hover:text-stone-700'}`}>
-              {s}
+            <button key={s} onClick={() => setFilter(s)} className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${filter === s ? 'bg-emerald-700 text-white' : 'text-stone-500 hover:text-stone-700'}`}>
+              {t('quotes.status_' + s)}
             </button>
           ))}
         </div>
@@ -700,18 +702,18 @@ export default function Quotes({ user }) {
       <div className="bg-white rounded-2xl border border-stone-200 overflow-hidden">
         {filtered.length === 0 ? (
           <div className="text-center py-12">
-            <p className="text-stone-400 text-sm mb-3">{quotes.length === 0 ? 'No quotes yet.' : 'No quotes match your filter.'}</p>
-            {quotes.length === 0 && <button onClick={openAdd} className="px-4 py-2 bg-emerald-700 text-white text-sm font-medium rounded-xl hover:bg-emerald-800">Create First Quote</button>}
+            <p className="text-stone-400 text-sm mb-3">{quotes.length === 0 ? t('quotes.empty_no_quotes') : t('quotes.empty_no_match')}</p>
+            {quotes.length === 0 && <button onClick={openAdd} className="px-4 py-2 bg-emerald-700 text-white text-sm font-medium rounded-xl hover:bg-emerald-800">{t('quotes.create_first')}</button>}
           </div>
         ) : (
           <div>
             <div className="hidden md:grid grid-cols-12 gap-4 px-5 py-3 border-b border-stone-100 text-xs font-semibold text-stone-400 uppercase tracking-wider">
-              <div className="col-span-1">#</div>
-              <div className="col-span-3">Client</div>
-              <div className="col-span-2">Date</div>
-              <div className="col-span-2">Status</div>
-              <div className="col-span-2 text-right">Total</div>
-              <div className="col-span-2 text-right">Valid Until</div>
+              <div className="col-span-1">{t('quotes.col_number')}</div>
+              <div className="col-span-3">{t('quotes.col_client')}</div>
+              <div className="col-span-2">{t('quotes.col_date')}</div>
+              <div className="col-span-2">{t('quotes.col_status')}</div>
+              <div className="col-span-2 text-right">{t('quotes.col_total')}</div>
+              <div className="col-span-2 text-right">{t('quotes.col_valid_until')}</div>
             </div>
             {filtered.map(q => (
               <div key={q.id} onClick={() => openView(q)} className={`grid grid-cols-1 md:grid-cols-12 gap-2 md:gap-4 px-5 py-4 border-b border-stone-50 hover:bg-stone-50 cursor-pointer transition-colors items-center ${q.status === 'voided' ? 'opacity-60' : ''}`}>
@@ -721,7 +723,7 @@ export default function Quotes({ user }) {
                 </div>
                 <div className="md:col-span-2 text-sm text-stone-600">{formatDate(q.created_at?.split('T')[0])}</div>
                 <div className="md:col-span-2">
-                  <span className={`inline-block px-2.5 py-0.5 rounded-full text-xs font-medium capitalize ${statusColors[q.status] || 'bg-stone-100 text-stone-400'}`}>{q.status}</span>
+                  <span className={`inline-block px-2.5 py-0.5 rounded-full text-xs font-medium ${statusColors[q.status] || 'bg-stone-100 text-stone-400'}`}>{t('quotes.status_' + q.status)}</span>
                 </div>
                 <div className={`md:col-span-2 text-right font-semibold ${q.status === 'voided' ? 'text-stone-400 line-through' : 'text-stone-900'}`}>{formatCurrency(q.total, currencySymbol)}</div>
                 <div className="md:col-span-2 text-right text-sm text-stone-400">{q.valid_until ? formatDate(q.valid_until) : '—'}</div>
@@ -738,7 +740,7 @@ export default function Quotes({ user }) {
             <div>
               <div className="flex items-center gap-3">
                 <h2 className="text-lg font-bold text-stone-900">Quote {selectedQuote.quote_number}</h2>
-                <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium capitalize ${statusColors[selectedQuote.status]}`}>{selectedQuote.status}</span>
+                <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium ${statusColors[selectedQuote.status]}`}>{t('quotes.status_' + selectedQuote.status)}</span>
               </div>
               <p className="text-sm text-stone-500 mt-0.5">{formatName(selectedQuote.clients?.first_name, selectedQuote.clients?.last_name) || selectedQuote.clients?.name}</p>
             </div>
@@ -756,13 +758,13 @@ export default function Quotes({ user }) {
 
           {/* Line items */}
           <div className="mb-4">
-            <div className="text-xs font-semibold text-stone-400 uppercase tracking-wider mb-2">Line Items</div>
+            <div className="text-xs font-semibold text-stone-400 uppercase tracking-wider mb-2">{t('quotes.line_items_title')}</div>
             <div className="border border-stone-200 rounded-xl overflow-hidden">
               <div className="grid grid-cols-12 gap-2 px-4 py-2 bg-stone-50 text-xs font-semibold text-stone-500">
-                <div className="col-span-6">Description</div>
-                <div className="col-span-2 text-center">Qty</div>
-                <div className="col-span-2 text-right">Price</div>
-                <div className="col-span-2 text-right">Total</div>
+                <div className="col-span-6">{t('quotes.col_description')}</div>
+                <div className="col-span-2 text-center">{t('quotes.col_qty')}</div>
+                <div className="col-span-2 text-right">{t('quotes.col_price')}</div>
+                <div className="col-span-2 text-right">{t('quotes.col_total')}</div>
               </div>
               {(selectedQuote.quote_line_items || []).map((li, i) => (
                 <div key={i} className="grid grid-cols-12 gap-2 px-4 py-2.5 border-t border-stone-100 text-sm">
@@ -777,13 +779,13 @@ export default function Quotes({ user }) {
 
           {/* Totals */}
           <div className="mb-4 space-y-1 text-right">
-            <div className="text-sm text-stone-500">Subtotal: {formatCurrency(selectedQuote.subtotal, currencySymbol)}</div>
+            <div className="text-sm text-stone-500">{t('quotes.subtotal')} {formatCurrency(selectedQuote.subtotal, currencySymbol)}</div>
             {Number(selectedQuote.tax_amount) > 0 && <div className="text-sm text-stone-500">{taxLabel}{taxRate > 0 ? ` (${taxRate}%)` : ''}: {formatCurrency(selectedQuote.tax_amount, currencySymbol)}</div>}
-            <div className="text-lg font-bold text-stone-900">Total: {formatCurrency(selectedQuote.total, currencySymbol)}</div>
+            <div className="text-lg font-bold text-stone-900">{t('quotes.total_label')} {formatCurrency(selectedQuote.total, currencySymbol)}</div>
           </div>
 
           {selectedQuote.valid_until && (
-            <div className="text-xs text-stone-400 mb-2">Valid until {formatDate(selectedQuote.valid_until)}</div>
+            <div className="text-xs text-stone-400 mb-2">{t('quotes.valid_until_label', { date: formatDate(selectedQuote.valid_until) })}</div>
           )}
           {selectedQuote.notes && (
             <div className="mb-4 p-3 bg-stone-50 rounded-xl text-sm text-stone-600">{selectedQuote.notes}</div>
@@ -794,30 +796,30 @@ export default function Quotes({ user }) {
             {selectedQuote.status === 'draft' && (
               <div className="space-y-2">
                 <div className="flex gap-2">
-                  <button onClick={() => openEdit(selectedQuote)} className="flex-1 py-2.5 bg-stone-100 text-stone-600 text-sm font-medium rounded-xl hover:bg-stone-200 transition-colors">Edit</button>
-                  <button onClick={() => updateStatus(selectedQuote, 'sent')} className="flex-1 py-2.5 bg-stone-100 text-stone-600 text-sm font-medium rounded-xl hover:bg-stone-200 transition-colors">Mark as Sent</button>
+                  <button onClick={() => openEdit(selectedQuote)} className="flex-1 py-2.5 bg-stone-100 text-stone-600 text-sm font-medium rounded-xl hover:bg-stone-200 transition-colors">{t('common.actions.edit')}</button>
+                  <button onClick={() => updateStatus(selectedQuote, 'sent')} className="flex-1 py-2.5 bg-stone-100 text-stone-600 text-sm font-medium rounded-xl hover:bg-stone-200 transition-colors">{t('quotes.btn_mark_sent')}</button>
                 </div>
                 <button
                   onClick={() => setDeliveryModal(selectedQuote)}
                   className="w-full py-2.5 bg-emerald-700 text-white text-sm font-medium rounded-xl hover:bg-emerald-800 transition-colors flex items-center justify-center gap-2"
                 >
                   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
-                  Send Quote
+                  {t('quotes.btn_send_quote')}
                 </button>
               </div>
             )}
             {selectedQuote.status === 'sent' && (
               <div className="space-y-2">
                 <div className="flex gap-2">
-                  <button onClick={() => updateStatus(selectedQuote, 'approved')} className="flex-1 py-2.5 bg-emerald-700 text-white text-sm font-medium rounded-xl hover:bg-emerald-800 transition-colors">Approved</button>
-                  <button onClick={() => updateStatus(selectedQuote, 'declined')} className="flex-1 py-2.5 bg-red-50 text-red-600 text-sm font-medium rounded-xl hover:bg-red-100 transition-colors">Declined</button>
+                  <button onClick={() => updateStatus(selectedQuote, 'approved')} className="flex-1 py-2.5 bg-emerald-700 text-white text-sm font-medium rounded-xl hover:bg-emerald-800 transition-colors">{t('quotes.btn_approved')}</button>
+                  <button onClick={() => updateStatus(selectedQuote, 'declined')} className="flex-1 py-2.5 bg-red-50 text-red-600 text-sm font-medium rounded-xl hover:bg-red-100 transition-colors">{t('quotes.btn_declined')}</button>
                 </div>
                 <button
                   onClick={() => setDeliveryModal(selectedQuote)}
                   className="w-full py-2.5 bg-stone-100 text-stone-600 text-sm font-medium rounded-xl hover:bg-stone-200 transition-colors flex items-center justify-center gap-2"
                 >
                   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
-                  Resend Quote
+                  {t('quotes.btn_resend')}
                 </button>
               </div>
             )}
@@ -831,71 +833,71 @@ export default function Quotes({ user }) {
                 setScheduleFrequency(qty > 1 ? 'weekly' : 'one_time')
                 setScheduleDuration(120)
               }} className="w-full py-2.5 bg-emerald-700 text-white text-sm font-medium rounded-xl hover:bg-emerald-800 transition-colors">
-                Schedule Job from This Quote →
+                {t('quotes.btn_schedule_job')}
               </button>
             )}
 
             {showScheduleForm && (
               <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-xl space-y-3">
-                <div className="text-sm font-medium text-emerald-800">Schedule this job</div>
+                <div className="text-sm font-medium text-emerald-800">{t('quotes.schedule_title')}</div>
                 <div className="grid grid-cols-2 gap-2">
                   <div>
-                    <label className="block text-xs text-stone-500 mb-1">Start Date *</label>
+                    <label className="block text-xs text-stone-500 mb-1">{t('quotes.schedule_start_date')}</label>
                     <input type="date" value={scheduleDate} onChange={e => setScheduleDate(e.target.value)} className="w-full px-3 py-2 bg-white border border-stone-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-600" />
                   </div>
                   <div>
-                    <label className="block text-xs text-stone-500 mb-1">Time</label>
+                    <label className="block text-xs text-stone-500 mb-1">{t('quotes.schedule_time')}</label>
                     <input type="time" value={scheduleTime} onChange={e => setScheduleTime(e.target.value)} className="w-full px-3 py-2 bg-white border border-stone-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-600" />
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-2">
                   <div>
-                    <label className="block text-xs text-stone-500 mb-1">Duration (min)</label>
+                    <label className="block text-xs text-stone-500 mb-1">{t('quotes.schedule_duration')}</label>
                     <input type="number" value={scheduleDuration} onChange={e => setScheduleDuration(Number(e.target.value))} className="w-full px-3 py-2 bg-white border border-stone-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-600" />
                   </div>
                   <div>
-                    <label className="block text-xs text-stone-500 mb-1">Frequency</label>
+                    <label className="block text-xs text-stone-500 mb-1">{t('quotes.schedule_frequency')}</label>
                     <select value={scheduleFrequency} onChange={e => setScheduleFrequency(e.target.value)} className="w-full px-3 py-2 bg-white border border-stone-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-600">
-                      <option value="one_time">One time</option>
-                      <option value="weekly">Weekly</option>
-                      <option value="biweekly">Biweekly</option>
-                      <option value="monthly">Monthly</option>
+                      <option value="one_time">{t('quotes.freq_once')}</option>
+                      <option value="weekly">{t('quotes.freq_weekly')}</option>
+                      <option value="biweekly">{t('quotes.freq_biweekly')}</option>
+                      <option value="monthly">{t('quotes.freq_monthly')}</option>
                     </select>
                   </div>
                 </div>
                 {scheduleFrequency !== 'one_time' && (
-                  <div className="text-xs text-emerald-600">This will create 12 recurring instances starting {scheduleDate}</div>
+                  <div className="text-xs text-emerald-600">{t('quotes.schedule_recurring_note', { date: scheduleDate })}</div>
                 )}
                 <div>
-                  <label className="block text-xs text-stone-500 mb-1">Assign Worker (optional)</label>
+                  <label className="block text-xs text-stone-500 mb-1">{t('quotes.schedule_worker')}</label>
                   <select value={scheduleWorker} onChange={e => setScheduleWorker(e.target.value)} className="w-full px-3 py-2 bg-white border border-stone-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-600">
-                    <option value="">Unassigned</option>
+                    <option value="">{t('quotes.schedule_unassigned')}</option>
                     {workers.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
                   </select>
                 </div>
                 <div className="flex gap-2">
-                  <button onClick={() => setShowScheduleForm(false)} className="flex-1 py-2 bg-white text-stone-600 text-sm font-medium rounded-xl border border-stone-200 hover:bg-stone-50 transition-colors">Cancel</button>
+                  <button onClick={() => setShowScheduleForm(false)} className="flex-1 py-2 bg-white text-stone-600 text-sm font-medium rounded-xl border border-stone-200 hover:bg-stone-50 transition-colors">{t('common.actions.cancel')}</button>
                   <button onClick={() => handleConvertToJob()} disabled={!scheduleDate || saving} className="flex-1 py-2 bg-emerald-700 text-white text-sm font-medium rounded-xl hover:bg-emerald-800 disabled:opacity-50 transition-colors">
-                    {saving ? 'Creating...' : 'Create Job'}
+                    {saving ? t('quotes.schedule_creating') : t('quotes.schedule_create_job')}
                   </button>
                 </div>
               </div>
             )}
 
             {selectedQuote.status === 'declined' && (
-              <button onClick={() => openEdit(selectedQuote)} className="w-full py-2.5 bg-stone-100 text-stone-600 text-sm font-medium rounded-xl hover:bg-stone-200 transition-colors">Revise Quote</button>
+              <button onClick={() => openEdit(selectedQuote)} className="w-full py-2.5 bg-stone-100 text-stone-600 text-sm font-medium rounded-xl hover:bg-stone-200 transition-colors">{t('quotes.btn_revise')}</button>
             )}
 
             {selectedQuote.status === 'voided' && (
               <div className="mt-2 p-3 bg-stone-50 border border-stone-200 rounded-xl">
-                <div className="text-xs font-semibold text-stone-400 uppercase tracking-wider mb-1">Void Reason</div>
+                <div className="text-xs font-semibold text-stone-400 uppercase tracking-wider mb-1">{t('quotes.void_reason_title')}</div>
                 <div className="text-sm text-stone-600">{selectedQuote.void_reason || '—'}</div>
               </div>
             )}
 
             {selectedQuote.status !== 'voided' && (
               <div className="flex gap-2 pt-2">
-                <button onClick={() => { setVoidModal(selectedQuote); setVoidReason('') }} className="flex-1 py-2 text-red-400 text-sm hover:text-red-600 transition-colors">Void Quote</button>
+                <button onClick={() => { setVoidModal(selectedQuote); setVoidReason('') }} className="flex-1 py-2 text-red-400 text-sm hover:text-red-600 transition-colors">{t('quotes.btn_void')}</button>
               </div>
             )}
           </div>
@@ -906,7 +908,7 @@ export default function Quotes({ user }) {
       {(modal === 'add' || modal === 'edit') && (
         <Modal onClose={() => setModal(null)} wide>
           <div className="flex items-center justify-between mb-6">
-            <h2 className="text-lg font-bold text-stone-900">{modal === 'add' ? 'New Quote' : 'Edit Quote'}</h2>
+            <h2 className="text-lg font-bold text-stone-900">{modal === 'add' ? t('quotes.modal_add') : t('quotes.modal_edit')}</h2>
             <button onClick={() => setModal(null)} className="p-1.5 text-stone-400 hover:text-stone-600">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
             </button>
@@ -916,23 +918,23 @@ export default function Quotes({ user }) {
             {/* Client selector OR new client form */}
             <div>
               <div className="flex items-center justify-between mb-1.5">
-                <label className="text-xs font-medium text-stone-500">Client *</label>
+                <label className="text-xs font-medium text-stone-500">{t('quotes.client_label')}</label>
                 <button type="button" onClick={() => { setIsNewClient(!isNewClient); setFormClient(''); setFormClientProperty(null) }} className="text-xs text-emerald-700 hover:text-emerald-800 font-medium">
-                  {isNewClient ? '← Select existing client' : '+ New client'}
+                  {isNewClient ? t('quotes.existing_client_link') : t('quotes.new_client_link')}
                 </button>
               </div>
 
               {!isNewClient ? (
                 <>
                   <select value={formClient} onChange={e => { handleClientChange(e.target.value); setErrors(er => { const n = {...er}; delete n.client; return n }) }} className="w-full px-3 py-2.5 bg-stone-50 border border-stone-200 rounded-xl text-sm text-stone-900 focus:outline-none focus:ring-2 focus:ring-emerald-600">
-                    <option value="">Select client...</option>
+                    <option value="">{t('quotes.select_client')}</option>
                     {clients.map(c => <option key={c.id} value={c.id}>{formatName(c.first_name, c.last_name) || c.name}</option>)}
                   </select>
                   {errors.client && <p className="text-xs text-red-500 mt-1">{errors.client}</p>}
                 </>
               ) : (
                 <div className="space-y-3 p-4 bg-stone-50 border border-stone-200 rounded-xl">
-                  <div className="text-xs font-semibold text-stone-600 mb-2">New Client Details</div>
+                  <div className="text-xs font-semibold text-stone-600 mb-2">{t('quotes.new_client_title')}</div>
                   <input type="text" value={newClient.name} onChange={e => { setNewClient(nc => ({...nc, name: e.target.value})); setErrors(er => { const n = {...er}; delete n.client; return n }) }} placeholder="Full name *" className="w-full px-3 py-2.5 bg-white border border-stone-200 rounded-xl text-sm text-stone-900 placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-emerald-600" />
                   {errors.client && <p className="text-xs text-red-500 mt-1">{errors.client}</p>}
                   <div className="grid grid-cols-2 gap-2">
@@ -941,7 +943,7 @@ export default function Quotes({ user }) {
                   </div>
                   <input type="text" value={newClient.address} onChange={e => setNewClient(nc => ({...nc, address: e.target.value}))} placeholder="Address" className="w-full px-3 py-2.5 bg-white border border-stone-200 rounded-xl text-sm text-stone-900 placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-emerald-600" />
 
-                  <div className="text-xs font-semibold text-stone-600 mt-3 mb-2">Property Details</div>
+                  <div className="text-xs font-semibold text-stone-600 mt-3 mb-2">{t('quotes.property_details_title')}</div>
                   <div className="grid grid-cols-4 gap-2">
                     <select value={newProperty.property_type} onChange={e => setNewProperty(np => ({...np, property_type: e.target.value}))} className="w-full px-2 py-2 bg-white border border-stone-200 rounded-xl text-xs text-stone-900 focus:outline-none focus:ring-2 focus:ring-emerald-600">
                       <option value="residential">Residential</option>
@@ -962,7 +964,7 @@ export default function Quotes({ user }) {
             {/* Property summary — shows auto-detected info */}
             {formClientProperty && (formClientProperty.bedrooms || formClientProperty.bathrooms) && (
               <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl">
-                <div className="text-xs font-semibold text-emerald-700 mb-1">Property on file</div>
+                <div className="text-xs font-semibold text-emerald-700 mb-1">{t('quotes.property_on_file')}</div>
                 <div className="text-sm text-emerald-800">
                   {formClientProperty.bedrooms && `${formClientProperty.bedrooms} BR`}
                   {formClientProperty.bedrooms && formClientProperty.bathrooms && ' / '}
@@ -970,7 +972,7 @@ export default function Quotes({ user }) {
                   {formClientProperty.square_footage && ` · ${formClientProperty.square_footage} sq ft`}
                   {formClientProperty.pet_details && ' · 🐾'}
                 </div>
-                <div className="text-[10px] text-emerald-600 mt-1">Price auto-filled from pricing matrix</div>
+                <div className="text-[10px] text-emerald-600 mt-1">{t('quotes.property_auto_fill')}</div>
               </div>
             )}
 
@@ -978,10 +980,10 @@ export default function Quotes({ user }) {
             {pricingMatrix.length === 0 && (
               <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl flex items-start justify-between gap-3">
                 <div className="text-xs text-amber-800">
-                  <span className="font-semibold">Pricing matrix not set up</span> — prices won't auto-fill until you add your rates.
+                  {t('quotes.matrix_empty')}
                 </div>
                 <Link to="/settings" className="shrink-0 text-xs font-medium text-amber-700 hover:text-amber-900 underline whitespace-nowrap">
-                  Set up pricing →
+                  {t('quotes.matrix_setup_link')}
                 </Link>
               </div>
             )}
@@ -989,8 +991,8 @@ export default function Quotes({ user }) {
             {/* Line items */}
             <div>
               <div className="flex items-center justify-between mb-2">
-                <label className="text-xs font-medium text-stone-500">Line Items</label>
-                <button onClick={addLine} className="text-xs text-emerald-700 hover:text-emerald-800 font-medium">+ Add line</button>
+                <label className="text-xs font-medium text-stone-500">{t('quotes.line_items_label')}</label>
+                <button onClick={addLine} className="text-xs text-emerald-700 hover:text-emerald-800 font-medium">{t('quotes.add_line')}</button>
               </div>
 
               <div className="space-y-3">
@@ -1012,14 +1014,14 @@ export default function Quotes({ user }) {
 
                     <div className="grid grid-cols-12 gap-2 items-end">
                       <div className="col-span-5">
-                        <input type="text" value={line.description} onChange={e => updateLine(idx, 'description', e.target.value)} placeholder="Description" className="w-full px-2.5 py-2 bg-white border border-stone-200 rounded-lg text-sm text-stone-900 placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-emerald-600" />
+                        <input type="text" value={line.description} onChange={e => updateLine(idx, 'description', e.target.value)} placeholder={t('quotes.line_description_ph')} className="w-full px-2.5 py-2 bg-white border border-stone-200 rounded-lg text-sm text-stone-900 placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-emerald-600" />
                       </div>
                       <div className="col-span-2">
                         <select value={line.frequency || 'one_time'} onChange={e => updateLine(idx, 'frequency', e.target.value)} className="w-full px-2 py-2 bg-white border border-stone-200 rounded-lg text-xs text-stone-700 focus:outline-none focus:ring-2 focus:ring-emerald-600">
-                          <option value="one_time">Once</option>
-                          <option value="weekly">Weekly</option>
-                          <option value="biweekly">Biweekly</option>
-                          <option value="monthly">Monthly</option>
+                          <option value="one_time">{t('quotes.freq_once')}</option>
+                          <option value="weekly">{t('quotes.freq_weekly')}</option>
+                          <option value="biweekly">{t('quotes.freq_biweekly')}</option>
+                          <option value="monthly">{t('quotes.freq_monthly')}</option>
                         </select>
                       </div>
                       <div className="col-span-1">
@@ -1031,7 +1033,7 @@ export default function Quotes({ user }) {
                           <input type="number" value={line.unit_price} onChange={e => updateLine(idx, 'unit_price', e.target.value)} step="0.01" className={`w-full pl-5 pr-2 py-2 bg-white border rounded-lg text-sm text-stone-900 focus:outline-none focus:ring-2 focus:ring-emerald-600 ${pricingMatrix.length > 0 && line.service_type_id && matrixEmptyForLine(line) && Number(line.unit_price) === 0 ? 'border-amber-300' : 'border-stone-200'}`} />
                         </div>
                         {pricingMatrix.length > 0 && line.service_type_id && matrixEmptyForLine(line) && Number(line.unit_price) === 0 && (
-                          <div className="text-[10px] text-amber-600 mt-0.5">No rate set for this service type</div>
+                          <div className="text-[10px] text-amber-600 mt-0.5">{t('quotes.no_rate_set')}</div>
                         )}
                       </div>
                       <div className="col-span-1 text-right text-sm font-medium text-stone-700">{currencySymbol}{lineTotal(line).toFixed(0)}</div>
@@ -1051,25 +1053,25 @@ export default function Quotes({ user }) {
 
             {/* Totals */}
             <div className="text-right space-y-1 p-3 bg-stone-50 rounded-xl">
-              <div className="text-sm text-stone-500">Subtotal: {formatCurrency(formSubtotal, currencySymbol)}</div>
+              <div className="text-sm text-stone-500">{t('quotes.subtotal_label')} {formatCurrency(formSubtotal, currencySymbol)}</div>
               {taxRate > 0 && <div className="text-sm text-stone-500">{taxLabel} ({taxRate}%): {formatCurrency(formTax, currencySymbol)}</div>}
-              <div className="text-lg font-bold text-stone-900">Total: {formatCurrency(formTotal, currencySymbol)}</div>
+              <div className="text-lg font-bold text-stone-900">{t('quotes.total_label')} {formatCurrency(formTotal, currencySymbol)}</div>
             </div>
             {errors.total && <p className="text-xs text-red-500 mt-1">{errors.total}</p>}
 
             {/* Valid until */}
             <div>
-              <label className="block text-xs font-medium text-stone-500 mb-1.5">Valid Until</label>
+              <label className="block text-xs font-medium text-stone-500 mb-1.5">{t('quotes.valid_until_field')}</label>
               <input type="date" value={formValidUntil} onChange={e => setFormValidUntil(e.target.value)} className="w-full px-3 py-2.5 bg-stone-50 border border-stone-200 rounded-xl text-sm text-stone-900 focus:outline-none focus:ring-2 focus:ring-emerald-600" />
             </div>
 
             {/* Status (edit only) */}
             {modal === 'edit' && (
               <div>
-                <label className="block text-xs font-medium text-stone-500 mb-1.5">Status</label>
+                <label className="block text-xs font-medium text-stone-500 mb-1.5">{t('quotes.status_field')}</label>
                 <div className="flex gap-2 flex-wrap">
                   {statusFlow.filter(s => s !== 'voided').map(s => (
-                    <button key={s} type="button" onClick={() => setFormStatus(s)} className={`px-3 py-1.5 text-xs font-medium rounded-lg capitalize transition-colors ${formStatus === s ? statusColors[s] + ' ring-1 ring-offset-1' : 'bg-stone-50 text-stone-400 border border-stone-200'}`}>{s}</button>
+                    <button key={s} type="button" onClick={() => setFormStatus(s)} className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${formStatus === s ? statusColors[s] + ' ring-1 ring-offset-1' : 'bg-stone-50 text-stone-400 border border-stone-200'}`}>{t('quotes.status_' + s)}</button>
                   ))}
                 </div>
               </div>
@@ -1077,16 +1079,16 @@ export default function Quotes({ user }) {
 
             {/* Notes */}
             <div>
-              <label className="block text-xs font-medium text-stone-500 mb-1.5">Notes</label>
-              <textarea value={formNotes} onChange={e => setFormNotes(e.target.value)} placeholder="Any notes for this quote..." rows={2} className="w-full px-3 py-2.5 bg-stone-50 border border-stone-200 rounded-xl text-sm text-stone-900 placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-emerald-600 resize-none" />
+              <label className="block text-xs font-medium text-stone-500 mb-1.5">{t('quotes.notes_label')}</label>
+              <textarea value={formNotes} onChange={e => setFormNotes(e.target.value)} placeholder={t('quotes.notes_ph')} rows={2} className="w-full px-3 py-2.5 bg-stone-50 border border-stone-200 rounded-xl text-sm text-stone-900 placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-emerald-600 resize-none" />
             </div>
           </div>
 
           {/* Actions */}
           <div className="flex gap-3 mt-6 pt-4 border-t border-stone-200">
-            <button onClick={() => setModal(null)} className="flex-1 py-2.5 bg-stone-100 text-stone-600 text-sm font-medium rounded-xl hover:bg-stone-200 transition-colors">Cancel</button>
+            <button onClick={() => setModal(null)} className="flex-1 py-2.5 bg-stone-100 text-stone-600 text-sm font-medium rounded-xl hover:bg-stone-200 transition-colors">{t('common.actions.cancel')}</button>
             <button onClick={handleSave} disabled={saving} className="flex-1 py-2.5 bg-emerald-700 text-white text-sm font-medium rounded-xl hover:bg-emerald-800 disabled:opacity-50 transition-colors">
-              {saving ? 'Saving...' : modal === 'add' ? 'Create Quote' : 'Save Changes'}
+              {saving ? t('quotes.btn_saving') : modal === 'add' ? t('quotes.btn_create') : t('quotes.btn_save')}
             </button>
           </div>
         </Modal>
@@ -1110,26 +1112,26 @@ export default function Quotes({ user }) {
       {voidModal && (
         <Modal onClose={() => { setVoidModal(null); setVoidReason('') }}>
           <div className="flex items-center justify-between mb-5">
-            <h2 className="text-base font-bold text-stone-900">Void Quote {voidModal.quote_number}</h2>
+            <h2 className="text-base font-bold text-stone-900">{t('quotes.void_title', { number: voidModal.quote_number })}</h2>
             <button onClick={() => { setVoidModal(null); setVoidReason('') }} className="p-1.5 text-stone-400 hover:text-stone-600">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
             </button>
           </div>
-          <p className="text-sm text-stone-500 mb-4">Voiding is permanent and cannot be undone. The quote record will be preserved for audit purposes.</p>
+          <p className="text-sm text-stone-500 mb-4">{t('quotes.void_warning')}</p>
           <div className="mb-4">
-            <label className="block text-xs font-medium text-stone-500 mb-1.5">Reason for voiding *</label>
+            <label className="block text-xs font-medium text-stone-500 mb-1.5">{t('quotes.void_reason_label')}</label>
             <textarea
               value={voidReason}
               onChange={e => setVoidReason(e.target.value)}
               rows={3}
-              placeholder="e.g. Client changed mind, duplicate quote, price no longer valid…"
+              placeholder={t('quotes.void_reason_ph')}
               className="w-full px-3 py-2.5 bg-stone-50 border border-stone-200 rounded-xl text-sm text-stone-900 focus:outline-none focus:ring-2 focus:ring-red-400 resize-none"
             />
           </div>
           <div className="flex gap-2">
-            <button onClick={() => { setVoidModal(null); setVoidReason('') }} className="flex-1 py-2.5 bg-stone-100 text-stone-600 text-sm font-medium rounded-xl hover:bg-stone-200 transition-colors">Cancel</button>
+            <button onClick={() => { setVoidModal(null); setVoidReason('') }} className="flex-1 py-2.5 bg-stone-100 text-stone-600 text-sm font-medium rounded-xl hover:bg-stone-200 transition-colors">{t('common.actions.cancel')}</button>
             <button onClick={handleVoidQuote} disabled={voidSaving || !voidReason.trim()} className="flex-1 py-2.5 bg-red-600 text-white text-sm font-medium rounded-xl hover:bg-red-700 disabled:opacity-50 transition-colors">
-              {voidSaving ? 'Voiding…' : 'Void Quote'}
+              {voidSaving ? t('quotes.voiding') : t('quotes.void_btn')}
             </button>
           </div>
         </Modal>

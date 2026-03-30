@@ -8,6 +8,7 @@ import { formatCurrency } from '../lib/formatCurrency'
 import { formatName } from '../lib/formatAddress'
 import { logAudit } from '../lib/auditLog'
 import { reversePayment } from '../lib/financialActions'
+import { useTranslation } from 'react-i18next'
 
 // Legacy color map for known method names (case-insensitive fallback)
 const METHOD_COLORS = {
@@ -33,6 +34,7 @@ const emptyPayment = {
 }
 
 export default function Payments({ user }) {
+  const { t } = useTranslation()
   const tz = user?.organizations?.settings?.timezone || 'America/Los_Angeles'
   const tzAbbr = getTimezoneAbbr(tz)
   const currencySymbol = user?.organizations?.settings?.currency_symbol || '$'
@@ -71,7 +73,7 @@ export default function Payments({ user }) {
     ])
     if (paymentsRes.error) {
       console.error('Failed to load payments:', paymentsRes.error)
-      showToast('Failed to load payments. Please try again.', 'error')
+      showToast(t('common.error.failed_load_payments'), 'error')
     }
     if (clientsRes.error) console.error('Failed to load clients for payments:', clientsRes.error)
     if (invoicesRes.error) console.error('Failed to load invoices for payments:', invoicesRes.error)
@@ -165,9 +167,9 @@ export default function Payments({ user }) {
 
   function validatePayment() {
     const errs = {}
-    if (!form.amount || Number(form.amount) <= 0) errs.amount = 'Enter a valid amount.'
-    if (!form.method) errs.method = 'Select a payment method.'
-    if (!form.date) errs.date = 'Date is required.'
+    if (!form.amount || Number(form.amount) <= 0) errs.amount = t('payments.error_amount')
+    if (!form.method) errs.method = t('payments.error_method')
+    if (!form.date) errs.date = t('payments.error_date')
     return errs
   }
 
@@ -193,7 +195,7 @@ export default function Payments({ user }) {
       const { data: newPayment, error } = await supabase.from('payments').insert(paymentData).select('id').single()
       if (error) {
         console.error('Failed to record payment:', error)
-        showToast('Failed to save changes. Please try again.', 'error')
+        showToast(t('common.error.failed_save'), 'error')
         setSaving(false)
         return
       }
@@ -226,7 +228,7 @@ export default function Payments({ user }) {
       const { error: updateError } = await supabase.from('payments').update(paymentData).eq('id', selectedPayment.id)
       if (updateError) {
         console.error('Failed to update payment:', updateError)
-        showToast('Failed to save changes. Please try again.', 'error')
+        showToast(t('common.error.failed_save'), 'error')
         setSaving(false)
         return
       }
@@ -305,7 +307,7 @@ export default function Payments({ user }) {
       setReverseModal(null)
       setReverseReason('')
       setModal(null)
-      showToast('Payment reversed.')
+      showToast(t('common.toast.payment_reversed'))
       loadAll()
     } catch (err) {
       showToast(err.message || 'Failed to reverse payment.', 'error')
@@ -320,42 +322,42 @@ export default function Payments({ user }) {
 
   const clientName = (id) => { const c = clients.find(c => c.id === id); return c ? (formatName(c.first_name, c.last_name) || c.name || 'Unknown') : 'Unknown' }
 
-  if (loading) return <div className="p-6 md:p-8 text-stone-400">Loading payments...</div>
+  if (loading) return <div className="p-6 md:p-8 text-stone-400">{t('payments.loading')}</div>
 
   return (
     <div className="p-6 md:p-8">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-stone-900">Payments</h1>
+          <h1 className="text-2xl font-bold text-stone-900">{t('payments.heading')}</h1>
           <p className="text-stone-500 text-sm mt-1">
-            {payments.length} total payments
+            {t('payments.total_count', { count: payments.length })}
             <span className="text-stone-300 mx-1.5">·</span>
-            {formatCurrency(totalThisMonth, currencySymbol)} this month
+            {t('payments.this_month', { amount: formatCurrency(totalThisMonth, currencySymbol) })}
           </p>
         </div>
         <button onClick={openAdd} className="inline-flex items-center gap-2 px-4 py-2.5 bg-emerald-700 text-white text-sm font-medium rounded-xl hover:bg-emerald-800 transition-colors">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-          Record Payment
+          {t('payments.record_payment')}
         </button>
       </div>
 
       {/* Stats Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
         <div className="bg-white rounded-2xl border border-stone-200 p-4">
-          <div className="text-xs font-medium text-stone-500 mb-2">Showing</div>
+          <div className="text-xs font-medium text-stone-500 mb-2">{t('payments.stat_showing')}</div>
           <div className="text-2xl font-bold text-stone-900">{formatCurrency(totalFiltered, currencySymbol)}</div>
-          <div className="text-xs text-stone-400 mt-1">{filtered.length} payments</div>
+          <div className="text-xs text-stone-400 mt-1">{t('payments.stat_payments', { count: filtered.length })}</div>
         </div>
         <div className="bg-white rounded-2xl border border-stone-200 p-4">
-          <div className="text-xs font-medium text-stone-500 mb-2">This Month</div>
+          <div className="text-xs font-medium text-stone-500 mb-2">{t('payments.stat_this_month')}</div>
           <div className="text-2xl font-bold text-emerald-700">{formatCurrency(totalThisMonth, currencySymbol)}</div>
         </div>
         {methodBreakdown.slice(0, 2).map(mb => (
           <div key={mb.method} className="bg-white rounded-2xl border border-stone-200 p-4">
             <div className="text-xs font-medium text-stone-500 mb-2">{mb.method}</div>
             <div className="text-2xl font-bold text-stone-700">{formatCurrency(mb.total, currencySymbol)}</div>
-            <div className="text-xs text-stone-400 mt-1">{mb.count} payments</div>
+            <div className="text-xs text-stone-400 mt-1">{t('payments.stat_payments', { count: mb.count })}</div>
           </div>
         ))}
       </div>
@@ -363,24 +365,24 @@ export default function Payments({ user }) {
       {/* Filters */}
       <div className="flex flex-wrap gap-3 mb-4">
         <input
-          type="text" placeholder="Search client, reference..."
+          type="text" placeholder={t('payments.search_placeholder')}
           value={search} onChange={e => setSearch(e.target.value)}
           className="px-3 py-2 bg-white border border-stone-200 rounded-xl text-sm text-stone-900 placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-emerald-600 w-full sm:w-64"
         />
         <select value={filter.method} onChange={e => setFilter(f => ({...f, method: e.target.value}))} className="px-3 py-2 bg-white border border-stone-200 rounded-xl text-sm text-stone-700 focus:outline-none focus:ring-2 focus:ring-emerald-600">
-          <option value="all">All Methods</option>
+          <option value="all">{t('payments.filter_all_methods')}</option>
           {paymentMethods.map(m => <option key={m} value={m}>{m}</option>)}
         </select>
         <select value={filter.client} onChange={e => setFilter(f => ({...f, client: e.target.value}))} className="px-3 py-2 bg-white border border-stone-200 rounded-xl text-sm text-stone-700 focus:outline-none focus:ring-2 focus:ring-emerald-600">
-          <option value="all">All Clients</option>
+          <option value="all">{t('payments.filter_all_clients')}</option>
           {clients.map(c => <option key={c.id} value={c.id}>{formatName(c.first_name, c.last_name) || c.name}</option>)}
         </select>
         <select value={filter.period} onChange={e => setFilter(f => ({...f, period: e.target.value}))} className="px-3 py-2 bg-white border border-stone-200 rounded-xl text-sm text-stone-700 focus:outline-none focus:ring-2 focus:ring-emerald-600">
-          <option value="all">All Time</option>
-          <option value="week">Last 7 Days</option>
-          <option value="month">Last 30 Days</option>
-          <option value="quarter">Last 3 Months</option>
-          <option value="year">Last Year</option>
+          <option value="all">{t('payments.filter_all_time')}</option>
+          <option value="week">{t('payments.filter_last_7')}</option>
+          <option value="month">{t('payments.filter_last_30')}</option>
+          <option value="quarter">{t('payments.filter_last_3m')}</option>
+          <option value="year">{t('payments.filter_last_year')}</option>
         </select>
       </div>
 
@@ -388,20 +390,20 @@ export default function Payments({ user }) {
       <div className="bg-white rounded-2xl border border-stone-200 overflow-hidden">
         {filtered.length === 0 ? (
           <div className="text-center py-12">
-            <p className="text-stone-400 text-sm mb-3">{payments.length === 0 ? 'No payments recorded yet.' : 'No payments match your filters.'}</p>
+            <p className="text-stone-400 text-sm mb-3">{payments.length === 0 ? t('payments.empty_none') : t('payments.empty_no_match')}</p>
             {payments.length === 0 && (
-              <button onClick={openAdd} className="px-4 py-2 bg-emerald-700 text-white text-sm font-medium rounded-xl hover:bg-emerald-800">Record First Payment</button>
+              <button onClick={openAdd} className="px-4 py-2 bg-emerald-700 text-white text-sm font-medium rounded-xl hover:bg-emerald-800">{t('payments.btn_record_first')}</button>
             )}
           </div>
         ) : (
           <div>
             {/* Table Header */}
             <div className="hidden md:grid grid-cols-12 gap-4 px-5 py-3 border-b border-stone-100 text-xs font-semibold text-stone-400 uppercase tracking-wider">
-              <div className="col-span-3">Client</div>
-              <div className="col-span-2">Date</div>
-              <div className="col-span-2">Method</div>
-              <div className="col-span-2">Reference</div>
-              <div className="col-span-2 text-right">Amount</div>
+              <div className="col-span-3">{t('payments.col_client')}</div>
+              <div className="col-span-2">{t('payments.col_date')}</div>
+              <div className="col-span-2">{t('payments.col_method')}</div>
+              <div className="col-span-2">{t('payments.col_reference')}</div>
+              <div className="col-span-2 text-right">{t('payments.col_amount')}</div>
               <div className="col-span-1"></div>
             </div>
 
@@ -411,7 +413,7 @@ export default function Payments({ user }) {
                 <div className="md:col-span-3">
                   <div className={`font-medium text-sm ${p.reversed_at ? 'text-stone-400 line-through' : 'text-stone-900'}`}>{formatName(p.clients?.first_name, p.clients?.last_name) || p.clients?.name || 'Unknown'}</div>
                   {p.invoices?.invoice_number && <div className="text-xs text-stone-400">Invoice #{p.invoices.invoice_number}</div>}
-                  {p.reversed_at && <span className="inline-block px-1.5 py-0.5 bg-stone-200 text-stone-500 text-[10px] font-semibold rounded uppercase tracking-wide">Reversed</span>}
+                  {p.reversed_at && <span className="inline-block px-1.5 py-0.5 bg-stone-200 text-stone-500 text-[10px] font-semibold rounded uppercase tracking-wide">{t('payments.reversed_badge')}</span>}
                 </div>
                 <div className="md:col-span-2 text-sm text-stone-600">{formatDate(p.date)}</div>
                 <div className="md:col-span-2">
@@ -437,13 +439,13 @@ export default function Payments({ user }) {
       {/* Method Breakdown */}
       {methodBreakdown.length > 2 && (
         <div className="mt-6 bg-white rounded-2xl border border-stone-200 p-5">
-          <h3 className="text-sm font-semibold text-stone-900 mb-3">Payment Method Breakdown</h3>
+          <h3 className="text-sm font-semibold text-stone-900 mb-3">{t('payments.method_breakdown_title')}</h3>
           <div className="space-y-2">
             {methodBreakdown.map(mb => (
               <div key={mb.method} className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${methodColor(mb.method)}`}>{mb.method}</span>
-                  <span className="text-xs text-stone-400">{mb.count} payments</span>
+                  <span className="text-xs text-stone-400">{t('payments.stat_payments', { count: mb.count })}</span>
                 </div>
                 <span className="text-sm font-medium text-stone-700">{formatCurrency(mb.total, currencySymbol)}</span>
               </div>
@@ -458,8 +460,8 @@ export default function Payments({ user }) {
           <div className="flex items-start justify-between mb-4">
             <div>
               <div className="flex items-center gap-2">
-                <h2 className="text-lg font-bold text-stone-900">Payment Details</h2>
-                {selectedPayment.reversed_at && <span className="px-2 py-0.5 bg-stone-200 text-stone-500 text-xs font-semibold rounded uppercase tracking-wide">Reversed</span>}
+                <h2 className="text-lg font-bold text-stone-900">{t('payments.view_title')}</h2>
+                {selectedPayment.reversed_at && <span className="px-2 py-0.5 bg-stone-200 text-stone-500 text-xs font-semibold rounded uppercase tracking-wide">{t('payments.reversed_badge')}</span>}
               </div>
               <p className="text-sm text-stone-500">{selectedPayment.clients?.name}</p>
             </div>
@@ -469,18 +471,18 @@ export default function Payments({ user }) {
           </div>
 
           <div className="space-y-2 mb-6">
-            <InfoRow label="Amount" value={<span className="text-lg font-bold text-emerald-700">{formatCurrency(selectedPayment.amount, currencySymbol)}</span>} />
-            <InfoRow label="Client" value={formatName(selectedPayment.clients?.first_name, selectedPayment.clients?.last_name) || selectedPayment.clients?.name} />
-            <InfoRow label="Date" value={formatDate(selectedPayment.date)} />
-            <InfoRow label="Method" value={<span className={`px-2.5 py-0.5 rounded-full text-xs font-medium ${methodColor(selectedPayment.method)}`}>{selectedPayment.method}</span>} />
-            {selectedPayment.invoices?.invoice_number && <InfoRow label="Invoice" value={`#${selectedPayment.invoices.invoice_number}`} />}
-            {selectedPayment.reference && <InfoRow label="Reference" value={selectedPayment.reference} />}
-            {selectedPayment.notes && <InfoRow label="Notes" value={selectedPayment.notes} />}
+            <InfoRow label={t('payments.row_amount')} value={<span className="text-lg font-bold text-emerald-700">{formatCurrency(selectedPayment.amount, currencySymbol)}</span>} />
+            <InfoRow label={t('payments.row_client')} value={formatName(selectedPayment.clients?.first_name, selectedPayment.clients?.last_name) || selectedPayment.clients?.name} />
+            <InfoRow label={t('payments.row_date')} value={formatDate(selectedPayment.date)} />
+            <InfoRow label={t('payments.row_method')} value={<span className={`px-2.5 py-0.5 rounded-full text-xs font-medium ${methodColor(selectedPayment.method)}`}>{selectedPayment.method}</span>} />
+            {selectedPayment.invoices?.invoice_number && <InfoRow label={t('payments.row_invoice')} value={`#${selectedPayment.invoices.invoice_number}`} />}
+            {selectedPayment.reference && <InfoRow label={t('payments.row_reference')} value={selectedPayment.reference} />}
+            {selectedPayment.notes && <InfoRow label={t('payments.row_notes')} value={selectedPayment.notes} />}
           </div>
 
           {selectedPayment.reversed_at && (
             <div className="mb-4 p-3 bg-stone-50 border border-stone-200 rounded-xl">
-              <div className="text-xs font-semibold text-stone-400 uppercase tracking-wider mb-1">Reversal Reason</div>
+              <div className="text-xs font-semibold text-stone-400 uppercase tracking-wider mb-1">{t('payments.reversal_reason_title')}</div>
               <div className="text-sm text-stone-600">{selectedPayment.reversal_reason || '—'}</div>
             </div>
           )}
@@ -492,15 +494,15 @@ export default function Payments({ user }) {
                 className="w-full py-2.5 bg-emerald-700 text-white text-sm font-medium rounded-xl hover:bg-emerald-800 transition-colors flex items-center justify-center gap-2"
               >
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
-                Send Receipt
+                {t('payments.btn_send_receipt')}
               </button>
             )}
             <div className="flex gap-3">
               {!selectedPayment.reversed_at && (
-                <button onClick={() => openEdit(selectedPayment)} className="flex-1 py-2.5 bg-stone-100 text-stone-600 text-sm font-medium rounded-xl hover:bg-stone-200">Edit</button>
+                <button onClick={() => openEdit(selectedPayment)} className="flex-1 py-2.5 bg-stone-100 text-stone-600 text-sm font-medium rounded-xl hover:bg-stone-200">{t('common.actions.edit')}</button>
               )}
               {!selectedPayment.reversed_at && (
-                <button onClick={() => { setReverseModal(selectedPayment); setReverseReason('') }} className="flex-1 py-2.5 bg-red-50 text-red-600 text-sm font-medium rounded-xl hover:bg-red-100">Reverse Payment</button>
+                <button onClick={() => { setReverseModal(selectedPayment); setReverseReason('') }} className="flex-1 py-2.5 bg-red-50 text-red-600 text-sm font-medium rounded-xl hover:bg-red-100">{t('payments.btn_reverse')}</button>
               )}
             </div>
           </div>
@@ -525,27 +527,27 @@ export default function Payments({ user }) {
       {reverseModal && (
         <Modal onClose={() => { setReverseModal(null); setReverseReason('') }}>
           <div className="flex items-center justify-between mb-5">
-            <h2 className="text-base font-bold text-stone-900">Reverse Payment</h2>
+            <h2 className="text-base font-bold text-stone-900">{t('payments.reverse_title')}</h2>
             <button onClick={() => { setReverseModal(null); setReverseReason('') }} className="p-1.5 text-stone-400 hover:text-stone-600">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
             </button>
           </div>
-          <p className="text-sm text-stone-500 mb-1">Reversing {formatCurrency(reverseModal.amount, currencySymbol)} paid by {formatName(reverseModal.clients?.first_name, reverseModal.clients?.last_name) || reverseModal.clients?.name || 'client'} on {formatDate(reverseModal.date)}.</p>
-          <p className="text-sm text-stone-500 mb-4">A new offsetting payment record will be created. This cannot be undone.</p>
+          <p className="text-sm text-stone-500 mb-1">{t('payments.reverse_desc', { amount: formatCurrency(reverseModal.amount, currencySymbol), client: formatName(reverseModal.clients?.first_name, reverseModal.clients?.last_name) || reverseModal.clients?.name || 'client', date: formatDate(reverseModal.date) })}</p>
+          <p className="text-sm text-stone-500 mb-4">{t('payments.reverse_warning')}</p>
           <div className="mb-4">
-            <label className="block text-xs font-medium text-stone-500 mb-1.5">Reason for reversal *</label>
+            <label className="block text-xs font-medium text-stone-500 mb-1.5">{t('payments.reverse_reason_label')}</label>
             <textarea
               value={reverseReason}
               onChange={e => setReverseReason(e.target.value)}
               rows={3}
-              placeholder="e.g. Chargeback, incorrect amount, client requested refund…"
+              placeholder={t('payments.reverse_reason_ph')}
               className="w-full px-3 py-2.5 bg-stone-50 border border-stone-200 rounded-xl text-sm text-stone-900 focus:outline-none focus:ring-2 focus:ring-red-400 resize-none"
             />
           </div>
           <div className="flex gap-2">
-            <button onClick={() => { setReverseModal(null); setReverseReason('') }} className="flex-1 py-2.5 bg-stone-100 text-stone-600 text-sm font-medium rounded-xl hover:bg-stone-200 transition-colors">Cancel</button>
+            <button onClick={() => { setReverseModal(null); setReverseReason('') }} className="flex-1 py-2.5 bg-stone-100 text-stone-600 text-sm font-medium rounded-xl hover:bg-stone-200 transition-colors">{t('common.actions.cancel')}</button>
             <button onClick={handleReversePayment} disabled={reverseSaving || !reverseReason.trim()} className="flex-1 py-2.5 bg-red-600 text-white text-sm font-medium rounded-xl hover:bg-red-700 disabled:opacity-50 transition-colors">
-              {reverseSaving ? 'Reversing…' : 'Reverse Payment'}
+              {reverseSaving ? t('payments.reversing') : t('payments.btn_reverse_confirm')}
             </button>
           </div>
         </Modal>
@@ -555,7 +557,7 @@ export default function Payments({ user }) {
       {(modal === 'add' || modal === 'edit') && (
         <Modal onClose={() => setModal(null)}>
           <div className="flex items-center justify-between mb-6">
-            <h2 className="text-lg font-bold text-stone-900">{modal === 'add' ? 'Record Payment' : 'Edit Payment'}</h2>
+            <h2 className="text-lg font-bold text-stone-900">{modal === 'add' ? t('payments.modal_add') : t('payments.modal_edit')}</h2>
             <button onClick={() => setModal(null)} className="p-1.5 text-stone-400 hover:text-stone-600">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
             </button>
@@ -564,9 +566,9 @@ export default function Payments({ user }) {
           <div className="space-y-4">
             {/* Client */}
             <div>
-              <label className="block text-xs font-medium text-stone-500 mb-1.5">Client *</label>
+              <label className="block text-xs font-medium text-stone-500 mb-1.5">{t('payments.client_label')}</label>
               <select value={form.client_id} onChange={e => setForm(f => ({...f, client_id: e.target.value, invoice_id: '', job_id: ''}))} className="w-full px-3 py-2.5 bg-stone-50 border border-stone-200 rounded-xl text-sm text-stone-900 focus:outline-none focus:ring-2 focus:ring-emerald-600">
-                <option value="">Select client...</option>
+                <option value="">{t('payments.select_client')}</option>
                 {clients.map(c => <option key={c.id} value={c.id}>{formatName(c.first_name, c.last_name) || c.name}</option>)}
               </select>
             </div>
@@ -574,9 +576,9 @@ export default function Payments({ user }) {
             {/* Invoice (optional) */}
             {clientInvoices.length > 0 && (
               <div>
-                <label className="block text-xs font-medium text-stone-500 mb-1.5">Against Invoice (optional)</label>
+                <label className="block text-xs font-medium text-stone-500 mb-1.5">{t('payments.invoice_label')}</label>
                 <select value={form.invoice_id} onChange={e => setForm(f => ({...f, invoice_id: e.target.value}))} className="w-full px-3 py-2.5 bg-stone-50 border border-stone-200 rounded-xl text-sm text-stone-900 focus:outline-none focus:ring-2 focus:ring-emerald-600">
-                  <option value="">No invoice (general payment)</option>
+                  <option value="">{t('payments.invoice_none')}</option>
                   {clientInvoices.map(i => <option key={i.id} value={i.id}>#{i.invoice_number} — {formatCurrency(i.total, currencySymbol)}</option>)}
                 </select>
               </div>
@@ -585,9 +587,9 @@ export default function Payments({ user }) {
             {/* Job (optional) */}
             {clientJobs.length > 0 && (
               <div>
-                <label className="block text-xs font-medium text-stone-500 mb-1.5">For job (optional)</label>
+                <label className="block text-xs font-medium text-stone-500 mb-1.5">{t('payments.job_label')}</label>
                 <select value={form.job_id} onChange={e => setForm(f => ({...f, job_id: e.target.value}))} className="w-full px-3 py-2.5 bg-stone-50 border border-stone-200 rounded-xl text-sm text-stone-900 focus:outline-none focus:ring-2 focus:ring-emerald-600">
-                  <option value="">No specific job</option>
+                  <option value="">{t('payments.job_none')}</option>
                   {clientJobs.map(j => (
                     <option key={j.id} value={j.id}>
                       {j.title} — {j.date}{j.price ? ` — ${formatCurrency(j.price, currencySymbol)}` : ''}
@@ -599,7 +601,7 @@ export default function Payments({ user }) {
 
             {/* Amount */}
             <div>
-              <label className="block text-xs font-medium text-stone-500 mb-1.5">Amount *</label>
+              <label className="block text-xs font-medium text-stone-500 mb-1.5">{t('payments.amount_label')}</label>
               <div className="relative">
                 <span className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-400 text-sm">{currencySymbol}</span>
                 <input type="number" value={form.amount} onChange={e => { setForm(f => ({...f, amount: e.target.value})); setErrors(er => { const n = {...er}; delete n.amount; return n }) }} placeholder="0.00" step="0.01" className="w-full pl-7 pr-3 py-2.5 bg-stone-50 border border-stone-200 rounded-xl text-sm text-stone-900 focus:outline-none focus:ring-2 focus:ring-emerald-600" />
@@ -608,7 +610,7 @@ export default function Payments({ user }) {
               {(() => {
                 const inv = form.invoice_id ? invoices.find(i => i.id === form.invoice_id) : null
                 if (inv && form.amount && Number(form.amount) > Number(inv.total)) {
-                  return <p className="text-xs text-amber-600 mt-1">This amount exceeds the invoice balance. Overpayment will be recorded as credit.</p>
+                  return <p className="text-xs text-amber-600 mt-1">{t('payments.overpayment_warning')}</p>
                 }
                 return null
               })()}
@@ -616,7 +618,7 @@ export default function Payments({ user }) {
 
             {/* Method */}
             <div>
-              <label className="block text-xs font-medium text-stone-500 mb-1.5">Payment Method *</label>
+              <label className="block text-xs font-medium text-stone-500 mb-1.5">{t('payments.method_label')}</label>
               <div className="flex flex-wrap gap-2">
                 {paymentMethods.map(m => (
                   <button key={m} type="button" onClick={() => { setForm(f => ({...f, method: m})); setErrors(er => { const n = {...er}; delete n.method; return n }) }} className={`px-3 py-2 text-xs font-medium rounded-xl transition-colors ${form.method === m ? methodColor(m) + ' ring-2 ring-offset-1 ring-emerald-300' : 'bg-stone-50 text-stone-400 border border-stone-200 hover:border-stone-300'}`}>
@@ -629,29 +631,29 @@ export default function Payments({ user }) {
 
             {/* Date */}
             <div>
-              <label className="block text-xs font-medium text-stone-500 mb-1.5">Date *</label>
+              <label className="block text-xs font-medium text-stone-500 mb-1.5">{t('payments.date_label')}</label>
               <input type="date" value={form.date} onChange={e => { if (modal === 'edit') return; setForm(f => ({...f, date: e.target.value})); setErrors(er => { const n = {...er}; delete n.date; return n }) }} disabled={modal === 'edit'} className="w-full px-3 py-2.5 bg-stone-50 border border-stone-200 rounded-xl text-sm text-stone-900 focus:outline-none focus:ring-2 focus:ring-emerald-600 disabled:opacity-60 disabled:cursor-not-allowed" />
-              {modal === 'edit' && <p className="text-xs text-stone-400 mt-1">Payment date cannot be changed after recording.</p>}
+              {modal === 'edit' && <p className="text-xs text-stone-400 mt-1">{t('payments.date_locked')}</p>}
               {errors.date && <p className="text-xs text-red-500 mt-1">{errors.date}</p>}
             </div>
 
             {/* Reference */}
             <div>
-              <label className="block text-xs font-medium text-stone-500 mb-1.5">Reference / Confirmation #</label>
-              <input type="text" value={form.reference} onChange={e => setForm(f => ({...f, reference: e.target.value}))} placeholder="e.g. Venmo confirmation, check number" className="w-full px-3 py-2.5 bg-stone-50 border border-stone-200 rounded-xl text-sm text-stone-900 placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-emerald-600" />
+              <label className="block text-xs font-medium text-stone-500 mb-1.5">{t('payments.reference_label')}</label>
+              <input type="text" value={form.reference} onChange={e => setForm(f => ({...f, reference: e.target.value}))} placeholder={t('payments.reference_ph')} className="w-full px-3 py-2.5 bg-stone-50 border border-stone-200 rounded-xl text-sm text-stone-900 placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-emerald-600" />
             </div>
 
             {/* Notes */}
             <div>
-              <label className="block text-xs font-medium text-stone-500 mb-1.5">Notes</label>
-              <textarea value={form.notes} onChange={e => setForm(f => ({...f, notes: e.target.value}))} placeholder="Optional notes..." rows={2} className="w-full px-3 py-2.5 bg-stone-50 border border-stone-200 rounded-xl text-sm text-stone-900 placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-emerald-600 resize-none" />
+              <label className="block text-xs font-medium text-stone-500 mb-1.5">{t('payments.notes_label')}</label>
+              <textarea value={form.notes} onChange={e => setForm(f => ({...f, notes: e.target.value}))} placeholder={t('payments.notes_ph')} rows={2} className="w-full px-3 py-2.5 bg-stone-50 border border-stone-200 rounded-xl text-sm text-stone-900 placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-emerald-600 resize-none" />
             </div>
           </div>
 
           <div className="flex gap-3 mt-6 pt-4 border-t border-stone-200">
-            <button onClick={() => setModal(null)} className="flex-1 py-2.5 bg-stone-100 text-stone-600 text-sm font-medium rounded-xl hover:bg-stone-200">Cancel</button>
+            <button onClick={() => setModal(null)} className="flex-1 py-2.5 bg-stone-100 text-stone-600 text-sm font-medium rounded-xl hover:bg-stone-200">{t('common.actions.cancel')}</button>
             <button onClick={handleSave} disabled={saving} className="flex-1 py-2.5 bg-emerald-700 text-white text-sm font-medium rounded-xl hover:bg-emerald-800 disabled:opacity-50">
-              {saving ? 'Saving...' : modal === 'add' ? 'Record Payment' : 'Save Changes'}
+              {saving ? t('common.actions.saving') : modal === 'add' ? t('payments.btn_record') : t('payments.btn_save')}
             </button>
           </div>
         </Modal>

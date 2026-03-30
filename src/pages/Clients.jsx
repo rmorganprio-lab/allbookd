@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useTranslation } from 'react-i18next'
 import { supabase } from '../lib/supabase'
 import CSVImport from '../components/CSVImport'
 import { CLIENT_TEMPLATE, validateClientRows, normalizePhone } from '../lib/csv'
@@ -21,7 +22,6 @@ const emptyClient = {
 }
 
 const contactOptions = ['email', 'sms', 'whatsapp', 'phone']
-const contactLabels = { email: 'Email', sms: 'SMS', whatsapp: 'WhatsApp', phone: 'Phone call' }
 
 const emptyProperty = {
   property_type: 'residential', bedrooms: '', bathrooms: '', square_footage: '',
@@ -33,6 +33,7 @@ const statusOptions = ['active', 'inactive', 'vip']
 const propertyTypes = ['residential', 'commercial', 'office', 'other']
 
 export default function Clients({ user }) {
+  const { t } = useTranslation()
   const [clients, setClients] = useState([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
@@ -66,7 +67,7 @@ export default function Clients({ user }) {
 
     if (error) {
       console.error('Failed to load clients:', error)
-      showToast('Failed to load clients. Please try again.', 'error')
+      showToast(t('clients.toast_failed_load'), 'error')
       setLoading(false)
       return
     }
@@ -152,12 +153,12 @@ export default function Clients({ user }) {
 
   function validate() {
     const errs = {}
-    if (!form.first_name.trim()) errs.first_name = 'First name is required.'
-    if (form.email && !isValidEmail(form.email)) errs.email = 'Enter a valid email address.'
-    if (form.phone && !isValidPhone(form.phone)) errs.phone = 'Phone must have at least 7 digits.'
+    if (!form.first_name.trim()) errs.first_name = t('clients.error_first_name')
+    if (form.email && !isValidEmail(form.email)) errs.email = t('clients.error_email')
+    if (form.phone && !isValidPhone(form.phone)) errs.phone = t('clients.error_phone')
     if (form.postal_code) {
-      if (form.country === 'US' && !isValidPostalUS(form.postal_code)) errs.postal_code = 'Enter a valid US ZIP code (e.g. 94103 or 94103-1234).'
-      if (form.country === 'NL' && !isValidPostalNL(form.postal_code)) errs.postal_code = 'Enter a valid Dutch postal code (e.g. 1234 AB).'
+      if (form.country === 'US' && !isValidPostalUS(form.postal_code)) errs.postal_code = t('clients.error_postal_us')
+      if (form.country === 'NL' && !isValidPostalNL(form.postal_code)) errs.postal_code = t('clients.error_postal_nl')
     }
     return errs
   }
@@ -181,7 +182,7 @@ export default function Clients({ user }) {
 
       if (insertError) {
         console.error('Failed to save client:', insertError)
-        showToast('Failed to save changes. Please try again.', 'error')
+        showToast(t('clients.toast_failed_save'), 'error')
         setSaving(false)
         return
       }
@@ -211,7 +212,7 @@ export default function Clients({ user }) {
 
       if (updateError) {
         console.error('Failed to update client:', updateError)
-        showToast('Failed to save changes. Please try again.', 'error')
+        showToast(t('clients.toast_failed_save'), 'error')
         setSaving(false)
         return
       }
@@ -244,7 +245,7 @@ export default function Clients({ user }) {
     const { error } = await supabase.from('clients').delete().eq('id', id)
     if (error) {
       console.error('Failed to delete client:', error)
-      showToast('Failed to delete client. Please try again.', 'error')
+      showToast(t('clients.toast_failed_delete'), 'error')
       return
     }
     setDeleteConfirm(null)
@@ -353,7 +354,7 @@ export default function Clients({ user }) {
   }
 
   if (loading) {
-    return <div className="p-6 md:p-8 text-stone-400">Loading clients...</div>
+    return <div className="p-6 md:p-8 text-stone-400">{t('clients.loading')}</div>
   }
 
   return (
@@ -361,17 +362,17 @@ export default function Clients({ user }) {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-stone-900">Clients</h1>
-          <p className="text-stone-500 text-sm mt-1">{clients.length} total clients</p>
+          <h1 className="text-2xl font-bold text-stone-900">{t('clients.heading')}</h1>
+          <p className="text-stone-500 text-sm mt-1">{t('clients.total', { count: clients.length })}</p>
         </div>
         <div className="flex gap-2">
           <button onClick={() => setShowImport(true)} className="inline-flex items-center gap-2 px-4 py-2.5 bg-white border border-stone-200 text-stone-600 text-sm font-medium rounded-xl hover:bg-stone-50 transition-colors">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-            Import CSV
+            {t('clients.import_csv')}
           </button>
           <button onClick={openAdd} className="inline-flex items-center gap-2 px-4 py-2.5 bg-emerald-700 text-white text-sm font-medium rounded-xl hover:bg-emerald-800 transition-colors">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-            Add Client
+            {t('clients.add_client')}
           </button>
         </div>
       </div>
@@ -384,7 +385,7 @@ export default function Clients({ user }) {
           </svg>
           <input
             type="text"
-            placeholder="Search by name, phone, email, or address..."
+            placeholder={t('clients.search_placeholder')}
             value={search}
             onChange={e => setSearch(e.target.value)}
             className="w-full pl-10 pr-4 py-2.5 bg-white border border-stone-200 rounded-xl text-sm text-stone-900 placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-emerald-600 focus:border-transparent"
@@ -395,13 +396,13 @@ export default function Clients({ user }) {
             <button
               key={s}
               onClick={() => setStatusFilter(s)}
-              className={`px-3 py-2 rounded-xl text-sm font-medium transition-colors capitalize ${
+              className={`px-3 py-2 rounded-xl text-sm font-medium transition-colors ${
                 statusFilter === s
                   ? 'bg-emerald-700 text-white'
                   : 'bg-white border border-stone-200 text-stone-600 hover:bg-stone-50'
               }`}
             >
-              {s}
+              {t('clients.status_' + s)}
             </button>
           ))}
         </div>
@@ -411,7 +412,7 @@ export default function Clients({ user }) {
       {filtered.length === 0 ? (
         <div className="bg-white rounded-2xl border border-stone-200 p-12 text-center">
           <div className="text-stone-400 text-sm">
-            {search || statusFilter !== 'all' ? 'No clients match your search.' : 'No clients yet. Add your first client to get started.'}
+            {search || statusFilter !== 'all' ? t('clients.empty_search') : t('clients.empty_no_clients')}
           </div>
         </div>
       ) : (
@@ -488,7 +489,7 @@ export default function Clients({ user }) {
             </div>
             <div className="flex gap-2">
               <button onClick={() => openEdit(selectedClient)} className="px-3 py-1.5 bg-stone-100 text-stone-600 text-sm font-medium rounded-lg hover:bg-stone-200 transition-colors">
-                Edit
+                {t('common.actions.edit')}
               </button>
               <button onClick={() => setModal(null)} className="p-1.5 text-stone-400 hover:text-stone-600">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
@@ -496,16 +497,16 @@ export default function Clients({ user }) {
             </div>
           </div>
 
-          <Section title="Contact">
-            <InfoRow label="Phone" value={selectedClient.phone} />
-            <InfoRow label="Email" value={selectedClient.email} />
+          <Section title={t('clients.section_contact')}>
+            <InfoRow label={t('clients.field_phone')} value={selectedClient.phone} />
+            <InfoRow label={t('clients.field_email')} value={selectedClient.email} />
             {(() => {
               const lines = formatAddressLines(selectedClient)
               const fallback = selectedClient.address
               if (!lines.length && !fallback) return null
               return (
                 <div className="flex justify-between py-1.5">
-                  <span className="text-xs text-stone-400">Address</span>
+                  <span className="text-xs text-stone-400">{t('clients.field_address')}</span>
                   <span className="text-sm text-stone-700 text-right max-w-[65%]">
                     {lines.length ? lines.map((l, i) => <span key={i} className="block">{l}</span>) : fallback}
                   </span>
@@ -515,13 +516,13 @@ export default function Clients({ user }) {
           </Section>
 
           {selectedClient.client_properties?.[0] && (
-            <Section title="Property">
+            <Section title={t('clients.section_property')}>
               <PropertyView prop={selectedClient.client_properties[0]} />
             </Section>
           )}
 
           {selectedClient.tags?.length > 0 && (
-            <Section title="Tags">
+            <Section title={t('clients.section_tags')}>
               <div className="flex flex-wrap gap-2">
                 {selectedClient.tags.map(tag => (
                   <span key={tag} className="px-2.5 py-1 bg-stone-100 text-stone-600 rounded-full text-xs font-medium">
@@ -533,15 +534,15 @@ export default function Clients({ user }) {
           )}
 
           {selectedClient.notes && (
-            <Section title="Notes">
+            <Section title={t('clients.section_notes')}>
               <p className="text-sm text-stone-600 whitespace-pre-wrap">{selectedClient.notes}</p>
             </Section>
           )}
 
           <div className="mt-6 pt-4 border-t border-stone-200">
-            <h3 className="text-sm font-semibold text-stone-700 mb-3">Activity Timeline</h3>
+            <h3 className="text-sm font-semibold text-stone-700 mb-3">{t('clients.activity_title')}</h3>
             {clientTimeline.length === 0 ? (
-              <p className="text-xs text-stone-400">No activity recorded yet.</p>
+              <p className="text-xs text-stone-400">{t('clients.activity_empty')}</p>
             ) : (
               <div className="space-y-3 max-h-64 overflow-y-auto">
                 {clientTimeline.map(event => (
@@ -569,22 +570,22 @@ export default function Clients({ user }) {
 
           <div className="flex gap-3 mt-6 pt-4 border-t border-stone-200">
             <button onClick={() => openEdit(selectedClient)} className="flex-1 py-2.5 bg-emerald-700 text-white text-sm font-medium rounded-xl hover:bg-emerald-800 transition-colors">
-              Edit Client
+              {t('clients.modal_edit')}
             </button>
             <button
               onClick={() => setDeleteConfirm(selectedClient.id)}
               className="px-4 py-2.5 bg-red-50 text-red-600 text-sm font-medium rounded-xl hover:bg-red-100 transition-colors"
             >
-              Delete
+              {t('common.actions.delete')}
             </button>
           </div>
 
           {deleteConfirm === selectedClient.id && (
             <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-xl">
-              <p className="text-sm text-red-700 mb-3">Delete {formatName(selectedClient.first_name, selectedClient.last_name)}? This cannot be undone.</p>
+              <p className="text-sm text-red-700 mb-3">{t('clients.delete_confirm', { name: formatName(selectedClient.first_name, selectedClient.last_name) })}</p>
               <div className="flex gap-2">
-                <button onClick={() => handleDelete(selectedClient.id)} className="px-3 py-1.5 bg-red-600 text-white text-sm rounded-lg hover:bg-red-700">Yes, delete</button>
-                <button onClick={() => setDeleteConfirm(null)} className="px-3 py-1.5 bg-white text-stone-600 text-sm rounded-lg border border-stone-200 hover:bg-stone-50">Cancel</button>
+                <button onClick={() => handleDelete(selectedClient.id)} className="px-3 py-1.5 bg-red-600 text-white text-sm rounded-lg hover:bg-red-700">{t('clients.delete_yes')}</button>
+                <button onClick={() => setDeleteConfirm(null)} className="px-3 py-1.5 bg-white text-stone-600 text-sm rounded-lg border border-stone-200 hover:bg-stone-50">{t('common.actions.cancel')}</button>
               </div>
             </div>
           )}
@@ -607,7 +608,7 @@ export default function Clients({ user }) {
         <Modal onClose={() => setModal(null)} wide>
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-lg font-bold text-stone-900">
-              {modal === 'add' ? 'Add Client' : 'Edit Client'}
+              {modal === 'add' ? t('clients.modal_add') : t('clients.modal_edit')}
             </h2>
             <button onClick={() => setModal(null)} className="p-1.5 text-stone-400 hover:text-stone-600">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
@@ -616,76 +617,76 @@ export default function Clients({ user }) {
 
           <div className="space-y-6 max-h-[70vh] overflow-y-auto pr-1">
             {/* Basic Info */}
-            <FormSection title="Contact Information">
+            <FormSection title={t('clients.form_section_contact')}>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <Field label="First Name *" value={form.first_name} onChange={v => { setForm(f => ({ ...f, first_name: v })); setErrors(e => { const n = {...e}; delete n.first_name; return n }) }} placeholder="Jane" />
+                  <Field label={t('clients.field_first_name')} value={form.first_name} onChange={v => { setForm(f => ({ ...f, first_name: v })); setErrors(e => { const n = {...e}; delete n.first_name; return n }) }} placeholder="Jane" />
                   {errors.first_name && <p className="text-xs text-red-500 mt-1">{errors.first_name}</p>}
                 </div>
-                <Field label="Last Name" value={form.last_name} onChange={v => setForm(f => ({ ...f, last_name: v }))} placeholder="Smith" />
+                <Field label={t('clients.field_last_name')} value={form.last_name} onChange={v => setForm(f => ({ ...f, last_name: v }))} placeholder="Smith" />
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <Field label="Phone" value={form.phone} onChange={v => { setForm(f => ({ ...f, phone: v })); setErrors(e => { const n = {...e}; delete n.phone; return n }) }} placeholder="+1 650 290 0821" type="tel" />
+                  <Field label={t('clients.field_phone')} value={form.phone} onChange={v => { setForm(f => ({ ...f, phone: v })); setErrors(e => { const n = {...e}; delete n.phone; return n }) }} placeholder="+1 650 290 0821" type="tel" />
                   {errors.phone && <p className="text-xs text-red-500 mt-1">{errors.phone}</p>}
                 </div>
                 <div>
-                  <Field label="Email" value={form.email} onChange={v => { setForm(f => ({ ...f, email: v })); setErrors(e => { const n = {...e}; delete n.email; return n }) }} placeholder="email@example.com" type="email" />
+                  <Field label={t('clients.field_email')} value={form.email} onChange={v => { setForm(f => ({ ...f, email: v })); setErrors(e => { const n = {...e}; delete n.email; return n }) }} placeholder="email@example.com" type="email" />
                   {errors.email && <p className="text-xs text-red-500 mt-1">{errors.email}</p>}
                 </div>
               </div>
-              <Field label="Status" value={form.status} onChange={v => setForm(f => ({ ...f, status: v }))} type="select" options={statusOptions} />
+              <Field label={t('clients.field_status')} value={form.status} onChange={v => setForm(f => ({ ...f, status: v }))} type="select" options={statusOptions} optionLabels={Object.fromEntries(statusOptions.map(s => [s, t('clients.status_' + s)]))} />
               <div>
-                <label className="block text-xs font-medium text-stone-500 mb-1">Preferred Contact Method</label>
+                <label className="block text-xs font-medium text-stone-500 mb-1">{t('clients.field_preferred_contact')}</label>
                 <select
                   value={form.preferred_contact}
                   onChange={e => setForm(f => ({ ...f, preferred_contact: e.target.value }))}
                   className="w-full px-3 py-2 bg-stone-50 border border-stone-200 rounded-xl text-sm text-stone-900 focus:outline-none focus:ring-2 focus:ring-emerald-600 focus:border-transparent"
                 >
                   {contactOptions.map(o => (
-                    <option key={o} value={o}>{contactLabels[o]}</option>
+                    <option key={o} value={o}>{t('clients.contact_' + o)}</option>
                   ))}
                 </select>
               </div>
             </FormSection>
 
             {/* Address */}
-            <FormSection title="Address">
-              <Field label="Address Line 1" value={form.address_line_1} onChange={v => setForm(f => ({ ...f, address_line_1: v }))} placeholder="123 Main St" />
-              <Field label="Address Line 2" value={form.address_line_2} onChange={v => setForm(f => ({ ...f, address_line_2: v }))} placeholder="Apt, suite, unit, etc." />
+            <FormSection title={t('clients.form_section_address')}>
+              <Field label={t('clients.field_address1')} value={form.address_line_1} onChange={v => setForm(f => ({ ...f, address_line_1: v }))} placeholder="123 Main St" />
+              <Field label={t('clients.field_address2')} value={form.address_line_2} onChange={v => setForm(f => ({ ...f, address_line_2: v }))} placeholder="Apt, suite, unit, etc." />
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <Field label="City" value={form.city} onChange={v => setForm(f => ({ ...f, city: v }))} placeholder="Sacramento" />
-                <Field label="State / Province" value={form.state_province} onChange={v => setForm(f => ({ ...f, state_province: v }))} placeholder="CA" />
+                <Field label={t('clients.field_city')} value={form.city} onChange={v => setForm(f => ({ ...f, city: v }))} placeholder="Sacramento" />
+                <Field label={t('clients.field_state')} value={form.state_province} onChange={v => setForm(f => ({ ...f, state_province: v }))} placeholder="CA" />
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <Field label="Postal Code" value={form.postal_code} onChange={v => { setForm(f => ({ ...f, postal_code: v })); setErrors(e => { const n = {...e}; delete n.postal_code; return n }) }} placeholder="95814" />
+                  <Field label={t('clients.field_postal')} value={form.postal_code} onChange={v => { setForm(f => ({ ...f, postal_code: v })); setErrors(e => { const n = {...e}; delete n.postal_code; return n }) }} placeholder="95814" />
                   {errors.postal_code && <p className="text-xs text-red-500 mt-1">{errors.postal_code}</p>}
                 </div>
-                <Field label="Country" value={form.country} onChange={v => setForm(f => ({ ...f, country: v }))} type="select" options={COUNTRY_OPTIONS.map(c => c.code)} optionLabels={Object.fromEntries(COUNTRY_OPTIONS.map(c => [c.code, c.label]))} />
+                <Field label={t('clients.field_country')} value={form.country} onChange={v => setForm(f => ({ ...f, country: v }))} type="select" options={COUNTRY_OPTIONS.map(c => c.code)} optionLabels={Object.fromEntries(COUNTRY_OPTIONS.map(c => [c.code, c.label]))} />
               </div>
             </FormSection>
 
             {/* Property Profile */}
-            <FormSection title="Property Details">
-              <Field label="Property Type" value={propertyForm.property_type} onChange={v => setPropertyForm(f => ({ ...f, property_type: v }))} type="select" options={propertyTypes} />
+            <FormSection title={t('clients.form_section_property')}>
+              <Field label={t('clients.field_property_type')} value={propertyForm.property_type} onChange={v => setPropertyForm(f => ({ ...f, property_type: v }))} type="select" options={propertyTypes} optionLabels={Object.fromEntries(propertyTypes.map(o => [o, t('clients.property_type_' + o)]))} />
               <div className="grid grid-cols-3 gap-4">
-                <Field label="Bedrooms" value={propertyForm.bedrooms} onChange={v => setPropertyForm(f => ({ ...f, bedrooms: v }))} type="number" placeholder="0" />
-                <Field label="Bathrooms" value={propertyForm.bathrooms} onChange={v => setPropertyForm(f => ({ ...f, bathrooms: v }))} type="number" placeholder="0" />
-                <Field label="Sq Ft" value={propertyForm.square_footage} onChange={v => setPropertyForm(f => ({ ...f, square_footage: v }))} type="number" placeholder="0" />
+                <Field label={t('clients.field_bedrooms')} value={propertyForm.bedrooms} onChange={v => setPropertyForm(f => ({ ...f, bedrooms: v }))} type="number" placeholder="0" />
+                <Field label={t('clients.field_bathrooms')} value={propertyForm.bathrooms} onChange={v => setPropertyForm(f => ({ ...f, bathrooms: v }))} type="number" placeholder="0" />
+                <Field label={t('clients.field_sqft')} value={propertyForm.square_footage} onChange={v => setPropertyForm(f => ({ ...f, square_footage: v }))} type="number" placeholder="0" />
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <Field label="Alarm Code" value={propertyForm.alarm_code} onChange={v => setPropertyForm(f => ({ ...f, alarm_code: v }))} placeholder="e.g. 4521" />
-                <Field label="Key / Lockbox Info" value={propertyForm.key_info} onChange={v => setPropertyForm(f => ({ ...f, key_info: v }))} placeholder="e.g. Lockbox on side gate, code 1234" />
+                <Field label={t('clients.field_alarm')} value={propertyForm.alarm_code} onChange={v => setPropertyForm(f => ({ ...f, alarm_code: v }))} placeholder="e.g. 4521" />
+                <Field label={t('clients.field_key')} value={propertyForm.key_info} onChange={v => setPropertyForm(f => ({ ...f, key_info: v }))} placeholder="e.g. Lockbox on side gate, code 1234" />
               </div>
-              <Field label="Pet Details" value={propertyForm.pet_details} onChange={v => setPropertyForm(f => ({ ...f, pet_details: v }))} placeholder="e.g. 2 dogs, need to be in backyard" />
-              <Field label="Parking Instructions" value={propertyForm.parking_instructions} onChange={v => setPropertyForm(f => ({ ...f, parking_instructions: v }))} placeholder="e.g. Park in driveway, not on street" />
-              <Field label="Supply Location" value={propertyForm.supply_location} onChange={v => setPropertyForm(f => ({ ...f, supply_location: v }))} placeholder="e.g. Under kitchen sink" />
-              <Field label="Special Notes" value={propertyForm.special_notes} onChange={v => setPropertyForm(f => ({ ...f, special_notes: v }))} placeholder="Any other property-specific notes" type="textarea" />
+              <Field label={t('clients.field_pets')} value={propertyForm.pet_details} onChange={v => setPropertyForm(f => ({ ...f, pet_details: v }))} placeholder="e.g. 2 dogs, need to be in backyard" />
+              <Field label={t('clients.field_parking')} value={propertyForm.parking_instructions} onChange={v => setPropertyForm(f => ({ ...f, parking_instructions: v }))} placeholder="e.g. Park in driveway, not on street" />
+              <Field label={t('clients.field_supplies')} value={propertyForm.supply_location} onChange={v => setPropertyForm(f => ({ ...f, supply_location: v }))} placeholder="e.g. Under kitchen sink" />
+              <Field label={t('clients.field_special_notes')} value={propertyForm.special_notes} onChange={v => setPropertyForm(f => ({ ...f, special_notes: v }))} placeholder="Any other property-specific notes" type="textarea" />
             </FormSection>
 
             {/* Tags */}
-            <FormSection title="Tags">
+            <FormSection title={t('clients.form_section_tags')}>
               <div className="flex flex-wrap gap-2 mb-2">
                 {form.tags.map(tag => (
                   <span key={tag} className="inline-flex items-center gap-1 px-2.5 py-1 bg-emerald-50 text-emerald-700 rounded-full text-xs font-medium">
@@ -702,29 +703,29 @@ export default function Clients({ user }) {
                   value={tagInput}
                   onChange={e => setTagInput(e.target.value)}
                   onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addTag(); } }}
-                  placeholder="Add a tag (e.g. weekly, commercial)"
+                  placeholder={t('clients.tag_placeholder')}
                   className="flex-1 px-3 py-2 bg-stone-50 border border-stone-200 rounded-xl text-sm text-stone-900 placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-emerald-600 focus:border-transparent"
                 />
-                <button onClick={addTag} className="px-3 py-2 bg-stone-100 text-stone-600 text-sm rounded-xl hover:bg-stone-200 transition-colors">Add</button>
+                <button onClick={addTag} className="px-3 py-2 bg-stone-100 text-stone-600 text-sm rounded-xl hover:bg-stone-200 transition-colors">{t('clients.tag_add')}</button>
               </div>
             </FormSection>
 
             {/* Notes */}
-            <FormSection title="Notes">
+            <FormSection title={t('clients.form_section_notes')}>
               <Field value={form.notes} onChange={v => setForm(f => ({ ...f, notes: v }))} placeholder="General notes about this client..." type="textarea" />
             </FormSection>
           </div>
 
           <div className="flex gap-3 mt-6 pt-4 border-t border-stone-200">
             <button onClick={() => setModal(null)} className="flex-1 py-2.5 bg-stone-100 text-stone-600 text-sm font-medium rounded-xl hover:bg-stone-200 transition-colors">
-              Cancel
+              {t('common.actions.cancel')}
             </button>
             <button
               onClick={handleSave}
               disabled={saving || !form.first_name.trim()}
               className="flex-1 py-2.5 bg-emerald-700 text-white text-sm font-medium rounded-xl hover:bg-emerald-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
-              {saving ? 'Saving...' : modal === 'add' ? 'Add Client' : 'Save Changes'}
+              {saving ? t('clients.btn_saving') : modal === 'add' ? t('clients.btn_add_client') : t('clients.btn_save_changes')}
             </button>
           </div>
         </Modal>
@@ -826,17 +827,18 @@ function InfoRow({ label, value }) {
 }
 
 function PropertyView({ prop }) {
+  const { t } = useTranslation()
   const items = [
-    { label: 'Type', value: prop.property_type },
-    { label: 'Bedrooms', value: prop.bedrooms },
-    { label: 'Bathrooms', value: prop.bathrooms },
-    { label: 'Sq Ft', value: prop.square_footage },
-    { label: 'Alarm Code', value: prop.alarm_code },
-    { label: 'Key/Lockbox', value: prop.key_info },
-    { label: 'Pets', value: prop.pet_details },
-    { label: 'Parking', value: prop.parking_instructions },
-    { label: 'Supplies', value: prop.supply_location },
-    { label: 'Special Notes', value: prop.special_notes },
+    { label: t('clients.prop_type'), value: prop.property_type },
+    { label: t('clients.prop_bedrooms'), value: prop.bedrooms },
+    { label: t('clients.prop_bathrooms'), value: prop.bathrooms },
+    { label: t('clients.prop_sqft'), value: prop.square_footage },
+    { label: t('clients.prop_alarm'), value: prop.alarm_code },
+    { label: t('clients.prop_key'), value: prop.key_info },
+    { label: t('clients.prop_pets'), value: prop.pet_details },
+    { label: t('clients.prop_parking'), value: prop.parking_instructions },
+    { label: t('clients.prop_supplies'), value: prop.supply_location },
+    { label: t('clients.prop_special_notes'), value: prop.special_notes },
   ].filter(i => i.value)
 
   return (
@@ -849,14 +851,15 @@ function PropertyView({ prop }) {
 }
 
 function StatusBadge({ status }) {
+  const { t } = useTranslation()
   const styles = {
     active: 'bg-emerald-100 text-emerald-700',
     inactive: 'bg-stone-100 text-stone-500',
     vip: 'bg-amber-100 text-amber-700',
   }
   return (
-    <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium capitalize ${styles[status] || styles.active}`}>
-      {status}
+    <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium ${styles[status] || styles.active}`}>
+      {t('clients.status_' + status)}
     </span>
   )
 }
