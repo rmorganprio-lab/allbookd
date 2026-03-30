@@ -189,11 +189,6 @@ export default function Layout({ user }) {
           </>
         )}
 
-        {/* Language Switcher */}
-        <div className="px-4 pb-2">
-          <LanguageSwitcher />
-        </div>
-
         {/* User / Sign Out */}
         <div className="p-4 border-t border-stone-200">
           <div className="flex items-center justify-between">
@@ -218,11 +213,12 @@ export default function Layout({ user }) {
 
       {/* Main Content */}
       <div className="flex-1 flex flex-col min-h-screen">
-        {/* Mobile header */}
-        <header className="md:hidden bg-white border-b border-stone-200 px-4 py-3 flex items-center justify-between">
+        {/* Top bar — language switcher on desktop, full mobile header on small screens */}
+        <header className="bg-white border-b border-stone-200 px-4 py-3 flex items-center justify-between">
+          {/* Mobile: hamburger */}
           <button
             onClick={() => setMobileMenuOpen(true)}
-            className="p-2 text-stone-600 hover:bg-stone-100 rounded-lg"
+            className="md:hidden p-2 text-stone-600 hover:bg-stone-100 rounded-lg"
           >
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
               <line x1="3" y1="6" x2="21" y2="6"/>
@@ -230,8 +226,11 @@ export default function Layout({ user }) {
               <line x1="3" y1="18" x2="21" y2="18"/>
             </svg>
           </button>
-          <div className="font-bold text-stone-900 text-sm">{orgName}</div>
-          <div className="w-10" />
+          {/* Mobile: org name */}
+          <div className="md:hidden font-bold text-stone-900 text-sm">{orgName}</div>
+          {/* Desktop: push switcher to the right */}
+          <div className="hidden md:block flex-1" />
+          <LanguageSwitcher />
         </header>
 
         {/* Past-due banner — shown to non-admins only */}
