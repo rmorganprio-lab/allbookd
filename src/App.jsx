@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { supabase } from './lib/supabase'
+import i18n from './lib/i18n'
 import { SubscriptionProvider } from './contexts/SubscriptionContext'
 import { ToastProvider } from './contexts/ToastContext'
 import { AdminOrgProvider } from './contexts/AdminOrgContext'
@@ -168,6 +169,7 @@ function App() {
         .single()
 
       if (!error && data) {
+        i18n.changeLanguage(data.organizations?.settings?.language || 'en')
         setUser(data)
         resolveLoading()
         return
@@ -213,6 +215,7 @@ function App() {
         .single()
       if (refetchErr || !linked) throw new Error('Failed to re-fetch linked user')
 
+      i18n.changeLanguage(linked.organizations?.settings?.language || 'en')
       setUser(linked)
     } catch (err) {
       console.error('Failed to load user profile:', err)
