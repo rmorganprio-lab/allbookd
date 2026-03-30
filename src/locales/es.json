@@ -1,0 +1,38 @@
+{
+  "login": {
+    "session_expired": "Tu sesión expiró. Por favor inicia sesión de nuevo.",
+    "subtitle_phone": "Inicia sesión con tu número de teléfono",
+    "subtitle_email": "Inicia sesión con tu correo electrónico",
+    "phone_label": "Número de teléfono",
+    "phone_hint": "Te enviaremos un código de 6 dígitos por mensaje de texto.",
+    "send_code": "Enviar código",
+    "sending_code": "Enviando código...",
+    "sms_not_working": "¿No funciona el SMS?",
+    "use_email": "Usar correo electrónico",
+    "code_sent_to": "Código enviado a",
+    "change_number": "Cambiar número",
+    "verification_code_label": "Código de verificación",
+    "verify_sign_in": "Verificar e iniciar sesión",
+    "verifying": "Verificando...",
+    "resend_code": "Reenviar código",
+    "email_label": "Correo electrónico",
+    "email_hint": "Te enviaremos un enlace mágico para iniciar sesión.",
+    "send_magic_link": "Enviar enlace mágico",
+    "sending_link": "Enviando enlace...",
+    "use_phone": "Usar teléfono",
+    "check_your_email": "Revisa tu correo",
+    "magic_link_sent_to": "Enlace mágico enviado a",
+    "email_sent_detail": "Haz clic en el enlace del correo para iniciar sesión. Puedes cerrar esta pestaña.",
+    "send_again": "Enviar de nuevo",
+    "having_trouble": "¿Tienes problemas?",
+    "clear_reload": "Limpiar y recargar",
+    "terms": "Términos de servicio",
+    "privacy": "Política de privacidad",
+    "error_rate_limit": "Demasiados intentos — espera unos minutos antes de intentarlo de nuevo.",
+    "error_wait_moment": "Por favor espera un momento antes de solicitar otro código."
+  },
+  "settings": {
+    "language_label": "Idioma",
+    "language_hint": "Define el idioma de la interfaz para tu organización."
+  }
+}

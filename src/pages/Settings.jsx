@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react'
+import { useTranslation } from 'react-i18next'
 import { supabase } from '../lib/supabase'
 import { useAdminOrg } from '../contexts/AdminOrgContext'
 import { useToast } from '../contexts/ToastContext'
 import { US_TIMEZONES, formatTime } from '../lib/timezone'
 import PricingImport from '../components/PricingImport'
 import { applyProfilesToOrg, buildApplyToast } from '../lib/industryProfiles'
+import i18n from '../lib/i18n'
 
 const COUNTRY_PRESETS = {
   US: { currency_code: 'USD', currency_symbol: '$', calling_code: '+1', payment_methods: ['Cash', 'Venmo', 'Zelle', 'Card', 'Bank Transfer', 'Check', 'Other'] },
@@ -48,6 +50,7 @@ export default function Settings({ user }) {
   const { adminViewOrg } = useAdminOrg()
   const effectiveOrgId = adminViewOrg?.id ?? user?.org_id
   const { showToast } = useToast()
+  const { t } = useTranslation()
 
   const canEdit = user?.role === 'ceo' || user?.is_platform_admin
 
@@ -56,6 +59,7 @@ export default function Settings({ user }) {
 
   // Form state
   const [orgName, setOrgName] = useState('')
+  const [language, setLanguage] = useState('en')
   const [timezone, setTimezone] = useState('America/Los_Angeles')
   const [timeFormat, setTimeFormat] = useState('12h')
   const [taxRate, setTaxRate] = useState(0)
@@ -114,6 +118,7 @@ export default function Settings({ user }) {
     if (data) {
       setOrg(data)
       setOrgName(data.name || '')
+      setLanguage(data.settings?.language || 'en')
       setTimezone(data.settings?.timezone || 'America/Los_Angeles')
       setTimeFormat(data.settings?.time_format || '12h')
       setTaxRate(data.default_tax_rate ?? data.settings?.tax_rate ?? 0)
@@ -357,6 +362,7 @@ export default function Settings({ user }) {
 
     const newSettings = {
       ...(org?.settings || {}),
+      language,
       timezone,
       time_format: timeFormat,
       tax_rate: Number(taxRate),
@@ -385,6 +391,7 @@ export default function Settings({ user }) {
       return
     }
 
+    await i18n.changeLanguage(language)
     showToast('Settings saved')
     setTimeout(() => window.location.reload(), 600)
   }
@@ -484,6 +491,20 @@ export default function Settings({ user }) {
                 </button>
               ))}
             </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-medium text-stone-500 mb-1.5">{t('settings.language_label')}</label>
+            <select
+              value={language}
+              onChange={e => setLanguage(e.target.value)}
+              disabled={!canEdit}
+              className="w-full px-3 py-2.5 bg-stone-50 border border-stone-200 rounded-xl text-sm text-stone-900 focus:outline-none focus:ring-2 focus:ring-emerald-600 disabled:opacity-60"
+            >
+              <option value="en">English</option>
+              <option value="es">Español</option>
+            </select>
+            <p className="text-xs text-stone-400 mt-1">{t('settings.language_hint')}</p>
           </div>
         </div>
       </div>

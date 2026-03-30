@@ -1,0 +1,38 @@
+{
+  "login": {
+    "session_expired": "Your session expired. Please sign in again.",
+    "subtitle_phone": "Sign in with your phone number",
+    "subtitle_email": "Sign in with your email",
+    "phone_label": "Phone Number",
+    "phone_hint": "We'll text you a 6-digit code to sign in.",
+    "send_code": "Send code",
+    "sending_code": "Sending code...",
+    "sms_not_working": "SMS not working?",
+    "use_email": "Use email instead",
+    "code_sent_to": "Code sent to",
+    "change_number": "Change number",
+    "verification_code_label": "Verification Code",
+    "verify_sign_in": "Verify & sign in",
+    "verifying": "Verifying...",
+    "resend_code": "Resend code",
+    "email_label": "Email Address",
+    "email_hint": "We'll send you a magic link to sign in.",
+    "send_magic_link": "Send magic link",
+    "sending_link": "Sending link...",
+    "use_phone": "Use phone instead",
+    "check_your_email": "Check your email",
+    "magic_link_sent_to": "Magic link sent to",
+    "email_sent_detail": "Click the link in the email to sign in. You can close this tab.",
+    "send_again": "Send again",
+    "having_trouble": "Having trouble?",
+    "clear_reload": "Clear & Reload",
+    "terms": "Terms of Service",
+    "privacy": "Privacy Policy",
+    "error_rate_limit": "Too many attempts — please wait a few minutes before trying again.",
+    "error_wait_moment": "Please wait a moment before requesting another code."
+  },
+  "settings": {
+    "language_label": "Language",
+    "language_hint": "Sets the language for your organization's interface."
+  }
+}

@@ -1,22 +1,24 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { supabase } from '../lib/supabase'
 
 const sessionExpired = new URLSearchParams(window.location.search).get('expired') === '1'
 
-function friendlyError(msg) {
-  if (!msg) return msg
-  const lower = msg.toLowerCase()
-  if (lower.includes('rate limit') || lower.includes('too many') || lower.includes('over_email') || lower.includes('email rate')) {
-    return 'Too many attempts — please wait a few minutes before trying again.'
-  }
-  if (lower.includes('for security purposes')) {
-    return 'Please wait a moment before requesting another code.'
-  }
-  return msg
-}
-
 export default function Login() {
+  const { t } = useTranslation()
+
+  function friendlyError(msg) {
+    if (!msg) return msg
+    const lower = msg.toLowerCase()
+    if (lower.includes('rate limit') || lower.includes('too many') || lower.includes('over_email') || lower.includes('email rate')) {
+      return t('login.error_rate_limit')
+    }
+    if (lower.includes('for security purposes')) {
+      return t('login.error_wait_moment')
+    }
+    return msg
+  }
   const [mode, setMode] = useState('phone') // 'phone' or 'email'
   const [phone, setPhone] = useState(() => localStorage.getItem('allbookd_phone') || '')
   const [email, setEmail] = useState('')
@@ -96,7 +98,7 @@ export default function Login() {
         {/* Session expired banner */}
         {sessionExpired && (
           <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-xl text-sm text-amber-800 text-center">
-            Your session expired. Please sign in again.
+            {t('login.session_expired')}
           </div>
         )}
 
@@ -113,7 +115,7 @@ export default function Login() {
             <span style={{ fontWeight: 500, color: '#047857' }}>ps</span>
           </div>
           <p className="text-stone-500 text-sm mt-1">
-            {mode === 'phone' ? 'Sign in with your phone number' : 'Sign in with your email'}
+            {mode === 'phone' ? t('login.subtitle_phone') : t('login.subtitle_email')}
           </p>
         </div>
 
@@ -124,7 +126,7 @@ export default function Login() {
           {mode === 'phone' && step === 'input' && (
             <form onSubmit={handleSendOtp}>
               <label className="block text-sm font-medium text-stone-600 mb-2">
-                Phone Number
+                {t('login.phone_label')}
               </label>
               <input
                 type="tel"
@@ -136,7 +138,7 @@ export default function Login() {
                 autoFocus
               />
               <p className="text-xs text-stone-400 mt-2">
-                We'll text you a 6-digit code to sign in.
+                {t('login.phone_hint')}
               </p>
 
               {error && (
@@ -150,17 +152,17 @@ export default function Login() {
                 disabled={loading || !phone.trim()}
                 className="w-full mt-4 py-3 bg-emerald-700 text-white font-medium rounded-xl hover:bg-emerald-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
-                {loading ? 'Sending code...' : 'Send code'}
+                {loading ? t('login.sending_code') : t('login.send_code')}
               </button>
 
               <p className="text-center mt-4 text-sm text-stone-400">
-                SMS not working?{' '}
+                {t('login.sms_not_working')}{' '}
                 <button
                   type="button"
                   onClick={() => switchMode('email')}
                   className="text-emerald-700 hover:underline"
                 >
-                  Use email instead
+                  {t('login.use_email')}
                 </button>
               </p>
             </form>
@@ -171,19 +173,19 @@ export default function Login() {
             <form onSubmit={handleVerifyOtp}>
               <div className="text-center mb-4">
                 <p className="text-sm text-stone-600">
-                  Code sent to <span className="font-medium">{phone}</span>
+                  {t('login.code_sent_to')} <span className="font-medium">{phone}</span>
                 </p>
                 <button
                   type="button"
                   onClick={() => { setStep('input'); setOtp(''); setError(null); }}
                   className="text-emerald-700 text-sm hover:underline mt-1"
                 >
-                  Change number
+                  {t('login.change_number')}
                 </button>
               </div>
 
               <label className="block text-sm font-medium text-stone-600 mb-2">
-                Verification Code
+                {t('login.verification_code_label')}
               </label>
               <input
                 type="text"
@@ -207,7 +209,7 @@ export default function Login() {
                 disabled={loading || otp.length !== 6}
                 className="w-full mt-4 py-3 bg-emerald-700 text-white font-medium rounded-xl hover:bg-emerald-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
-                {loading ? 'Verifying...' : 'Verify & sign in'}
+                {loading ? t('login.verifying') : t('login.verify_sign_in')}
               </button>
 
               <button
@@ -216,17 +218,17 @@ export default function Login() {
                 disabled={loading}
                 className="w-full mt-2 py-2 text-stone-500 text-sm hover:text-stone-700"
               >
-                Resend code
+                {t('login.resend_code')}
               </button>
 
               <p className="text-center mt-3 text-sm text-stone-400">
-                SMS not working?{' '}
+                {t('login.sms_not_working')}{' '}
                 <button
                   type="button"
                   onClick={() => switchMode('email')}
                   className="text-emerald-700 hover:underline"
                 >
-                  Use email instead
+                  {t('login.use_email')}
                 </button>
               </p>
             </form>
@@ -236,7 +238,7 @@ export default function Login() {
           {mode === 'email' && step === 'input' && (
             <form onSubmit={handleSendMagicLink}>
               <label className="block text-sm font-medium text-stone-600 mb-2">
-                Email Address
+                {t('login.email_label')}
               </label>
               <input
                 type="email"
@@ -248,7 +250,7 @@ export default function Login() {
                 autoFocus
               />
               <p className="text-xs text-stone-400 mt-2">
-                We'll send you a magic link to sign in.
+                {t('login.email_hint')}
               </p>
 
               {error && (
@@ -262,7 +264,7 @@ export default function Login() {
                 disabled={loading || !email.trim()}
                 className="w-full mt-4 py-3 bg-emerald-700 text-white font-medium rounded-xl hover:bg-emerald-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
-                {loading ? 'Sending link...' : 'Send magic link'}
+                {loading ? t('login.sending_link') : t('login.send_magic_link')}
               </button>
 
               <p className="text-center mt-4 text-sm text-stone-400">
@@ -271,7 +273,7 @@ export default function Login() {
                   onClick={() => switchMode('phone')}
                   className="text-emerald-700 hover:underline"
                 >
-                  Use phone instead
+                  {t('login.use_phone')}
                 </button>
               </p>
             </form>
@@ -285,39 +287,39 @@ export default function Login() {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
                 </svg>
               </div>
-              <p className="font-medium text-stone-900 mb-1">Check your email</p>
+              <p className="font-medium text-stone-900 mb-1">{t('login.check_your_email')}</p>
               <p className="text-sm text-stone-500 mb-1">
-                Magic link sent to
+                {t('login.magic_link_sent_to')}
               </p>
               <p className="text-sm font-medium text-stone-700 mb-4">{email}</p>
               <p className="text-xs text-stone-400">
-                Click the link in the email to sign in. You can close this tab.
+                {t('login.email_sent_detail')}
               </p>
               <button
                 type="button"
                 onClick={() => { setStep('input'); setError(null); }}
                 className="mt-4 text-sm text-emerald-700 hover:underline"
               >
-                Send again
+                {t('login.send_again')}
               </button>
             </div>
           )}
         </div>
 
         <p className="text-center mt-4 text-xs text-stone-400">
-          Having trouble?{' '}
+          {t('login.having_trouble')}{' '}
           <button
             type="button"
             onClick={() => { const savedPhone = localStorage.getItem('allbookd_phone'); localStorage.clear(); sessionStorage.clear(); if (savedPhone) localStorage.setItem('allbookd_phone', savedPhone); window.location.href = '/' }}
             className="text-stone-500 hover:text-stone-700 underline"
           >
-            Clear &amp; Reload
+            {t('login.clear_reload')}
           </button>
         </p>
         <p className="text-center mt-3 text-xs text-stone-400">
-          <Link to="/terms" className="hover:text-stone-600 underline">Terms of Service</Link>
+          <Link to="/terms" className="hover:text-stone-600 underline">{t('login.terms')}</Link>
           {' · '}
-          <Link to="/privacy" className="hover:text-stone-600 underline">Privacy Policy</Link>
+          <Link to="/privacy" className="hover:text-stone-600 underline">{t('login.privacy')}</Link>
         </p>
       </div>
     </div>
