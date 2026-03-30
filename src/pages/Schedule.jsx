@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo, useRef } from 'react'
 import { Link, useLocation } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { supabase } from '../lib/supabase'
 import { todayInTimezone, toDateStr, formatDateFull, formatTime, formatTimestamp, getTimezoneAbbr, nowInTimezone } from '../lib/timezone'
 import { useAdminOrg } from '../contexts/AdminOrgContext'
@@ -7,9 +8,6 @@ import { useToast } from '../contexts/ToastContext'
 import { formatCurrency } from '../lib/formatCurrency'
 import { formatName, formatAddress } from '../lib/formatAddress'
 import { logAudit } from '../lib/auditLog'
-
-const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
-const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December']
 
 const statusColors = {
   scheduled: 'bg-blue-100 text-blue-700 border-blue-200',
@@ -26,6 +24,7 @@ const emptyJob = {
 }
 
 export default function Schedule({ user }) {
+  const { t } = useTranslation()
   const { adminViewOrg } = useAdminOrg()
   const { showToast } = useToast()
   const effectiveOrgId = adminViewOrg?.id ?? user?.org_id
@@ -86,7 +85,7 @@ export default function Schedule({ user }) {
     ])
     if (jobsRes.error) {
       console.error('Failed to load schedule data:', jobsRes.error)
-      showToast('Failed to load schedule data. Please try again.', 'error')
+      showToast(t('common.error.failed_load_schedule'), 'error')
     }
     if (clientsRes.error) console.error('Failed to load clients for schedule:', clientsRes.error)
     if (workersRes.error) console.error('Failed to load workers for schedule:', workersRes.error)
@@ -189,17 +188,17 @@ export default function Schedule({ user }) {
 
   function validateJob() {
     const errs = {}
-    if (!form.client_id) errs.client_id = 'Please select a client.'
-    if (!form.date) errs.date = 'Date is required.'
+    if (!form.client_id) errs.client_id = t('schedule.validation_client')
+    if (!form.date) errs.date = t('schedule.validation_date_required')
     else {
       const todayStr = todayInTimezone(tz)
-      if (form.date < todayStr) errs.date = 'Job date cannot be in the past.'
+      if (form.date < todayStr) errs.date = t('schedule.validation_date_past')
     }
-    if (!form.start_time) errs.start_time = 'Start time is required.'
-    if (!form.title.trim()) errs.title = 'Job title is required.'
-    if (!form.explicitlyUnassigned && form.assignees.length === 0) errs.assignees = 'Select a worker or choose Unassigned.'
+    if (!form.start_time) errs.start_time = t('schedule.validation_time')
+    if (!form.title.trim()) errs.title = t('schedule.validation_title')
+    if (!form.explicitlyUnassigned && form.assignees.length === 0) errs.assignees = t('schedule.validation_assignees')
     if (modal === 'add' && form.frequency !== 'one_time' && form.assignees.length > 0 && recurringWorkerChoice === null) {
-      errs.assignees = 'Choose whether to assign this worker to all occurrences.'
+      errs.assignees = t('schedule.validation_recurring_worker')
     }
     return errs
   }
@@ -224,7 +223,7 @@ export default function Schedule({ user }) {
       const { data, error: insertError } = await supabase.from('jobs').insert(jobData).select().single()
       if (insertError) {
         console.error('Failed to save job:', insertError)
-        showToast('Failed to save changes. Please try again.', 'error')
+        showToast(t('common.error.failed_save'), 'error')
         setSaving(false)
         return
       }
@@ -238,7 +237,6 @@ export default function Schedule({ user }) {
           const nextDate = new Date(form.date + 'T12:00:00')
           if (form.frequency === 'monthly') nextDate.setMonth(nextDate.getMonth() + i)
           else { const interval = form.frequency === 'weekly' ? 7 : 14; nextDate.setDate(nextDate.getDate() + (interval * i)) }
-          // Future instances: if worker chose "first only", mark remaining as needing assignment
           const futureNeedsReminder = form.explicitlyUnassigned || recurringWorkerChoice === 'first_only'
           recurringJobs.push({ ...jobData, date: toDateStr(nextDate), recurrence_group_id: jobId, recurrence_rule: { frequency: form.frequency, parent_id: jobId }, needs_assignment_reminder: futureNeedsReminder })
         }
@@ -250,10 +248,7 @@ export default function Schedule({ user }) {
         await supabase.from('job_assignments').insert(form.assignees.map(uid => ({ job_id: jobId, user_id: uid })))
       }
 
-      // If recurring + worker + chose 'all', assign worker to all instances too
       // TODO: Wire up needs_assignment_reminder to automated reminder notifications
-      // when the reminders system is built. jobs with needs_assignment_reminder=true
-      // and no job_assignment should trigger a notification to the org owner 24h before job date.
       if (form.frequency !== 'one_time' && form.assignees.length > 0 && recurringWorkerChoice === 'all' && jobId) {
         const { data: recurringInstances } = await supabase.from('jobs')
           .select('id').eq('recurrence_group_id', jobId).neq('id', jobId)
@@ -268,11 +263,10 @@ export default function Schedule({ user }) {
       const action = recurringAction || 'this'
 
       if (action === 'this') {
-        // Update only this instance
         const { error: updateError } = await supabase.from('jobs').update(jobData).eq('id', selectedJob.id)
         if (updateError) {
           console.error('Failed to update job:', updateError)
-          showToast('Failed to save changes. Please try again.', 'error')
+          showToast(t('common.error.failed_save'), 'error')
           setSaving(false)
           return
         }
@@ -281,23 +275,19 @@ export default function Schedule({ user }) {
           await supabase.from('job_assignments').insert(form.assignees.map(uid => ({ job_id: selectedJob.id, user_id: uid })))
         }
       } else if (action === 'future') {
-        // Update this and all future instances in the same recurrence group
         const groupId = selectedJob.recurrence_group_id
         const { data: futureJobs } = await supabase.from('jobs').select('id')
           .eq('recurrence_group_id', groupId).gte('date', selectedJob.date)
-        
+
         if (futureJobs) {
           const futureIds = futureJobs.map(j => j.id)
-          // Update all future jobs (except date which stays unique)
           for (const fid of futureIds) {
-            const existing = jobs.find(j => j.id === fid)
             await supabase.from('jobs').update({
               client_id: form.client_id, service_type_id: form.service_type_id || null,
               title: form.title, start_time: form.start_time,
               duration_minutes: Number(form.duration_minutes), notes: form.notes,
               price: form.price ? Number(form.price) : null,
             }).eq('id', fid)
-            // Update assignments
             await supabase.from('job_assignments').delete().eq('job_id', fid)
             if (form.assignees.length > 0) {
               await supabase.from('job_assignments').insert(form.assignees.map(uid => ({ job_id: fid, user_id: uid })))
@@ -305,11 +295,10 @@ export default function Schedule({ user }) {
           }
         }
       } else if (action === 'all') {
-        // Update all instances in the recurrence group
         const groupId = selectedJob.recurrence_group_id
         const { data: allJobs } = await supabase.from('jobs').select('id')
           .eq('recurrence_group_id', groupId)
-        
+
         if (allJobs) {
           for (const aj of allJobs) {
             await supabase.from('jobs').update({
@@ -352,7 +341,7 @@ export default function Schedule({ user }) {
 
     if (error) {
       console.error('Failed to delete job:', error)
-      showToast('Failed to delete job. Please try again.', 'error')
+      showToast(t('common.error.failed_delete_job'), 'error')
       return
     }
 
@@ -370,7 +359,7 @@ export default function Schedule({ user }) {
       const { error } = await supabase.from('jobs').update({ status: 'in_progress', arrived_at: new Date().toISOString() }).eq('id', job.id)
       if (error) {
         console.error('Failed to update job status:', error)
-        showToast('Failed to update job status. Please try again.', 'error')
+        showToast(t('common.error.failed_update_status'), 'error')
         return
       }
       loadAll()
@@ -379,7 +368,7 @@ export default function Schedule({ user }) {
       const { error } = await supabase.from('jobs').update({ status: 'completed', completed_at: new Date().toISOString() }).eq('id', job.id)
       if (error) {
         console.error('Failed to update job status:', error)
-        showToast('Failed to update job status. Please try again.', 'error')
+        showToast(t('common.error.failed_update_status'), 'error')
         return
       }
       loadAll()
@@ -394,8 +383,8 @@ export default function Schedule({ user }) {
   async function handleJobPayment() {
     if (!paymentModal) return
     const pe = {}
-    if (!payAmount || Number(payAmount) <= 0) pe.amount = 'Enter a payment amount.'
-    if (!payMethod) pe.method = 'Select a payment method.'
+    if (!payAmount || Number(payAmount) <= 0) pe.amount = t('schedule.payment_error_amount')
+    if (!payMethod) pe.method = t('schedule.payment_error_method')
     if (Object.keys(pe).length > 0) { setPayErrors(pe); return; }
     setPayErrors({})
     setPaymentSaving(true)
@@ -415,7 +404,7 @@ export default function Schedule({ user }) {
 
     if (paymentError) {
       console.error('Failed to record payment:', paymentError)
-      showToast('Failed to save changes. Please try again.', 'error')
+      showToast(t('common.error.failed_save'), 'error')
       setPaymentSaving(false)
       return
     }
@@ -462,7 +451,7 @@ export default function Schedule({ user }) {
       // WhatsApp / Phone → always copy link (no direct integration)
       if (preferred === 'whatsapp' || preferred === 'phone') {
         await navigator.clipboard.writeText(receiptUrl)
-        showToast('Receipt link copied — share it with the client')
+        showToast(t('schedule.receipt_link_copied'))
         return
       }
 
@@ -474,7 +463,7 @@ export default function Schedule({ user }) {
             body: { type: 'payment_receipt', payment_id: paymentId },
           })
           if (error || data?.error) throw new Error(error?.message || data?.error)
-          showToast('Receipt sent via email')
+          showToast(t('schedule.receipt_sent_email'))
         } else if (hasPhone) {
           const firstName = client.first_name || client.name?.split(' ')[0] || 'there'
           const { data, error } = await supabase.functions.invoke('send-sms', {
@@ -482,10 +471,10 @@ export default function Schedule({ user }) {
             body: { to: client.phone, message: `Hi ${firstName}, your payment receipt is ready: ${receiptUrl}` },
           })
           if (error || data?.error) throw new Error(error?.message || data?.error)
-          showToast('No email on file — receipt sent via SMS')
+          showToast(t('schedule.receipt_no_email_sms'))
         } else {
           await navigator.clipboard.writeText(receiptUrl).catch(() => {})
-          showToast('No email or phone on file — receipt link copied to clipboard')
+          showToast(t('schedule.receipt_no_contact'))
         }
         return
       }
@@ -499,25 +488,25 @@ export default function Schedule({ user }) {
             body: { to: client.phone, message: `Hi ${firstName}, your payment receipt is ready: ${receiptUrl}` },
           })
           if (error || data?.error) throw new Error(error?.message || data?.error)
-          showToast('Receipt sent via SMS')
+          showToast(t('schedule.receipt_sent_sms'))
         } else if (hasEmail) {
           const { data, error } = await supabase.functions.invoke('send-email', {
             headers: { Authorization: `Bearer ${session.access_token}` },
             body: { type: 'payment_receipt', payment_id: paymentId },
           })
           if (error || data?.error) throw new Error(error?.message || data?.error)
-          showToast('No phone on file — receipt sent via email')
+          showToast(t('schedule.receipt_no_phone_email'))
         } else {
           await navigator.clipboard.writeText(receiptUrl).catch(() => {})
-          showToast('No email or phone on file — receipt link copied to clipboard')
+          showToast(t('schedule.receipt_no_contact'))
         }
       }
     } catch (err) {
       const url = receiptUrl
       showToast(
-        'Could not send receipt automatically',
+        t('schedule.receipt_auto_fail'),
         'error',
-        { label: 'Copy link', onClick: () => navigator.clipboard.writeText(url).catch(() => {}) }
+        { label: t('schedule.receipt_copy_link'), onClick: () => navigator.clipboard.writeText(url).catch(() => {}) }
       )
     }
   }
@@ -560,7 +549,6 @@ export default function Schedule({ user }) {
       const next = f.assignees.includes(id) ? f.assignees.filter(a => a !== id) : [...f.assignees, id]
       return { ...f, assignees: next, explicitlyUnassigned: false }
     })
-    // Reset recurring worker choice when assignees change
     setRecurringWorkerChoice(null)
   }
 
@@ -571,17 +559,17 @@ export default function Schedule({ user }) {
 
   async function handleConfirmJob(job) {
     const { error } = await supabase.from('jobs').update({ status: 'scheduled' }).eq('id', job.id)
-    if (error) { showToast('Failed to confirm booking. Please try again.', 'error'); return }
+    if (error) { showToast(t('common.error.failed_confirm_booking'), 'error'); return }
     await supabase.from('clients').update({ status: 'active' }).eq('id', job.client_id)
-    showToast('Booking confirmed.')
+    showToast(t('common.toast.booking_confirmed'))
     loadAll()
     setModal(null)
   }
 
   async function handleDeclineJob(job) {
     const { error } = await supabase.from('jobs').update({ status: 'cancelled' }).eq('id', job.id)
-    if (error) { showToast('Failed to decline booking. Please try again.', 'error'); return }
-    showToast('Booking declined.')
+    if (error) { showToast(t('common.error.failed_decline_booking'), 'error'); return }
+    showToast(t('common.toast.booking_declined'))
     loadAll()
     setModal(null)
   }
@@ -589,23 +577,34 @@ export default function Schedule({ user }) {
   const clientName = (id) => { const c = clients.find(c => c.id === id); return c ? (formatName(c.first_name, c.last_name) || c.name || 'Unknown') : 'Unknown' }
   const workerName = (id) => workers.find(w => w.id === id)?.name || 'Unknown'
 
-  if (loading) return <div className="p-6 md:p-8 text-stone-400">Loading schedule...</div>
+  if (loading) return <div className="p-6 md:p-8 text-stone-400">{t('schedule.loading')}</div>
 
+  const MONTHS = t('schedule.months', { returnObjects: true })
   const headerText = view === 'month' ? `${MONTHS[month]} ${year}`
     : view === 'week' ? (() => { const d = getWeekDays(); return `${d[0].toLocaleDateString('en-US',{month:'short',day:'numeric'})} – ${d[6].toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})}` })()
     : currentDate.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })
+
+  // Helper for linked data warning
+  function linkedDataWarning() {
+    if (!jobLinkedData || (jobLinkedData.payments === 0 && jobLinkedData.items === 0)) return null
+    const parts = [
+      jobLinkedData.payments > 0 ? t('schedule.delete_payments', { count: jobLinkedData.payments }) : null,
+      jobLinkedData.items > 0 ? t('schedule.delete_line_items', { count: jobLinkedData.items }) : null,
+    ].filter(Boolean)
+    return `${t('schedule.delete_linked_prefix')} ${parts.join(` ${t('schedule.delete_and')} `)} ${t('schedule.delete_linked_suffix')}`
+  }
 
   return (
     <div className="p-6 md:p-8">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-stone-900">Schedule</h1>
-          <p className="text-stone-500 text-sm mt-1">{jobs.filter(j => j.status !== 'cancelled').length} active jobs<span className="text-stone-300 mx-1.5">·</span><span className="text-stone-400">{tzAbbr}</span></p>
+          <h1 className="text-2xl font-bold text-stone-900">{t('schedule.heading')}</h1>
+          <p className="text-stone-500 text-sm mt-1">{t('schedule.active_jobs', { count: jobs.filter(j => j.status !== 'cancelled').length })}<span className="text-stone-300 mx-1.5">·</span><span className="text-stone-400">{tzAbbr}</span></p>
         </div>
         <button onClick={() => openAdd(null)} className="inline-flex items-center gap-2 px-4 py-2.5 bg-emerald-700 text-white text-sm font-medium rounded-xl hover:bg-emerald-800 transition-colors">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-          New Job
+          {t('schedule.new_job')}
         </button>
       </div>
 
@@ -615,11 +614,13 @@ export default function Schedule({ user }) {
           <button onClick={() => navigate(-1)} className="p-2 bg-white border border-stone-200 rounded-xl hover:bg-stone-50 text-stone-600"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polyline points="15 18 9 12 15 6"/></svg></button>
           <div className="text-sm font-semibold text-stone-900 min-w-[200px] text-center">{headerText}</div>
           <button onClick={() => navigate(1)} className="p-2 bg-white border border-stone-200 rounded-xl hover:bg-stone-50 text-stone-600"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polyline points="9 18 15 12 9 6"/></svg></button>
-          <button onClick={goToday} className="px-3 py-2 bg-white border border-stone-200 rounded-xl text-xs font-medium text-stone-600 hover:bg-stone-50">Today</button>
+          <button onClick={goToday} className="px-3 py-2 bg-white border border-stone-200 rounded-xl text-xs font-medium text-stone-600 hover:bg-stone-50">{t('schedule.today_btn')}</button>
         </div>
         <div className="flex gap-1 bg-white border border-stone-200 rounded-xl p-1">
           {['month','week','day'].map(v => (
-            <button key={v} onClick={() => setView(v)} className={`px-3 py-1.5 text-xs font-medium rounded-lg capitalize ${view === v ? 'bg-emerald-700 text-white' : 'text-stone-500 hover:text-stone-700'}`}>{v}</button>
+            <button key={v} onClick={() => setView(v)} className={`px-3 py-1.5 text-xs font-medium rounded-lg ${view === v ? 'bg-emerald-700 text-white' : 'text-stone-500 hover:text-stone-700'}`}>
+              {t(`schedule.view_${v}`)}
+            </button>
           ))}
         </div>
       </div>
@@ -632,23 +633,23 @@ export default function Schedule({ user }) {
       {/* ── Recurring Edit Choice Modal ── */}
       {modal === 'recurring_choose' && selectedJob && (
         <Modal onClose={() => setModal(null)}>
-          <h2 className="text-lg font-bold text-stone-900 mb-2">Edit Recurring Job</h2>
-          <p className="text-sm text-stone-500 mb-6">This job is part of a recurring series. What would you like to edit?</p>
+          <h2 className="text-lg font-bold text-stone-900 mb-2">{t('schedule.recurring_edit_title')}</h2>
+          <p className="text-sm text-stone-500 mb-6">{t('schedule.recurring_edit_subtitle')}</p>
           <div className="space-y-3">
             <button onClick={() => chooseRecurringEdit('this')} className="w-full p-4 bg-stone-50 border border-stone-200 rounded-xl text-left hover:border-emerald-300 hover:bg-emerald-50 transition-colors">
-              <div className="font-medium text-stone-900 text-sm">This job only</div>
-              <div className="text-xs text-stone-500 mt-0.5">Only change this specific instance on {formatDateFull(selectedJob.date)}</div>
+              <div className="font-medium text-stone-900 text-sm">{t('schedule.recurring_this_only')}</div>
+              <div className="text-xs text-stone-500 mt-0.5">{t('schedule.recurring_this_only_desc', { date: formatDateFull(selectedJob.date) })}</div>
             </button>
             <button onClick={() => chooseRecurringEdit('future')} className="w-full p-4 bg-stone-50 border border-stone-200 rounded-xl text-left hover:border-emerald-300 hover:bg-emerald-50 transition-colors">
-              <div className="font-medium text-stone-900 text-sm">This and all future jobs</div>
-              <div className="text-xs text-stone-500 mt-0.5">Change this job and every instance after it</div>
+              <div className="font-medium text-stone-900 text-sm">{t('schedule.recurring_future')}</div>
+              <div className="text-xs text-stone-500 mt-0.5">{t('schedule.recurring_future_desc')}</div>
             </button>
             <button onClick={() => chooseRecurringEdit('all')} className="w-full p-4 bg-stone-50 border border-stone-200 rounded-xl text-left hover:border-emerald-300 hover:bg-emerald-50 transition-colors">
-              <div className="font-medium text-stone-900 text-sm">All jobs in this series</div>
-              <div className="text-xs text-stone-500 mt-0.5">Change every instance, past and future</div>
+              <div className="font-medium text-stone-900 text-sm">{t('schedule.recurring_all')}</div>
+              <div className="text-xs text-stone-500 mt-0.5">{t('schedule.recurring_all_desc')}</div>
             </button>
           </div>
-          <button onClick={() => setModal(null)} className="w-full mt-4 py-2.5 bg-stone-100 text-stone-600 text-sm font-medium rounded-xl hover:bg-stone-200 transition-colors">Cancel</button>
+          <button onClick={() => setModal(null)} className="w-full mt-4 py-2.5 bg-stone-100 text-stone-600 text-sm font-medium rounded-xl hover:bg-stone-200 transition-colors">{t('common.actions.cancel')}</button>
         </Modal>
       )}
 
@@ -659,12 +660,12 @@ export default function Schedule({ user }) {
             <div>
               <div className="flex items-center gap-2">
                 <h2 className="text-lg font-bold text-stone-900">{selectedJob.title}</h2>
-                {isRecurring(selectedJob) && <span className="px-2 py-0.5 bg-purple-100 text-purple-700 rounded-full text-[10px] font-medium">Recurring</span>}
+                {isRecurring(selectedJob) && <span className="px-2 py-0.5 bg-purple-100 text-purple-700 rounded-full text-[10px] font-medium">{t('schedule.recurring_badge')}</span>}
               </div>
               <p className="text-sm text-stone-500">{clientName(selectedJob.client_id)}</p>
             </div>
             <div className="flex gap-2">
-              <button onClick={() => openEdit(selectedJob)} className="px-3 py-1.5 bg-stone-100 text-stone-600 text-sm font-medium rounded-lg hover:bg-stone-200">Edit</button>
+              <button onClick={() => openEdit(selectedJob)} className="px-3 py-1.5 bg-stone-100 text-stone-600 text-sm font-medium rounded-lg hover:bg-stone-200">{t('common.actions.edit')}</button>
               <button onClick={() => setModal(null)} className="p-1.5 text-stone-400 hover:text-stone-600">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
               </button>
@@ -672,40 +673,40 @@ export default function Schedule({ user }) {
           </div>
 
           <div className="space-y-2 mb-4">
-            <InfoRow label="Date" value={formatDateFull(selectedJob.date)} />
-            <InfoRow label="Time" value={`${formatTime(selectedJob.start_time, timeFormat)} ${tzAbbr}`} />
-            <InfoRow label="Duration" value={`${selectedJob.duration_minutes} min`} />
-            <InfoRow label="Status" value={<span className={`px-2 py-0.5 rounded-full text-xs font-medium capitalize ${statusColors[selectedJob.status]}`}>{selectedJob.status.replace('_',' ')}</span>} />
-            {selectedJob.price && <InfoRow label="Price" value={formatCurrency(selectedJob.price, currencySymbol)} />}
-            {selectedJob.frequency && selectedJob.frequency !== 'one_time' && <InfoRow label="Frequency" value={selectedJob.frequency} />}
-            {selectedJob.notes && <InfoRow label="Notes" value={selectedJob.notes} />}
-            {selectedJob.arrived_at && <InfoRow label="Arrived" value={formatTimestamp(selectedJob.arrived_at, tz, timeFormat)} />}
-            {selectedJob.completed_at && <InfoRow label="Completed" value={formatTimestamp(selectedJob.completed_at, tz, timeFormat)} />}
-            {selectedJob.payments?.length > 0 && <InfoRow label="Payments" value={<span className="text-emerald-700">{selectedJob.payments.length} recorded</span>} />}
+            <InfoRow label={t('schedule.detail_date')} value={formatDateFull(selectedJob.date)} />
+            <InfoRow label={t('schedule.detail_time')} value={`${formatTime(selectedJob.start_time, timeFormat)} ${tzAbbr}`} />
+            <InfoRow label={t('schedule.detail_duration')} value={`${selectedJob.duration_minutes} min`} />
+            <InfoRow label={t('schedule.detail_status')} value={<span className={`px-2 py-0.5 rounded-full text-xs font-medium capitalize ${statusColors[selectedJob.status]}`}>{selectedJob.status.replace('_',' ')}</span>} />
+            {selectedJob.price && <InfoRow label={t('schedule.detail_price')} value={formatCurrency(selectedJob.price, currencySymbol)} />}
+            {selectedJob.frequency && selectedJob.frequency !== 'one_time' && <InfoRow label={t('schedule.detail_frequency')} value={selectedJob.frequency} />}
+            {selectedJob.notes && <InfoRow label={t('schedule.detail_notes')} value={selectedJob.notes} />}
+            {selectedJob.arrived_at && <InfoRow label={t('schedule.detail_arrived')} value={formatTimestamp(selectedJob.arrived_at, tz, timeFormat)} />}
+            {selectedJob.completed_at && <InfoRow label={t('schedule.detail_completed')} value={formatTimestamp(selectedJob.completed_at, tz, timeFormat)} />}
+            {selectedJob.payments?.length > 0 && <InfoRow label={t('schedule.detail_payments')} value={<span className="text-emerald-700">{t('schedule.detail_payments_recorded', { count: selectedJob.payments.length })}</span>} />}
           </div>
 
           {selectedJob.job_assignments?.length > 0 && (
             <div className="mb-4">
-              <div className="text-xs font-semibold text-stone-400 uppercase tracking-wider mb-2">Assigned To</div>
+              <div className="text-xs font-semibold text-stone-400 uppercase tracking-wider mb-2">{t('schedule.detail_assigned_to')}</div>
               <div className="flex flex-wrap gap-2">{selectedJob.job_assignments.map(a => <span key={a.user_id} className="px-2.5 py-1 bg-emerald-50 text-emerald-700 rounded-full text-xs font-medium">{workerName(a.user_id)}</span>)}</div>
             </div>
           )}
 
-          {/* Property access details — shown when present */}
+          {/* Property access details */}
           {(() => {
             const prop = selectedJob.clients?.client_properties?.[0]
             if (!prop) return null
             const items = [
-              prop.alarm_code && { label: 'Alarm Code', value: prop.alarm_code },
-              prop.key_info && { label: 'Key / Access', value: prop.key_info },
-              prop.parking_instructions && { label: 'Parking', value: prop.parking_instructions },
-              prop.pet_details && { label: 'Pets', value: prop.pet_details },
-              prop.special_notes && { label: 'Notes', value: prop.special_notes },
+              prop.alarm_code && { label: t('schedule.property_alarm'), value: prop.alarm_code },
+              prop.key_info && { label: t('schedule.property_key'), value: prop.key_info },
+              prop.parking_instructions && { label: t('schedule.property_parking'), value: prop.parking_instructions },
+              prop.pet_details && { label: t('schedule.property_pets'), value: prop.pet_details },
+              prop.special_notes && { label: t('schedule.property_notes'), value: prop.special_notes },
             ].filter(Boolean)
             if (items.length === 0) return null
             return (
               <div className="mb-4 p-3 bg-sky-50 border border-sky-200 rounded-xl">
-                <div className="text-xs font-semibold text-sky-700 uppercase tracking-wider mb-2">Property Details</div>
+                <div className="text-xs font-semibold text-sky-700 uppercase tracking-wider mb-2">{t('schedule.property_details')}</div>
                 <div className="space-y-1">
                   {items.map(item => (
                     <div key={item.label} className="flex gap-2 text-xs">
@@ -721,53 +722,48 @@ export default function Schedule({ user }) {
           {selectedJob.status === 'pending_confirmation' && (
             <div className="mb-4 p-4 bg-amber-50 border border-amber-200 rounded-xl">
               <div className="flex items-center gap-2 mb-3">
-                <span className="px-2.5 py-1 bg-amber-100 text-amber-700 rounded-full text-xs font-semibold">Pending Confirmation</span>
+                <span className="px-2.5 py-1 bg-amber-100 text-amber-700 rounded-full text-xs font-semibold">{t('schedule.pending_confirmation')}</span>
                 {selectedJob.source === 'web_booking' && (
-                  <span className="text-xs text-stone-400">Booked via web agent</span>
+                  <span className="text-xs text-stone-400">{t('schedule.booked_via_web')}</span>
                 )}
               </div>
               {selectedJob.clients?.phone && (
                 <div className="text-sm text-stone-700 mb-3">
-                  <span className="font-medium text-stone-500">Phone: </span>
+                  <span className="font-medium text-stone-500">{t('schedule.phone_label')} </span>
                   <a href={`tel:${selectedJob.clients.phone}`} className="text-emerald-700 font-medium hover:underline">{selectedJob.clients.phone}</a>
                 </div>
               )}
               <div className="flex gap-2">
-                <button onClick={() => handleConfirmJob(selectedJob)} className="flex-1 py-2.5 bg-emerald-700 text-white text-sm font-medium rounded-xl hover:bg-emerald-800 transition-colors">Confirm Booking</button>
-                <button onClick={() => handleDeclineJob(selectedJob)} className="flex-1 py-2.5 bg-red-50 text-red-600 text-sm font-medium rounded-xl hover:bg-red-100 transition-colors">Decline</button>
+                <button onClick={() => handleConfirmJob(selectedJob)} className="flex-1 py-2.5 bg-emerald-700 text-white text-sm font-medium rounded-xl hover:bg-emerald-800 transition-colors">{t('schedule.confirm_booking')}</button>
+                <button onClick={() => handleDeclineJob(selectedJob)} className="flex-1 py-2.5 bg-red-50 text-red-600 text-sm font-medium rounded-xl hover:bg-red-100 transition-colors">{t('schedule.decline')}</button>
               </div>
             </div>
           )}
-          {selectedJob.status === 'scheduled' && <button onClick={() => handleCheckIn(selectedJob, 'arrive')} className="w-full py-2.5 bg-blue-600 text-white text-sm font-medium rounded-xl hover:bg-blue-700 mb-2">Mark as Arrived</button>}
-          {selectedJob.status === 'in_progress' && <button onClick={() => handleCheckIn(selectedJob, 'complete')} className="w-full py-2.5 bg-emerald-700 text-white text-sm font-medium rounded-xl hover:bg-emerald-800 mb-2">Mark as Completed</button>}
+          {selectedJob.status === 'scheduled' && <button onClick={() => handleCheckIn(selectedJob, 'arrive')} className="w-full py-2.5 bg-blue-600 text-white text-sm font-medium rounded-xl hover:bg-blue-700 mb-2">{t('schedule.mark_arrived')}</button>}
+          {selectedJob.status === 'in_progress' && <button onClick={() => handleCheckIn(selectedJob, 'complete')} className="w-full py-2.5 bg-emerald-700 text-white text-sm font-medium rounded-xl hover:bg-emerald-800 mb-2">{t('schedule.mark_completed')}</button>}
           {selectedJob.status === 'completed' && (
             <Link to="/invoices" className="w-full py-2.5 bg-blue-50 text-blue-700 text-sm font-medium rounded-xl hover:bg-blue-100 transition-colors text-center block mt-2">
-              Create Invoice →
+              {t('schedule.create_invoice')}
             </Link>
           )}
 
           <div className="flex gap-3 mt-4 pt-4 border-t border-stone-200">
-            <button onClick={() => openEdit(selectedJob)} className="flex-1 py-2.5 bg-emerald-700 text-white text-sm font-medium rounded-xl hover:bg-emerald-800">Edit Job</button>
+            <button onClick={() => openEdit(selectedJob)} className="flex-1 py-2.5 bg-emerald-700 text-white text-sm font-medium rounded-xl hover:bg-emerald-800">{t('schedule.edit_job_btn')}</button>
             {canDelete && (
-              <button onClick={initiateJobDelete} className="px-4 py-2.5 bg-red-50 text-red-600 text-sm font-medium rounded-xl hover:bg-red-100">Delete</button>
+              <button onClick={initiateJobDelete} className="px-4 py-2.5 bg-red-50 text-red-600 text-sm font-medium rounded-xl hover:bg-red-100">{t('common.actions.delete')}</button>
             )}
           </div>
 
           {/* Non-recurring delete confirm */}
           {deleteConfirm && !isRecurring(selectedJob) && (
             <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-xl">
-              {jobLinkedData && (jobLinkedData.payments > 0 || jobLinkedData.items > 0) && (
-                <p className="text-xs text-red-600 mb-2">
-                  This job has {[
-                    jobLinkedData.payments > 0 && `${jobLinkedData.payments} payment${jobLinkedData.payments > 1 ? 's' : ''}`,
-                    jobLinkedData.items > 0 && `${jobLinkedData.items} invoice line item${jobLinkedData.items > 1 ? 's' : ''}`,
-                  ].filter(Boolean).join(' and ')} linked to it. Deleting will unlink them.
-                </p>
+              {linkedDataWarning() && (
+                <p className="text-xs text-red-600 mb-2">{linkedDataWarning()}</p>
               )}
-              <p className="text-sm text-red-700 mb-3">This will permanently delete this job. This cannot be undone. Are you sure?</p>
+              <p className="text-sm text-red-700 mb-3">{t('schedule.delete_confirm')}</p>
               <div className="flex gap-2">
-                <button onClick={() => handleDelete('this')} className="px-3 py-1.5 bg-red-600 text-white text-sm rounded-lg hover:bg-red-700">Yes, delete</button>
-                <button onClick={() => { setDeleteConfirm(false); setJobLinkedData(null) }} className="px-3 py-1.5 bg-white text-stone-600 text-sm rounded-lg border border-stone-200 hover:bg-stone-50">Cancel</button>
+                <button onClick={() => handleDelete('this')} className="px-3 py-1.5 bg-red-600 text-white text-sm rounded-lg hover:bg-red-700">{t('schedule.delete_yes')}</button>
+                <button onClick={() => { setDeleteConfirm(false); setJobLinkedData(null) }} className="px-3 py-1.5 bg-white text-stone-600 text-sm rounded-lg border border-stone-200 hover:bg-stone-50">{t('common.actions.cancel')}</button>
               </div>
             </div>
           )}
@@ -775,29 +771,24 @@ export default function Schedule({ user }) {
           {/* Recurring delete options */}
           {showDeleteRecurring && (
             <div className="mt-3 p-4 bg-red-50 border border-red-200 rounded-xl">
-              {jobLinkedData && (jobLinkedData.payments > 0 || jobLinkedData.items > 0) && (
-                <p className="text-xs text-red-600 mb-2">
-                  This job has {[
-                    jobLinkedData.payments > 0 && `${jobLinkedData.payments} payment${jobLinkedData.payments > 1 ? 's' : ''}`,
-                    jobLinkedData.items > 0 && `${jobLinkedData.items} invoice line item${jobLinkedData.items > 1 ? 's' : ''}`,
-                  ].filter(Boolean).join(' and ')} linked to it. Deleting will unlink them.
-                </p>
+              {linkedDataWarning() && (
+                <p className="text-xs text-red-600 mb-2">{linkedDataWarning()}</p>
               )}
-              <p className="text-sm font-medium text-red-800 mb-3">Delete recurring job</p>
+              <p className="text-sm font-medium text-red-800 mb-3">{t('schedule.delete_recurring_title')}</p>
               <div className="space-y-2">
                 <button onClick={() => handleDelete('this')} className="w-full p-3 bg-white border border-red-200 rounded-lg text-left hover:bg-red-100 transition-colors">
-                  <div className="text-sm font-medium text-red-700">This job only</div>
-                  <div className="text-xs text-red-500 mt-0.5">Delete only this instance</div>
+                  <div className="text-sm font-medium text-red-700">{t('schedule.delete_this_only')}</div>
+                  <div className="text-xs text-red-500 mt-0.5">{t('schedule.delete_this_only_desc')}</div>
                 </button>
                 <button onClick={() => handleDelete('future')} className="w-full p-3 bg-white border border-red-200 rounded-lg text-left hover:bg-red-100 transition-colors">
-                  <div className="text-sm font-medium text-red-700">This and all future</div>
-                  <div className="text-xs text-red-500 mt-0.5">Delete from this date forward</div>
+                  <div className="text-sm font-medium text-red-700">{t('schedule.delete_future')}</div>
+                  <div className="text-xs text-red-500 mt-0.5">{t('schedule.delete_future_desc')}</div>
                 </button>
                 <button onClick={() => handleDelete('all')} className="w-full p-3 bg-white border border-red-200 rounded-lg text-left hover:bg-red-100 transition-colors">
-                  <div className="text-sm font-medium text-red-700">All in series</div>
-                  <div className="text-xs text-red-500 mt-0.5">Delete every instance</div>
+                  <div className="text-sm font-medium text-red-700">{t('schedule.delete_all')}</div>
+                  <div className="text-xs text-red-500 mt-0.5">{t('schedule.delete_all_desc')}</div>
                 </button>
-                <button onClick={() => { setShowDeleteRecurring(false); setJobLinkedData(null) }} className="w-full py-2 text-stone-500 text-sm hover:text-stone-700">Cancel</button>
+                <button onClick={() => { setShowDeleteRecurring(false); setJobLinkedData(null) }} className="w-full py-2 text-stone-500 text-sm hover:text-stone-700">{t('common.actions.cancel')}</button>
               </div>
             </div>
           )}
@@ -808,28 +799,31 @@ export default function Schedule({ user }) {
       {paymentModal && (
         <Modal onClose={() => setPaymentModal(null)}>
           <div className="text-center mb-6">
-            <div className="text-emerald-600 text-lg font-medium mb-1">✓ Job completed</div>
+            <div className="text-emerald-600 text-lg font-medium mb-1">{t('schedule.payment_job_completed')}</div>
             <div className="text-sm text-stone-500">{paymentModal.title} — {clientName(paymentModal.client_id)}</div>
           </div>
 
           <div className="text-center mb-4">
-            <div className="text-sm font-medium text-stone-700">Did you receive payment?</div>
+            <div className="text-sm font-medium text-stone-700">{t('schedule.payment_question')}</div>
           </div>
 
           <div className="space-y-3">
             {payAmount === '__no__' ? (
-              <div className="py-2.5 text-center text-stone-500 text-sm">No payment recorded.</div>
+              <div className="py-2.5 text-center text-stone-500 text-sm">{t('schedule.payment_none_recorded')}</div>
             ) : (
               <>
                 <div>
-                  <div className="text-xs text-stone-500 mb-1">Amount received {paymentModal.price ? `(Job total: ${formatCurrency(paymentModal.price, currencySymbol)})` : ''}</div>
+                  <div className="text-xs text-stone-500 mb-1">
+                    {t('schedule.payment_amount')}
+                    {paymentModal.price ? ` (${t('schedule.payment_job_total', { amount: formatCurrency(paymentModal.price, currencySymbol) })})` : ''}
+                  </div>
                   <div className="relative">
                     <span className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-400 text-sm">{currencySymbol}</span>
                     <input type="number" value={payAmount} onChange={e => { setPayAmount(e.target.value); setPayErrors(pe => { const n = {...pe}; delete n.amount; return n }) }} placeholder="0.00" step="0.01" className="w-full pl-7 pr-3 py-2.5 bg-stone-50 border border-stone-200 rounded-xl text-sm text-stone-900 focus:outline-none focus:ring-2 focus:ring-emerald-600" />
                   </div>
                   {payErrors.amount && <p className="text-xs text-red-500 mt-1">{payErrors.amount}</p>}
                   {paymentModal.price && payAmount && Number(payAmount) > 0 && Number(payAmount) < Number(paymentModal.price) && (
-                    <div className="text-xs text-amber-600 mt-1">Partial payment — {formatCurrency(Number(paymentModal.price) - Number(payAmount), currencySymbol)} remaining</div>
+                    <div className="text-xs text-amber-600 mt-1">{t('schedule.payment_partial', { amount: formatCurrency(Number(paymentModal.price) - Number(payAmount), currencySymbol) })}</div>
                   )}
                 </div>
                 <div className="flex flex-wrap gap-2">
@@ -846,10 +840,10 @@ export default function Schedule({ user }) {
 
           <div className="flex gap-2 mt-6 pt-4 border-t border-stone-200">
             <button onClick={() => setPaymentModal(null)} className="flex-1 py-2.5 bg-stone-100 text-stone-600 text-sm font-medium rounded-xl hover:bg-stone-200 transition-colors">
-              No payment
+              {t('schedule.payment_no')}
             </button>
             <button onClick={handleJobPayment} disabled={paymentSaving || !payAmount || Number(payAmount) <= 0} className="flex-1 py-2.5 bg-emerald-700 text-white text-sm font-medium rounded-xl hover:bg-emerald-800 disabled:opacity-50 transition-colors">
-              {paymentSaving ? 'Saving...' : 'Save Payment'}
+              {paymentSaving ? t('schedule.payment_saving') : t('schedule.payment_save')}
             </button>
           </div>
         </Modal>
@@ -860,10 +854,10 @@ export default function Schedule({ user }) {
         <Modal onClose={() => setModal(null)} wide>
           <div className="flex items-center justify-between mb-6">
             <div>
-              <h2 className="text-lg font-bold text-stone-900">{modal === 'add' ? 'New Job' : 'Edit Job'}</h2>
+              <h2 className="text-lg font-bold text-stone-900">{modal === 'add' ? t('schedule.form_new_job') : t('schedule.form_edit_job')}</h2>
               {recurringAction && (
                 <p className="text-xs text-purple-600 mt-0.5">
-                  Editing: {recurringAction === 'this' ? 'this instance only' : recurringAction === 'future' ? 'this and all future' : 'all instances'}
+                  {t(`schedule.editing_${recurringAction}`)}
                 </p>
               )}
             </div>
@@ -874,58 +868,60 @@ export default function Schedule({ user }) {
 
           <div className="space-y-4 max-h-[65vh] overflow-y-auto pr-1">
             <div>
-              <label className="block text-xs font-medium text-stone-500 mb-1.5">Client *</label>
+              <label className="block text-xs font-medium text-stone-500 mb-1.5">{t('schedule.form_client')}</label>
               <select value={form.client_id} onChange={e => { setForm(f => ({...f, client_id: e.target.value})); setErrors(er => { const n = {...er}; delete n.client_id; return n }) }} className="w-full px-3 py-2.5 bg-stone-50 border border-stone-200 rounded-xl text-sm text-stone-900 focus:outline-none focus:ring-2 focus:ring-emerald-600">
-                <option value="">Select client...</option>
+                <option value="">{t('schedule.form_select_client')}</option>
                 {clients.map(c => <option key={c.id} value={c.id}>{formatName(c.first_name, c.last_name) || c.name}</option>)}
               </select>
               {errors.client_id && <p className="text-xs text-red-500 mt-1">{errors.client_id}</p>}
             </div>
             <div>
-              <label className="block text-xs font-medium text-stone-500 mb-1.5">Service Type</label>
+              <label className="block text-xs font-medium text-stone-500 mb-1.5">{t('schedule.form_service_type')}</label>
               <select value={form.service_type_id} onChange={e => handleServiceTypeChange(e.target.value)} className="w-full px-3 py-2.5 bg-stone-50 border border-stone-200 rounded-xl text-sm text-stone-900 focus:outline-none focus:ring-2 focus:ring-emerald-600">
-                <option value="">Select type...</option>
+                <option value="">{t('schedule.form_select_type')}</option>
                 {serviceTypes.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
               </select>
             </div>
             <div>
-              <Field label="Job Title" value={form.title} onChange={v => { setForm(f => ({...f, title: v})); setErrors(er => { const n = {...er}; delete n.title; return n }) }} placeholder="e.g. Standard Clean" />
+              <Field label={t('schedule.form_title')} value={form.title} onChange={v => { setForm(f => ({...f, title: v})); setErrors(er => { const n = {...er}; delete n.title; return n }) }} placeholder={t('schedule.form_title_placeholder')} />
               {errors.title && <p className="text-xs text-red-500 mt-1">{errors.title}</p>}
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <Field label="Date *" value={form.date} onChange={v => { setForm(f => ({...f, date: v})); setErrors(er => { const n = {...er}; delete n.date; return n }) }} type="date" />
+                <Field label={t('schedule.form_date')} value={form.date} onChange={v => { setForm(f => ({...f, date: v})); setErrors(er => { const n = {...er}; delete n.date; return n }) }} type="date" />
                 {errors.date && <p className="text-xs text-red-500 mt-1">{errors.date}</p>}
               </div>
               <div>
-                <label className="block text-xs font-medium text-stone-500 mb-1.5">Start Time ({tzAbbr})</label>
+                <label className="block text-xs font-medium text-stone-500 mb-1.5">{t('schedule.form_start_time', { tz: tzAbbr })}</label>
                 <input type="time" value={form.start_time} onChange={e => { setForm(f => ({...f, start_time: e.target.value})); setErrors(er => { const n = {...er}; delete n.start_time; return n }) }} className="w-full px-3 py-2.5 bg-stone-50 border border-stone-200 rounded-xl text-sm text-stone-900 focus:outline-none focus:ring-2 focus:ring-emerald-600" />
                 {errors.start_time && <p className="text-xs text-red-500 mt-1">{errors.start_time}</p>}
               </div>
             </div>
             <div className="grid grid-cols-2 gap-4">
-              <Field label="Duration (min)" value={form.duration_minutes} onChange={v => setForm(f => ({...f, duration_minutes: v}))} type="number" />
-              <Field label={`Price (${currencySymbol})`} value={form.price} onChange={v => setForm(f => ({...f, price: v}))} type="number" placeholder="0.00" />
+              <Field label={t('schedule.form_duration')} value={form.duration_minutes} onChange={v => setForm(f => ({...f, duration_minutes: v}))} type="number" />
+              <Field label={t('schedule.form_price', { symbol: currencySymbol })} value={form.price} onChange={v => setForm(f => ({...f, price: v}))} type="number" placeholder="0.00" />
             </div>
 
-            {/* Frequency - only show on add, not edit */}
+            {/* Frequency - only show on add */}
             {modal === 'add' && (
               <div>
-                <label className="block text-xs font-medium text-stone-500 mb-1.5">Frequency</label>
+                <label className="block text-xs font-medium text-stone-500 mb-1.5">{t('schedule.form_frequency')}</label>
                 <div className="flex gap-2">
                   {['one_time','weekly','biweekly','monthly'].map(freq => (
-                    <button key={freq} type="button" onClick={() => setForm(f => ({...f, frequency: freq}))} className={`flex-1 py-2 text-xs font-medium rounded-xl capitalize ${form.frequency === freq ? 'bg-emerald-100 text-emerald-700 ring-2 ring-emerald-200' : 'bg-stone-50 text-stone-400 border border-stone-200'}`}>{freq.replace('_',' ')}</button>
+                    <button key={freq} type="button" onClick={() => setForm(f => ({...f, frequency: freq}))} className={`flex-1 py-2 text-xs font-medium rounded-xl ${form.frequency === freq ? 'bg-emerald-100 text-emerald-700 ring-2 ring-emerald-200' : 'bg-stone-50 text-stone-400 border border-stone-200'}`}>
+                      {t(`schedule.freq_${freq}`)}
+                    </button>
                   ))}
                 </div>
-                {form.frequency !== 'one_time' && <p className="text-xs text-stone-400 mt-1.5">This will create 12 recurring instances.</p>}
+                {form.frequency !== 'one_time' && <p className="text-xs text-stone-400 mt-1.5">{t('schedule.form_recurring_note')}</p>}
               </div>
             )}
 
             <div>
-              <label className="block text-xs font-medium text-stone-500 mb-1.5">Status</label>
+              <label className="block text-xs font-medium text-stone-500 mb-1.5">{t('schedule.form_status')}</label>
               {selectedJob?.payments?.length > 0 && form.status === 'completed' ? (
                 <div className="px-3 py-2.5 bg-stone-50 border border-stone-200 rounded-xl text-sm text-stone-400">
-                  Completed — locked (payments recorded)
+                  {t('schedule.form_status_locked')}
                 </div>
               ) : (
                 <select value={form.status} onChange={e => setForm(f => ({...f, status: e.target.value}))} className="w-full px-3 py-2.5 bg-stone-50 border border-stone-200 rounded-xl text-sm text-stone-900 focus:outline-none focus:ring-2 focus:ring-emerald-600 capitalize">
@@ -935,7 +931,7 @@ export default function Schedule({ user }) {
             </div>
 
             <div>
-              <label className="block text-xs font-medium text-stone-500 mb-1.5">Assign Worker *</label>
+              <label className="block text-xs font-medium text-stone-500 mb-1.5">{t('schedule.form_assign_worker')}</label>
               <div className="flex flex-wrap gap-2">
                 {workers.map(w => (
                   <button key={w.id} type="button" onClick={() => toggleAssignee(w.id)} className={`px-3 py-1.5 rounded-full text-xs font-medium ${form.assignees.includes(w.id) ? 'bg-emerald-100 text-emerald-700 ring-2 ring-emerald-200' : w.availability !== 'available' ? 'bg-stone-50 text-stone-300 border border-stone-200' : 'bg-stone-50 text-stone-500 border border-stone-200 hover:border-stone-300'}`}>
@@ -947,16 +943,16 @@ export default function Schedule({ user }) {
                   onClick={() => { setForm(f => ({ ...f, assignees: [], explicitlyUnassigned: true })); setRecurringWorkerChoice(null) }}
                   className={`px-3 py-1.5 rounded-full text-xs font-medium ${form.explicitlyUnassigned ? 'bg-amber-100 text-amber-700 ring-2 ring-amber-200' : 'bg-stone-50 text-stone-500 border border-stone-200 hover:border-amber-300 hover:text-amber-600'}`}
                 >
-                  Unassigned — assign before job date
+                  {t('schedule.form_unassigned_btn')}
                 </button>
               </div>
               {errors.assignees && <p className="text-xs text-red-500 mt-1">{errors.assignees}</p>}
               {!errors.assignees && form.assignees.length === 0 && !form.explicitlyUnassigned && (
-                <p className="text-xs text-amber-500 mt-1">Select a worker or choose Unassigned to continue.</p>
+                <p className="text-xs text-amber-500 mt-1">{t('schedule.form_select_or_unassigned')}</p>
               )}
             </div>
 
-            {/* Recurring worker assignment prompt — shown when frequency is set and a worker is selected */}
+            {/* Recurring worker assignment prompt */}
             {modal === 'add' && form.frequency !== 'one_time' && form.assignees.length > 0 && (
               <div className="p-3 bg-blue-50 border border-blue-200 rounded-xl">
                 <p className="text-sm font-medium text-blue-800 mb-3">
@@ -964,10 +960,10 @@ export default function Schedule({ user }) {
                 </p>
                 <div className="flex gap-2">
                   <button type="button" onClick={() => setRecurringWorkerChoice('all')} className={`flex-1 py-2 text-xs font-medium rounded-xl ${recurringWorkerChoice === 'all' ? 'bg-blue-700 text-white' : 'bg-white text-blue-700 border border-blue-200 hover:bg-blue-50'}`}>
-                    Yes — assign to all
+                    {t('schedule.form_assign_all_yes')}
                   </button>
                   <button type="button" onClick={() => setRecurringWorkerChoice('first_only')} className={`flex-1 py-2 text-xs font-medium rounded-xl ${recurringWorkerChoice === 'first_only' ? 'bg-stone-700 text-white' : 'bg-white text-stone-600 border border-stone-200 hover:bg-stone-50'}`}>
-                    No — this job only
+                    {t('schedule.form_assign_all_no')}
                   </button>
                 </div>
               </div>
@@ -975,22 +971,22 @@ export default function Schedule({ user }) {
 
             {conflicts.length > 0 && (
               <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl">
-                <div className="text-sm font-medium text-amber-800 mb-1">⚠️ Schedule Conflict</div>
+                <div className="text-sm font-medium text-amber-800 mb-1">{t('schedule.form_conflict_warning')}</div>
                 {conflicts.map(c => <div key={c.id} className="text-xs text-amber-700">{c.title} for {clientName(c.client_id)} at {formatTime(c.start_time, timeFormat)} ({c.duration_minutes}min)</div>)}
               </div>
             )}
 
-            <Field label="Notes" value={form.notes} onChange={v => setForm(f => ({...f, notes: v}))} type="textarea" placeholder="Any notes for this job..." />
+            <Field label={t('schedule.form_notes')} value={form.notes} onChange={v => setForm(f => ({...f, notes: v}))} type="textarea" placeholder={t('schedule.form_notes_placeholder')} />
           </div>
 
           <div className="flex gap-3 mt-6 pt-4 border-t border-stone-200">
-            <button onClick={() => setModal(null)} className="flex-1 py-2.5 bg-stone-100 text-stone-600 text-sm font-medium rounded-xl hover:bg-stone-200">Cancel</button>
+            <button onClick={() => setModal(null)} className="flex-1 py-2.5 bg-stone-100 text-stone-600 text-sm font-medium rounded-xl hover:bg-stone-200">{t('common.actions.cancel')}</button>
             <button
               onClick={handleSave}
               disabled={saving}
               className="flex-1 py-2.5 bg-emerald-700 text-white text-sm font-medium rounded-xl hover:bg-emerald-800 disabled:opacity-50"
             >
-              {saving ? 'Saving...' : modal === 'add' ? 'Create Job' : 'Save Changes'}
+              {saving ? t('common.actions.saving') : modal === 'add' ? t('schedule.form_create_job') : t('schedule.form_save_changes')}
             </button>
           </div>
         </Modal>
@@ -1002,6 +998,8 @@ export default function Schedule({ user }) {
 // ── Views ──
 
 function MonthView({ days, year, month, today, jobsOnDate, dateStr, timeFormat, onDayClick }) {
+  const { t } = useTranslation()
+  const DAYS = t('schedule.days_short', { returnObjects: true })
   return (
     <div className="bg-white rounded-2xl border border-stone-200 overflow-hidden">
       <div className="grid grid-cols-7 border-b border-stone-200">{DAYS.map(d => <div key={d} className="py-2 text-center text-xs font-semibold text-stone-400 uppercase tracking-wider">{d}</div>)}</div>
@@ -1028,6 +1026,8 @@ function MonthView({ days, year, month, today, jobsOnDate, dateStr, timeFormat, 
 }
 
 function WeekView({ days, today, jobsOnDate, onJobClick, onAddJob, timeFormat }) {
+  const { t } = useTranslation()
+  const DAYS = t('schedule.days_short', { returnObjects: true })
   return (
     <div className="bg-white rounded-2xl border border-stone-200 overflow-hidden">
       <div className="grid grid-cols-7 divide-x divide-stone-100">
@@ -1058,14 +1058,15 @@ function WeekView({ days, today, jobsOnDate, onJobClick, onAddJob, timeFormat })
 }
 
 function DayView({ date, today, jobs, onJobClick, onAddJob, workerName, clientName, onCheckIn, tz, timeFormat, currencySymbol = '$', isWorker = false }) {
+  const { t } = useTranslation()
   const ds = toDateStr(date); const isToday = ds === today
   const sorted = [...jobs].sort((a, b) => (a.start_time||'').localeCompare(b.start_time||''))
   return (
     <div className="bg-white rounded-2xl border border-stone-200 p-5">
       {sorted.length === 0 ? (
         <div className="text-center py-12">
-          <p className="text-stone-400 text-sm mb-3">No jobs scheduled for this day.</p>
-          <button onClick={onAddJob} className="px-4 py-2 bg-emerald-700 text-white text-sm font-medium rounded-xl hover:bg-emerald-800">Add a Job</button>
+          <p className="text-stone-400 text-sm mb-3">{t('schedule.day_empty')}</p>
+          <button onClick={onAddJob} className="px-4 py-2 bg-emerald-700 text-white text-sm font-medium rounded-xl hover:bg-emerald-800">{t('schedule.day_add_job')}</button>
         </div>
       ) : (
         <div className="space-y-3">
@@ -1091,11 +1092,11 @@ function DayView({ date, today, jobs, onJobClick, onAddJob, workerName, clientNa
                 const prop = job.clients?.client_properties?.[0]
                 if (!prop) return null
                 const items = [
-                  prop.alarm_code && { label: 'Alarm', value: prop.alarm_code },
-                  prop.key_info && { label: 'Key', value: prop.key_info },
-                  prop.parking_instructions && { label: 'Parking', value: prop.parking_instructions },
-                  prop.pet_details && { label: 'Pets', value: prop.pet_details },
-                  prop.special_notes && { label: 'Notes', value: prop.special_notes },
+                  prop.alarm_code && { label: t('schedule.property_alarm'), value: prop.alarm_code },
+                  prop.key_info && { label: t('schedule.property_key'), value: prop.key_info },
+                  prop.parking_instructions && { label: t('schedule.property_parking'), value: prop.parking_instructions },
+                  prop.pet_details && { label: t('schedule.property_pets'), value: prop.pet_details },
+                  prop.special_notes && { label: t('schedule.property_notes'), value: prop.special_notes },
                 ].filter(Boolean)
                 if (items.length === 0) return null
                 return (
@@ -1111,8 +1112,8 @@ function DayView({ date, today, jobs, onJobClick, onAddJob, workerName, clientNa
               })()}
               {isToday && (
                 <div className="flex gap-2 mt-3" onClick={e => e.stopPropagation()}>
-                  {job.status === 'scheduled' && <button onClick={() => onCheckIn(job, 'arrive')} className="px-3 py-1.5 bg-blue-600 text-white text-xs font-medium rounded-lg hover:bg-blue-700">Arrived</button>}
-                  {job.status === 'in_progress' && <button onClick={() => onCheckIn(job, 'complete')} className="px-3 py-1.5 bg-emerald-700 text-white text-xs font-medium rounded-lg hover:bg-emerald-800">Completed</button>}
+                  {job.status === 'scheduled' && <button onClick={() => onCheckIn(job, 'arrive')} className="px-3 py-1.5 bg-blue-600 text-white text-xs font-medium rounded-lg hover:bg-blue-700">{t('schedule.arrived_btn')}</button>}
+                  {job.status === 'in_progress' && <button onClick={() => onCheckIn(job, 'complete')} className="px-3 py-1.5 bg-emerald-700 text-white text-xs font-medium rounded-lg hover:bg-emerald-800">{t('schedule.completed_btn')}</button>}
                   {job.arrived_at && <span className="text-xs text-stone-400">Arrived {formatTimestamp(job.arrived_at, tz, timeFormat)}</span>}
                   {job.completed_at && <span className="text-xs text-stone-400">Done {formatTimestamp(job.completed_at, tz, timeFormat)}</span>}
                 </div>

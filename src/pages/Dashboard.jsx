@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { supabase } from '../lib/supabase'
 import { todayInTimezone, addDays, currentHourInTimezone, getTimezoneAbbr, formatTime } from '../lib/timezone'
 import { useAdminOrg } from '../contexts/AdminOrgContext'
@@ -8,6 +9,7 @@ import { formatCurrency } from '../lib/formatCurrency'
 import { formatName, formatAddress } from '../lib/formatAddress'
 
 export default function Dashboard({ user }) {
+  const { t } = useTranslation()
   const routerNavigate = useNavigate()
   const tz = user?.organizations?.settings?.timezone || 'America/Los_Angeles'
   const timeFormat = user?.organizations?.settings?.time_format || '12h'
@@ -48,7 +50,7 @@ export default function Dashboard({ user }) {
     if (hasError) {
       const errorResult = [jobsToday, jobsWeek, workers, overdue, payments, clients, pendingBookings].find(r => r.error)
       console.error('Dashboard load error:', errorResult.error)
-      showToast('Failed to load dashboard data. Please try again.', 'error')
+      showToast(t('common.error.failed_load_dashboard'), 'error')
       setLoading(false)
       return
     }
@@ -71,9 +73,9 @@ export default function Dashboard({ user }) {
 
   const greeting = () => {
     const hour = currentHourInTimezone(tz)
-    if (hour < 12) return 'Good morning'
-    if (hour < 17) return 'Good afternoon'
-    return 'Good evening'
+    if (hour < 12) return t('dashboard.greeting_morning')
+    if (hour < 17) return t('dashboard.greeting_afternoon')
+    return t('dashboard.greeting_evening')
   }
 
   const firstName = user?.name?.split(' ')[0] || user?.organizations?.name?.split(' ')[0] || 'there'
@@ -101,23 +103,23 @@ export default function Dashboard({ user }) {
 
   // For workers, filter to only their jobs
   function getMyJobs() {
-    return data.todayJobs.filter(job => 
+    return data.todayJobs.filter(job =>
       job.job_assignments?.some(a => a.user_id === user.id)
     )
   }
 
   async function handleConfirmBooking(job) {
     const { error } = await supabase.from('jobs').update({ status: 'scheduled' }).eq('id', job.id)
-    if (error) { showToast('Failed to confirm booking. Please try again.', 'error'); return }
+    if (error) { showToast(t('common.error.failed_confirm_booking'), 'error'); return }
     await supabase.from('clients').update({ status: 'active' }).eq('id', job.client_id)
-    showToast('Booking confirmed.')
+    showToast(t('common.toast.booking_confirmed'))
     loadDashboard()
   }
 
   async function handleDeclineBooking(job) {
     const { error } = await supabase.from('jobs').update({ status: 'cancelled' }).eq('id', job.id)
-    if (error) { showToast('Failed to decline booking. Please try again.', 'error'); return }
-    showToast('Booking declined.')
+    if (error) { showToast(t('common.error.failed_decline_booking'), 'error'); return }
+    showToast(t('common.toast.booking_declined'))
     loadDashboard()
   }
 
@@ -126,7 +128,7 @@ export default function Dashboard({ user }) {
   }
 
   if (loading) {
-    return <div className="p-6 md:p-8 text-stone-400">Loading...</div>
+    return <div className="p-6 md:p-8 text-stone-400">{t('dashboard.loading')}</div>
   }
 
   // ── Worker Dashboard (simplified) ──
@@ -137,15 +139,17 @@ export default function Dashboard({ user }) {
         <div className="mb-6">
           <h1 className="text-2xl font-bold text-stone-900">{greeting()}, {firstName}</h1>
           <p className="text-stone-500 text-sm mt-1">
-            {myJobs.length === 0 ? 'No jobs today' : `${myJobs.length} job${myJobs.length > 1 ? 's' : ''} today`}
+            {myJobs.length === 0
+              ? t('dashboard.worker_no_jobs')
+              : t('dashboard.worker_jobs_today', { count: myJobs.length })}
           </p>
         </div>
 
         {myJobs.length === 0 ? (
           <div className="bg-white rounded-2xl border border-stone-200 p-8 text-center">
             <div className="text-4xl mb-3">🎉</div>
-            <div className="text-stone-600 font-medium">No jobs scheduled today</div>
-            <div className="text-stone-400 text-sm mt-1">Enjoy your day off!</div>
+            <div className="text-stone-600 font-medium">{t('dashboard.no_jobs_scheduled')}</div>
+            <div className="text-stone-400 text-sm mt-1">{t('dashboard.enjoy_day_off')}</div>
           </div>
         ) : (
           <div className="space-y-3">
@@ -183,9 +187,9 @@ export default function Dashboard({ user }) {
       {data.pendingBookings.length > 0 && (
         <div className="mb-8">
           <div className="flex items-center gap-3 mb-4">
-            <h2 className="font-semibold text-amber-800">Booking Requests</h2>
+            <h2 className="font-semibold text-amber-800">{t('dashboard.booking_requests')}</h2>
             <span className="px-2 py-0.5 bg-amber-100 text-amber-700 rounded-full text-xs font-semibold">
-              {data.pendingBookings.length} pending
+              {t('dashboard.pending_count', { count: data.pendingBookings.length })}
             </span>
           </div>
           <div className="bg-amber-50 rounded-2xl border border-amber-200 divide-y divide-amber-100">
@@ -211,13 +215,13 @@ export default function Dashboard({ user }) {
                       onClick={() => handleConfirmBooking(job)}
                       className="px-3 py-1.5 bg-emerald-700 text-white text-xs font-medium rounded-lg hover:bg-emerald-800 transition-colors"
                     >
-                      Confirm
+                      {t('dashboard.confirm')}
                     </button>
                     <button
                       onClick={() => handleDeclineBooking(job)}
                       className="px-3 py-1.5 bg-red-50 text-red-600 text-xs font-medium rounded-lg hover:bg-red-100 transition-colors"
                     >
-                      Decline
+                      {t('dashboard.decline')}
                     </button>
                   </div>
                 </div>
@@ -230,7 +234,7 @@ export default function Dashboard({ user }) {
       {/* My Jobs Today — shown when owner/manager has assigned jobs */}
       {myJobs.length > 0 && (
         <div className="mb-8">
-          <h2 className="font-semibold text-stone-900 mb-3">My Jobs Today</h2>
+          <h2 className="font-semibold text-stone-900 mb-3">{t('dashboard.my_jobs_today')}</h2>
           <div className="grid gap-3 md:grid-cols-2">
             {myJobs.map((job, idx) => (
               <JobCard key={job.id} job={job} isNext={idx === 0 && job.status === 'scheduled'} tz={tz} user={user} onUpdate={loadDashboard} onJobClick={() => handleJobClick(job)} />
@@ -241,30 +245,30 @@ export default function Dashboard({ user }) {
 
       {/* Quick Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-8">
-        <StatCard label="Today's Jobs" value={data.todayJobs.length} sub={
+        <StatCard label={t('dashboard.stat_todays_jobs')} value={data.todayJobs.length} sub={
           <span className="text-xs">
-            {scheduledToday > 0 && <span className="text-blue-600">{scheduledToday} upcoming</span>}
-            {inProgressToday > 0 && <span className="text-amber-600">{scheduledToday > 0 ? ' · ' : ''}{inProgressToday} active</span>}
-            {completedToday > 0 && <span className="text-emerald-600">{(scheduledToday > 0 || inProgressToday > 0) ? ' · ' : ''}{completedToday} done</span>}
+            {scheduledToday > 0 && <span className="text-blue-600">{t('dashboard.stat_upcoming', { count: scheduledToday })}</span>}
+            {inProgressToday > 0 && <span className="text-amber-600">{scheduledToday > 0 ? ' · ' : ''}{t('dashboard.stat_active', { count: inProgressToday })}</span>}
+            {completedToday > 0 && <span className="text-emerald-600">{(scheduledToday > 0 || inProgressToday > 0) ? ' · ' : ''}{t('dashboard.stat_done', { count: completedToday })}</span>}
           </span>
         } />
-        <StatCard label="This Week" value={data.weekJobs.length} />
-        <StatCard label="Overdue" value={data.overdueInvoices.length} alert={data.overdueInvoices.length > 0} sub={
-          data.totalOutstanding > 0 ? <span className="text-xs text-red-500">{formatCurrency(data.totalOutstanding.toFixed(0), currencySymbol)} outstanding</span> : null
+        <StatCard label={t('dashboard.stat_this_week')} value={data.weekJobs.length} />
+        <StatCard label={t('dashboard.stat_overdue')} value={data.overdueInvoices.length} alert={data.overdueInvoices.length > 0} sub={
+          data.totalOutstanding > 0 ? <span className="text-xs text-red-500">{t('dashboard.stat_outstanding', { amount: formatCurrency(data.totalOutstanding.toFixed(0), currencySymbol) })}</span> : null
         } />
-        <StatCard label="Total Clients" value={data.totalClients} />
+        <StatCard label={t('dashboard.stat_total_clients')} value={data.totalClients} />
       </div>
 
       {/* ── Today's Team View ── */}
       <div className="mb-8">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="font-semibold text-stone-900">Today's Schedule by Team</h2>
-          <Link to="/schedule" className="text-sm text-emerald-700 hover:text-emerald-800 font-medium">View full schedule →</Link>
+          <h2 className="font-semibold text-stone-900">{t('dashboard.todays_schedule')}</h2>
+          <Link to="/schedule" className="text-sm text-emerald-700 hover:text-emerald-800 font-medium">{t('dashboard.view_full_schedule')}</Link>
         </div>
 
         {data.todayJobs.length === 0 ? (
           <div className="bg-white rounded-2xl border border-stone-200 p-8 text-center">
-            <div className="text-stone-400 text-sm">No jobs scheduled for today.</div>
+            <div className="text-stone-400 text-sm">{t('dashboard.no_jobs_today')}</div>
           </div>
         ) : (
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
@@ -283,11 +287,11 @@ export default function Dashboard({ user }) {
                     </div>
                     <div>
                       <div className="text-sm font-semibold text-stone-900">{worker.name}</div>
-                      <div className="text-[10px] text-stone-400 capitalize">{worker.role === 'ceo' ? 'Owner' : worker.role}</div>
+                      <div className="text-[10px] text-stone-400">{t(`common.roles.${worker.role}`)}</div>
                     </div>
                   </div>
                   <div className="flex items-center gap-1.5">
-                    <div className="text-xs text-stone-400">{byWorker[worker.id].length} jobs</div>
+                    <div className="text-xs text-stone-400">{t('dashboard.jobs_count', { count: byWorker[worker.id].length })}</div>
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-stone-300"><polyline points="9 18 15 12 9 6"/></svg>
                   </div>
                 </div>
@@ -320,7 +324,7 @@ export default function Dashboard({ user }) {
                 <div className="px-4 py-3 border-b border-amber-100 bg-amber-50">
                   <div className="flex items-center gap-2">
                     <span className="text-amber-600 text-sm">⚠</span>
-                    <div className="text-sm font-semibold text-amber-800">Unassigned</div>
+                    <div className="text-sm font-semibold text-amber-800">{t('dashboard.unassigned')}</div>
                   </div>
                 </div>
                 <div className="p-2 space-y-1.5">
@@ -339,7 +343,7 @@ export default function Dashboard({ user }) {
             {data.workers.filter(w => !byWorker[w.id] && w.availability === 'available').length > 0 && (
               <div className="bg-white rounded-2xl border border-stone-200 overflow-hidden">
                 <div className="px-4 py-3 border-b border-stone-100">
-                  <div className="text-sm font-semibold text-stone-500">Available — No Jobs</div>
+                  <div className="text-sm font-semibold text-stone-500">{t('dashboard.available_no_jobs')}</div>
                 </div>
                 <div className="p-3 space-y-2">
                   {data.workers.filter(w => !byWorker[w.id] && w.availability === 'available').map(w => (
@@ -361,8 +365,8 @@ export default function Dashboard({ user }) {
       {data.overdueInvoices.length > 0 && (
         <div className="mb-8">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="font-semibold text-red-800">Overdue Payments</h2>
-            <Link to="/payments" className="text-sm text-red-600 hover:text-red-700 font-medium">View all →</Link>
+            <h2 className="font-semibold text-red-800">{t('dashboard.overdue_payments')}</h2>
+            <Link to="/payments" className="text-sm text-red-600 hover:text-red-700 font-medium">{t('dashboard.view_all')}</Link>
           </div>
           <div className="bg-red-50 rounded-2xl border border-red-200 divide-y divide-red-100">
             {data.overdueInvoices.map(inv => (
@@ -384,8 +388,8 @@ export default function Dashboard({ user }) {
       {data.recentPayments.length > 0 && (
         <div>
           <div className="flex items-center justify-between mb-4">
-            <h2 className="font-semibold text-stone-900">Recent Payments</h2>
-            <Link to="/payments" className="text-sm text-emerald-700 hover:text-emerald-800 font-medium">View all →</Link>
+            <h2 className="font-semibold text-stone-900">{t('dashboard.recent_payments')}</h2>
+            <Link to="/payments" className="text-sm text-emerald-700 hover:text-emerald-800 font-medium">{t('dashboard.view_all')}</Link>
           </div>
           <div className="bg-white rounded-2xl border border-stone-200 divide-y divide-stone-100">
             {data.recentPayments.map(p => (
@@ -427,6 +431,7 @@ function StatusDot({ status }) {
 }
 
 function JobCard({ job, isNext, tz, user, onUpdate, onJobClick }) {
+  const { t } = useTranslation()
   const [step, setStep] = useState('idle') // idle | askPayment | paymentForm | done
   const [payAmount, setPayAmount] = useState(job.price ? String(job.price) : '')
   const currencySymbol = user?.organizations?.settings?.currency_symbol || '$'
@@ -482,7 +487,7 @@ function JobCard({ job, isNext, tz, user, onUpdate, onJobClick }) {
     <div className={`bg-white rounded-2xl border p-5 ${
       isNext ? 'border-emerald-300 ring-1 ring-emerald-100' : 'border-stone-200'
     }`}>
-      {isNext && <div className="text-[10px] font-semibold text-emerald-700 uppercase tracking-wider mb-2">Up Next</div>}
+      {isNext && <div className="text-[10px] font-semibold text-emerald-700 uppercase tracking-wider mb-2">{t('dashboard.job_up_next')}</div>}
       <div className="flex items-start justify-between cursor-pointer" onClick={() => onJobClick?.()}>
         <div>
           <div className="font-semibold text-stone-900">{job.title}</div>
@@ -495,21 +500,21 @@ function JobCard({ job, isNext, tz, user, onUpdate, onJobClick }) {
         </div>
       </div>
       {job.price && <div className="text-sm font-medium text-stone-600 mt-2">{formatCurrency(job.price, currencySymbol)}</div>}
-      
+
       {/* Actions */}
       <div className="mt-4 pt-3 border-t border-stone-100">
 
         {/* Scheduled → Arrived */}
         {job.status === 'scheduled' && step === 'idle' && (
           <button onClick={handleArrive} className="w-full py-2.5 bg-blue-600 text-white text-sm font-medium rounded-xl hover:bg-blue-700 transition-colors">
-            Arrived
+            {t('dashboard.job_arrived')}
           </button>
         )}
 
         {/* In Progress → Completed (triggers payment question) */}
         {job.status === 'in_progress' && step === 'idle' && (
           <button onClick={handleComplete} className="w-full py-2.5 bg-emerald-700 text-white text-sm font-medium rounded-xl hover:bg-emerald-800 transition-colors">
-            Completed
+            {t('dashboard.job_completed_btn')}
           </button>
         )}
 
@@ -517,15 +522,15 @@ function JobCard({ job, isNext, tz, user, onUpdate, onJobClick }) {
         {step === 'askPayment' && (
           <div className="space-y-3">
             <div className="text-center">
-              <div className="text-emerald-600 text-sm font-medium mb-3">✓ Job completed</div>
-              <div className="text-sm font-medium text-stone-700">Did you receive payment?</div>
+              <div className="text-emerald-600 text-sm font-medium mb-3">{t('dashboard.job_completed_label')}</div>
+              <div className="text-sm font-medium text-stone-700">{t('dashboard.payment_question')}</div>
             </div>
             <div className="flex gap-2">
               <button onClick={handleYesPayment} className="flex-1 py-2.5 bg-emerald-700 text-white text-sm font-medium rounded-xl hover:bg-emerald-800 transition-colors">
-                Yes
+                {t('dashboard.payment_yes')}
               </button>
               <button onClick={handleNoPayment} className="flex-1 py-2.5 bg-stone-100 text-stone-600 text-sm font-medium rounded-xl hover:bg-stone-200 transition-colors">
-                No
+                {t('dashboard.payment_no')}
               </button>
             </div>
           </div>
@@ -535,18 +540,18 @@ function JobCard({ job, isNext, tz, user, onUpdate, onJobClick }) {
         {step === 'paymentForm' && (
           <div className="space-y-3">
             <div>
-              <div className="text-sm font-medium text-stone-700">Amount received</div>
-              {job.price && <div className="text-xs text-stone-400 mt-0.5">Job total: {formatCurrency(job.price, currencySymbol)}</div>}
+              <div className="text-sm font-medium text-stone-700">{t('dashboard.payment_amount')}</div>
+              {job.price && <div className="text-xs text-stone-400 mt-0.5">{t('dashboard.payment_job_total')} {formatCurrency(job.price, currencySymbol)}</div>}
             </div>
             <div className="relative">
               <span className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-400 text-sm">{currencySymbol}</span>
               <input type="number" value={payAmount} onChange={e => setPayAmount(e.target.value)} placeholder="0.00" step="0.01" className="w-full pl-7 pr-3 py-2.5 bg-stone-50 border border-stone-200 rounded-xl text-sm text-stone-900 focus:outline-none focus:ring-2 focus:ring-emerald-600" />
             </div>
             {job.price && payAmount && Number(payAmount) < Number(job.price) && (
-              <div className="text-xs text-amber-600">Partial payment — {formatCurrency(Number(job.price) - Number(payAmount), currencySymbol)} remaining</div>
+              <div className="text-xs text-amber-600">{t('dashboard.payment_partial', { amount: formatCurrency(Number(job.price) - Number(payAmount), currencySymbol) })}</div>
             )}
             {job.price && payAmount && Number(payAmount) > Number(job.price) && (
-              <div className="text-xs text-blue-600">Overpayment of {formatCurrency(Number(payAmount) - Number(job.price), currencySymbol)} — includes tip or credit</div>
+              <div className="text-xs text-blue-600">{t('dashboard.payment_overpayment', { amount: formatCurrency(Number(payAmount) - Number(job.price), currencySymbol) })}</div>
             )}
             <div className="flex flex-wrap gap-2">
               {paymentMethods.map(m => (
@@ -556,9 +561,9 @@ function JobCard({ job, isNext, tz, user, onUpdate, onJobClick }) {
               ))}
             </div>
             <div className="flex gap-2">
-              <button onClick={() => setStep('askPayment')} className="flex-1 py-2 bg-stone-100 text-stone-600 text-sm font-medium rounded-xl hover:bg-stone-200 transition-colors">Back</button>
+              <button onClick={() => setStep('askPayment')} className="flex-1 py-2 bg-stone-100 text-stone-600 text-sm font-medium rounded-xl hover:bg-stone-200 transition-colors">{t('common.actions.back')}</button>
               <button onClick={handleRecordPayment} disabled={saving || !payAmount} className="flex-1 py-2 bg-emerald-700 text-white text-sm font-medium rounded-xl hover:bg-emerald-800 disabled:opacity-50 transition-colors">
-                {saving ? 'Saving...' : 'Save Payment'}
+                {saving ? t('dashboard.payment_saving') : t('dashboard.payment_save')}
               </button>
             </div>
           </div>
@@ -566,12 +571,12 @@ function JobCard({ job, isNext, tz, user, onUpdate, onJobClick }) {
 
         {/* Already completed (loaded from DB or after flow) */}
         {job.status === 'completed' && step === 'idle' && (
-          <div className="py-2.5 text-center text-emerald-600 text-sm font-medium">✓ Done</div>
+          <div className="py-2.5 text-center text-emerald-600 text-sm font-medium">{t('dashboard.job_done')}</div>
         )}
 
         {/* Just finished the flow */}
         {step === 'done' && (
-          <div className="py-2.5 text-center text-emerald-600 text-sm font-medium">✓ Done</div>
+          <div className="py-2.5 text-center text-emerald-600 text-sm font-medium">{t('dashboard.job_done')}</div>
         )}
       </div>
     </div>

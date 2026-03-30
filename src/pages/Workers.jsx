@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useTranslation } from 'react-i18next'
 
 function isValidEmail(v) { return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v) }
 function isValidPhone(v) {
@@ -14,6 +15,7 @@ import { TIERS } from '../lib/tiers'
 import { useSubscription } from '../contexts/SubscriptionContext'
 
 export default function Workers({ user }) {
+  const { t } = useTranslation()
   const [workers, setWorkers] = useState([])
   const [loading, setLoading] = useState(true)
   const [modal, setModal] = useState(null)
@@ -49,7 +51,7 @@ export default function Workers({ user }) {
 
     if (error) {
       console.error('Failed to load workers:', error)
-      showToast('Failed to load workers. Please try again.', 'error')
+      showToast(t('workers.toast_failed_load'), 'error')
       setLoading(false)
       return
     }
@@ -119,10 +121,10 @@ export default function Workers({ user }) {
 
   function validate() {
     const errs = {}
-    if (!form.name.trim()) errs.name = 'Name is required.'
-    if (!form.phone.trim() && !form.email.trim()) errs.contact = 'Provide a phone number or email — needed to log in.'
-    if (form.phone && !isValidPhone(form.phone)) errs.phone = 'Phone must have at least 7 digits.'
-    if (form.email && !isValidEmail(form.email)) errs.email = 'Enter a valid email address.'
+    if (!form.name.trim()) errs.name = t('workers.error_name')
+    if (!form.phone.trim() && !form.email.trim()) errs.contact = t('workers.error_contact')
+    if (form.phone && !isValidPhone(form.phone)) errs.phone = t('workers.error_phone')
+    if (form.email && !isValidEmail(form.email)) errs.email = t('workers.error_email')
     return errs
   }
 
@@ -157,7 +159,7 @@ export default function Workers({ user }) {
       })
       if (error) {
         console.error('Failed to add worker:', error)
-        showToast('Failed to save changes. Please try again.', 'error')
+        showToast(t('workers.toast_failed_save'), 'error')
         setSaving(false)
         return
       }
@@ -176,7 +178,7 @@ export default function Workers({ user }) {
         .eq('id', selectedWorker.id)
       if (error) {
         console.error('Failed to update worker:', error)
-        showToast('Failed to save changes. Please try again.', 'error')
+        showToast(t('workers.toast_failed_save'), 'error')
         setSaving(false)
         return
       }
@@ -191,7 +193,7 @@ export default function Workers({ user }) {
     const { error } = await supabase.from('users').delete().eq('id', id)
     if (error) {
       console.error('Failed to delete worker:', error)
-      showToast('Failed to delete worker. Please try again.', 'error')
+      showToast(t('workers.toast_failed_delete'), 'error')
       return
     }
     setDeleteConfirm(null)
@@ -206,7 +208,7 @@ export default function Workers({ user }) {
       .eq('id', worker.id)
     if (error) {
       console.error('Failed to update availability:', error)
-      showToast('Something went wrong. Please try again.', 'error')
+      showToast(t('workers.toast_failed_update'), 'error')
       return
     }
     loadWorkers()
@@ -273,7 +275,7 @@ export default function Workers({ user }) {
   }
 
   if (loading) {
-    return <div className="p-6 md:p-8 text-stone-400">Loading workers...</div>
+    return <div className="p-6 md:p-8 text-stone-400">{t('workers.loading')}</div>
   }
 
   return (
@@ -281,17 +283,17 @@ export default function Workers({ user }) {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-stone-900">Workers</h1>
-          <p className="text-stone-500 text-sm mt-1">{workers.length} team members</p>
+          <h1 className="text-2xl font-bold text-stone-900">{t('workers.heading')}</h1>
+          <p className="text-stone-500 text-sm mt-1">{t('workers.team_members', { count: workers.length })}</p>
         </div>
         <div className="flex gap-2">
           <button onClick={() => setShowImport(true)} className="inline-flex items-center gap-2 px-4 py-2.5 bg-white border border-stone-200 text-stone-600 text-sm font-medium rounded-xl hover:bg-stone-50 transition-colors">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-            Import CSV
+            {t('workers.import_csv')}
           </button>
           <button onClick={openAdd} className="inline-flex items-center gap-2 px-4 py-2.5 bg-emerald-700 text-white text-sm font-medium rounded-xl hover:bg-emerald-800 transition-colors">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-            Add Worker
+            {t('workers.add_worker')}
           </button>
         </div>
       </div>
@@ -301,7 +303,7 @@ export default function Workers({ user }) {
         <div className="mb-4 flex items-start gap-3 p-4 bg-blue-50 border border-blue-200 rounded-xl">
           <svg className="flex-shrink-0 mt-0.5 text-blue-500" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
           <p className="flex-1 text-sm text-blue-800">
-            Your <span className="font-semibold">{tierName}</span> plan includes {staffLimit} staff accounts. Upgrade to add more team members.
+            {t('workers.staff_limit_prefix')} <span className="font-semibold">{tierName}</span> {t('workers.staff_limit_suffix', { staffLimit })}
           </p>
           <button onClick={() => setStaffLimitBanner(false)} className="flex-shrink-0 text-blue-400 hover:text-blue-600">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
@@ -312,9 +314,9 @@ export default function Workers({ user }) {
       {/* Worker Grid */}
       {workers.length === 0 ? (
         <div className="bg-white rounded-2xl border border-stone-200 p-12 text-center">
-          <div className="text-stone-400 text-sm mb-3">No team members yet.</div>
+          <div className="text-stone-400 text-sm mb-3">{t('workers.no_workers')}</div>
           <button onClick={openAdd} className="px-4 py-2 bg-emerald-700 text-white text-sm font-medium rounded-xl hover:bg-emerald-800 transition-colors">
-            Add your first worker
+            {t('workers.add_first')}
           </button>
         </div>
       ) : (
@@ -338,10 +340,10 @@ export default function Workers({ user }) {
                     <div className="font-semibold text-stone-900 text-sm flex items-center gap-1.5">
                       {worker.name}
                       {!worker.auth_linked && (
-                        <span className="text-[10px] text-stone-400 font-normal">(no login)</span>
+                        <span className="text-[10px] text-stone-400 font-normal">({t('workers.no_login')})</span>
                       )}
                     </div>
-                    <div className="text-xs text-stone-400 capitalize">{worker.role === 'ceo' ? 'CEO (Owner)' : worker.role}</div>
+                    <div className="text-xs text-stone-400">{t(`workers.role_${worker.role}`)}</div>
                   </div>
                 </div>
                 <AvailabilityBadge status={worker.availability} />
@@ -370,7 +372,7 @@ export default function Workers({ user }) {
                   <button
                     key={status}
                     onClick={(e) => { e.stopPropagation(); toggleAvailability(worker, status); }}
-                    className={`flex-1 py-1.5 text-xs font-medium rounded-lg transition-colors capitalize ${
+                    className={`flex-1 py-1.5 text-xs font-medium rounded-lg transition-colors ${
                       worker.availability === status
                         ? status === 'available' ? 'bg-emerald-100 text-emerald-700'
                         : status === 'vacation' ? 'bg-blue-100 text-blue-700'
@@ -378,7 +380,7 @@ export default function Workers({ user }) {
                         : 'text-stone-400 hover:bg-stone-50'
                     }`}
                   >
-                    {status === 'unavailable' ? 'Off' : status}
+                    {t(`workers.availability_${status}`)}
                   </button>
                 ))}
               </div>
@@ -402,19 +404,19 @@ export default function Workers({ user }) {
               <div>
                 <h2 className="text-lg font-bold text-stone-900">{selectedWorker.name}</h2>
                 <div className="flex items-center gap-2 mt-0.5">
-                  <span className="text-xs text-stone-400 capitalize">{selectedWorker.role === 'ceo' ? 'CEO (Owner)' : selectedWorker.role}</span>
+                  <span className="text-xs text-stone-400">{t(`workers.role_${selectedWorker.role}`)}</span>
                   <AvailabilityBadge status={selectedWorker.availability} />
                   {selectedWorker.auth_linked ? (
-                    <span className="text-[10px] px-1.5 py-0.5 bg-emerald-50 text-emerald-600 rounded-full">Can log in</span>
+                    <span className="text-[10px] px-1.5 py-0.5 bg-emerald-50 text-emerald-600 rounded-full">{t('workers.can_log_in')}</span>
                   ) : (
-                    <span className="text-[10px] px-1.5 py-0.5 bg-stone-100 text-stone-400 rounded-full">No login</span>
+                    <span className="text-[10px] px-1.5 py-0.5 bg-stone-100 text-stone-400 rounded-full">{t('workers.no_login_badge')}</span>
                   )}
                 </div>
               </div>
             </div>
             <div className="flex gap-2">
               <button onClick={() => openEdit(selectedWorker)} className="px-3 py-1.5 bg-stone-100 text-stone-600 text-sm font-medium rounded-lg hover:bg-stone-200 transition-colors">
-                Edit
+                {t('common.actions.edit')}
               </button>
               <button onClick={() => setModal(null)} className="p-1.5 text-stone-400 hover:text-stone-600">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
@@ -425,20 +427,20 @@ export default function Workers({ user }) {
           <div className="space-y-4">
             {selectedWorker.phone && (
               <div className="flex justify-between py-1.5">
-                <span className="text-xs text-stone-400">Phone</span>
+                <span className="text-xs text-stone-400">{t('workers.field_phone')}</span>
                 <span className="text-sm text-stone-700">{selectedWorker.phone}</span>
               </div>
             )}
             {selectedWorker.email && (
               <div className="flex justify-between py-1.5">
-                <span className="text-xs text-stone-400">Email</span>
+                <span className="text-xs text-stone-400">{t('workers.field_email')}</span>
                 <span className="text-sm text-stone-700">{selectedWorker.email}</span>
               </div>
             )}
 
             {selectedWorker.skills?.length > 0 && (
               <div>
-                <div className="text-xs font-semibold text-stone-400 uppercase tracking-wider mb-2">Skills</div>
+                <div className="text-xs font-semibold text-stone-400 uppercase tracking-wider mb-2">{t('workers.field_skills')}</div>
                 <div className="flex flex-wrap gap-2">
                   {selectedWorker.skills.map(skill => (
                     <span key={skill} className="px-2.5 py-1 bg-stone-100 text-stone-600 rounded-full text-xs font-medium">
@@ -452,24 +454,24 @@ export default function Workers({ user }) {
 
           <div className="flex gap-3 mt-6 pt-4 border-t border-stone-200">
             <button onClick={() => openEdit(selectedWorker)} className="flex-1 py-2.5 bg-emerald-700 text-white text-sm font-medium rounded-xl hover:bg-emerald-800 transition-colors">
-              Edit Worker
+              {t('workers.modal_edit_worker')}
             </button>
             {selectedWorker.id !== user.id && (
               <button
                 onClick={() => setDeleteConfirm(selectedWorker.id)}
                 className="px-4 py-2.5 bg-red-50 text-red-600 text-sm font-medium rounded-xl hover:bg-red-100 transition-colors"
               >
-                Delete
+                {t('workers.modal_delete')}
               </button>
             )}
           </div>
 
           {deleteConfirm === selectedWorker.id && (
             <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-xl">
-              <p className="text-sm text-red-700 mb-3">Remove {selectedWorker.name} from the team? This cannot be undone.</p>
+              <p className="text-sm text-red-700 mb-3">{t('workers.modal_delete_confirm', { name: selectedWorker.name })}</p>
               <div className="flex gap-2">
-                <button onClick={() => handleDelete(selectedWorker.id)} className="px-3 py-1.5 bg-red-600 text-white text-sm rounded-lg hover:bg-red-700">Yes, remove</button>
-                <button onClick={() => setDeleteConfirm(null)} className="px-3 py-1.5 bg-white text-stone-600 text-sm rounded-lg border border-stone-200 hover:bg-stone-50">Cancel</button>
+                <button onClick={() => handleDelete(selectedWorker.id)} className="px-3 py-1.5 bg-red-600 text-white text-sm rounded-lg hover:bg-red-700">{t('workers.modal_delete_yes')}</button>
+                <button onClick={() => setDeleteConfirm(null)} className="px-3 py-1.5 bg-white text-stone-600 text-sm rounded-lg border border-stone-200 hover:bg-stone-50">{t('common.actions.cancel')}</button>
               </div>
             </div>
           )}
@@ -492,7 +494,7 @@ export default function Workers({ user }) {
         <Modal onClose={() => setModal(null)}>
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-lg font-bold text-stone-900">
-              {modal === 'add' ? 'Add Worker' : 'Edit Worker'}
+              {modal === 'add' ? t('workers.modal_add') : t('workers.modal_edit')}
             </h2>
             <button onClick={() => setModal(null)} className="p-1.5 text-stone-400 hover:text-stone-600">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
@@ -501,48 +503,48 @@ export default function Workers({ user }) {
 
           <div className="space-y-4">
             <div>
-              <Field label="Name *" value={form.name} onChange={v => { setForm(f => ({ ...f, name: v })); setErrors(er => { const n = {...er}; delete n.name; return n }) }} placeholder="Full name" />
+              <Field label={t('workers.field_name')} value={form.name} onChange={v => { setForm(f => ({ ...f, name: v })); setErrors(er => { const n = {...er}; delete n.name; return n }) }} placeholder="Full name" />
               {errors.name && <p className="text-xs text-red-500 mt-1">{errors.name}</p>}
             </div>
             <div>
-              <Field label="Phone" value={form.phone} onChange={v => { setForm(f => ({ ...f, phone: v })); setErrors(er => { const n = {...er}; delete n.phone; delete n.contact; return n }) }} type="tel" placeholder="+1 650 686 8323" />
+              <Field label={t('workers.field_phone')} value={form.phone} onChange={v => { setForm(f => ({ ...f, phone: v })); setErrors(er => { const n = {...er}; delete n.phone; delete n.contact; return n }) }} type="tel" placeholder="+1 650 686 8323" />
               {errors.phone && <p className="text-xs text-red-500 mt-1">{errors.phone}</p>}
             </div>
             <div>
-              <Field label="Email" value={form.email} onChange={v => { setForm(f => ({ ...f, email: v })); setErrors(er => { const n = {...er}; delete n.email; delete n.contact; return n }) }} type="email" placeholder="Optional" />
+              <Field label={t('workers.field_email')} value={form.email} onChange={v => { setForm(f => ({ ...f, email: v })); setErrors(er => { const n = {...er}; delete n.email; delete n.contact; return n }) }} type="email" placeholder="Optional" />
               {errors.email && <p className="text-xs text-red-500 mt-1">{errors.email}</p>}
             </div>
             {errors.contact && <p className="text-xs text-red-500 -mt-2">{errors.contact}</p>}
-            
+
             {/* Role */}
             <div>
-              <label className="block text-xs font-medium text-stone-500 mb-1.5">Role</label>
+              <label className="block text-xs font-medium text-stone-500 mb-1.5">{t('workers.field_role')}</label>
               <select
                 value={form.role}
                 onChange={e => setForm(f => ({ ...f, role: e.target.value }))}
                 className="w-full px-3 py-2.5 bg-stone-50 border border-stone-200 rounded-xl text-sm text-stone-900 focus:outline-none focus:ring-2 focus:ring-emerald-600 focus:border-transparent"
               >
-                <option value="worker">Worker</option>
-                <option value="manager">Manager</option>
-                <option value="ceo">CEO (Owner)</option>
+                <option value="worker">{t('workers.role_worker')}</option>
+                <option value="manager">{t('workers.role_manager')}</option>
+                <option value="ceo">{t('workers.role_ceo')}</option>
               </select>
               <p className="text-xs text-stone-400 mt-1">
-                {form.role === 'worker' && 'Can view schedule, check in, record payments on assigned jobs'}
-                {form.role === 'manager' && 'Can manage schedule, assign workers, manage staff'}
-                {form.role === 'ceo' && 'Full access to everything including finances and settings'}
+                {form.role === 'worker' && t('workers.role_desc_worker')}
+                {form.role === 'manager' && t('workers.role_desc_manager')}
+                {form.role === 'ceo' && t('workers.role_desc_ceo')}
               </p>
             </div>
 
             {/* Availability */}
             <div>
-              <label className="block text-xs font-medium text-stone-500 mb-1.5">Availability</label>
+              <label className="block text-xs font-medium text-stone-500 mb-1.5">{t('workers.field_availability')}</label>
               <div className="flex gap-2">
                 {['available', 'unavailable', 'vacation'].map(status => (
                   <button
                     key={status}
                     type="button"
                     onClick={() => setForm(f => ({ ...f, availability: status }))}
-                    className={`flex-1 py-2.5 text-sm font-medium rounded-xl transition-colors capitalize ${
+                    className={`flex-1 py-2.5 text-sm font-medium rounded-xl transition-colors ${
                       form.availability === status
                         ? status === 'available' ? 'bg-emerald-100 text-emerald-700 ring-2 ring-emerald-200'
                         : status === 'vacation' ? 'bg-blue-100 text-blue-700 ring-2 ring-blue-200'
@@ -550,7 +552,7 @@ export default function Workers({ user }) {
                         : 'bg-stone-50 text-stone-400 border border-stone-200'
                     }`}
                   >
-                    {status === 'unavailable' ? 'Off' : status}
+                    {t(`workers.availability_${status}`)}
                   </button>
                 ))}
               </div>
@@ -558,24 +560,24 @@ export default function Workers({ user }) {
 
             {/* Home Address */}
             <div>
-              <label className="block text-xs font-semibold text-stone-500 uppercase tracking-wider text-[11px] mb-3">Home Address (optional — for route planning)</label>
+              <label className="block text-xs font-semibold text-stone-500 uppercase tracking-wider text-[11px] mb-3">{t('workers.field_address')}</label>
               <div className="space-y-3">
-                <Field label="Address Line 1" value={form.address_line_1} onChange={v => setForm(f => ({ ...f, address_line_1: v }))} placeholder="123 Main St" />
-                <Field label="Address Line 2" value={form.address_line_2} onChange={v => setForm(f => ({ ...f, address_line_2: v }))} placeholder="Apt, suite, unit, etc." />
+                <Field label={t('workers.field_address1')} value={form.address_line_1} onChange={v => setForm(f => ({ ...f, address_line_1: v }))} placeholder="123 Main St" />
+                <Field label={t('workers.field_address2')} value={form.address_line_2} onChange={v => setForm(f => ({ ...f, address_line_2: v }))} placeholder="Apt, suite, unit, etc." />
                 <div className="grid grid-cols-2 gap-3">
-                  <Field label="City" value={form.city} onChange={v => setForm(f => ({ ...f, city: v }))} placeholder="Sacramento" />
-                  <Field label="State / Province" value={form.state_province} onChange={v => setForm(f => ({ ...f, state_province: v }))} placeholder="CA" />
+                  <Field label={t('workers.field_city')} value={form.city} onChange={v => setForm(f => ({ ...f, city: v }))} placeholder="Sacramento" />
+                  <Field label={t('workers.field_state')} value={form.state_province} onChange={v => setForm(f => ({ ...f, state_province: v }))} placeholder="CA" />
                 </div>
                 <div className="grid grid-cols-2 gap-3">
-                  <Field label="Postal Code" value={form.postal_code} onChange={v => setForm(f => ({ ...f, postal_code: v }))} placeholder="95814" />
-                  <Field label="Country" value={form.country} onChange={v => setForm(f => ({ ...f, country: v }))} placeholder="US" />
+                  <Field label={t('workers.field_postal')} value={form.postal_code} onChange={v => setForm(f => ({ ...f, postal_code: v }))} placeholder="95814" />
+                  <Field label={t('workers.field_country')} value={form.country} onChange={v => setForm(f => ({ ...f, country: v }))} placeholder="US" />
                 </div>
               </div>
             </div>
 
             {/* Skills */}
             <div>
-              <label className="block text-xs font-medium text-stone-500 mb-1.5">Skills / Certifications</label>
+              <label className="block text-xs font-medium text-stone-500 mb-1.5">{t('workers.field_skills_label')}</label>
               <div className="flex flex-wrap gap-2 mb-2">
                 {form.skills?.map(skill => (
                   <span key={skill} className="inline-flex items-center gap-1 px-2.5 py-1 bg-emerald-50 text-emerald-700 rounded-full text-xs font-medium">
@@ -592,10 +594,10 @@ export default function Workers({ user }) {
                   value={skillInput}
                   onChange={e => setSkillInput(e.target.value)}
                   onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addSkill(); } }}
-                  placeholder="Add a skill..."
+                  placeholder={t('workers.skill_placeholder')}
                   className="flex-1 px-3 py-2 bg-stone-50 border border-stone-200 rounded-xl text-sm text-stone-900 placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-emerald-600 focus:border-transparent"
                 />
-                <button onClick={addSkill} className="px-3 py-2 bg-stone-100 text-stone-600 text-sm rounded-xl hover:bg-stone-200 transition-colors">Add</button>
+                <button onClick={addSkill} className="px-3 py-2 bg-stone-100 text-stone-600 text-sm rounded-xl hover:bg-stone-200 transition-colors">{t('workers.skill_add_btn')}</button>
               </div>
             </div>
           </div>
@@ -603,21 +605,21 @@ export default function Workers({ user }) {
           {modal === 'add' && (
             <div className="mt-4 p-3 bg-stone-50 border border-stone-200 rounded-xl">
               <p className="text-xs text-stone-500">
-                This adds the worker to your team so you can assign them to jobs. They don't need a login account to appear on the schedule. If they need to log in later (to check in, view their jobs, or record payments), they can be linked to a phone number.
+                {t('workers.modal_add_hint')}
               </p>
             </div>
           )}
 
           <div className="flex gap-3 mt-6 pt-4 border-t border-stone-200">
             <button onClick={() => setModal(null)} className="flex-1 py-2.5 bg-stone-100 text-stone-600 text-sm font-medium rounded-xl hover:bg-stone-200 transition-colors">
-              Cancel
+              {t('common.actions.cancel')}
             </button>
             <button
               onClick={handleSave}
               disabled={saving}
               className="flex-1 py-2.5 bg-emerald-700 text-white text-sm font-medium rounded-xl hover:bg-emerald-800 disabled:opacity-50 transition-colors"
             >
-              {saving ? 'Saving...' : modal === 'add' ? 'Add Worker' : 'Save Changes'}
+              {saving ? t('workers.modal_saving') : modal === 'add' ? t('workers.add_worker') : t('workers.modal_save')}
             </button>
           </div>
         </Modal>
@@ -652,14 +654,15 @@ function Field({ label, value, onChange, placeholder, type = 'text' }) {
 }
 
 function AvailabilityBadge({ status }) {
+  const { t } = useTranslation()
   const styles = {
     available: 'bg-emerald-100 text-emerald-700',
     unavailable: 'bg-stone-100 text-stone-500',
     vacation: 'bg-blue-100 text-blue-700',
   }
   return (
-    <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium capitalize ${styles[status] || styles.available}`}>
-      {status}
+    <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium ${styles[status] || styles.available}`}>
+      {t(`workers.availability_${status}`, { defaultValue: status })}
     </span>
   )
 }
