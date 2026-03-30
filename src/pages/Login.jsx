@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { supabase } from '../lib/supabase'
+import LanguageSwitcher from '../components/LanguageSwitcher'
 
 const sessionExpired = new URLSearchParams(window.location.search).get('expired') === '1'
 
@@ -94,6 +95,9 @@ export default function Login() {
 
   return (
     <div className="min-h-screen bg-stone-50 flex items-center justify-center px-4">
+      <div className="fixed top-4 right-4">
+        <LanguageSwitcher />
+      </div>
       <div className="w-full max-w-sm">
         {/* Session expired banner */}
         {sessionExpired && (

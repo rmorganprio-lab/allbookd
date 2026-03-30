@@ -2,6 +2,7 @@ import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useState } from 'react'
 import { useAdminOrg } from '../contexts/AdminOrgContext'
+import LanguageSwitcher from './LanguageSwitcher'
 
 // Full nav for CEO and Manager
 const ownerNav = [
@@ -187,6 +188,11 @@ export default function Layout({ user }) {
             )}
           </>
         )}
+
+        {/* Language Switcher */}
+        <div className="px-4 pb-2">
+          <LanguageSwitcher />
+        </div>
 
         {/* User / Sign Out */}
         <div className="p-4 border-t border-stone-200">

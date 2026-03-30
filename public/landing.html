@@ -732,6 +732,31 @@
       .hero-ctas { flex-direction: column; }
       .btn-primary, .btn-secondary { justify-content: center; }
     }
+
+    /* ─── LANGUAGE SWITCHER ─────────────────────────────────── */
+    .lang-switcher {
+      display: flex;
+      align-items: center;
+      gap: 2px;
+      font-size: 12px;
+      font-weight: 500;
+      flex-shrink: 0;
+    }
+    .lang-switcher button {
+      background: none;
+      border: none;
+      cursor: pointer;
+      padding: 2px 4px;
+      border-radius: 4px;
+      color: var(--stone-400);
+      font-size: 12px;
+      font-weight: 500;
+      transition: color .15s;
+      font-family: inherit;
+    }
+    .lang-switcher button:hover { color: var(--stone-700); }
+    .lang-switcher button.active { color: var(--emerald-700); font-weight: 600; }
+    .lang-switcher .sep { color: var(--stone-200); line-height: 1; }
   </style>
 </head>
 <body>
@@ -751,6 +776,11 @@
       <a href="#features">Features</a>
       <a href="#how-it-works">How It Works</a>
       <a href="#pricing">Pricing</a>
+      <div class="lang-switcher" id="landingLangSwitcher">
+        <button id="langEn" onclick="setLang('en')">EN</button>
+        <span class="sep">|</span>
+        <button id="langEs" onclick="setLang('es')">ES</button>
+      </div>
       <a href="/login" class="btn-nav">Sign In</a>
     </div>
   </div>
@@ -1079,5 +1109,17 @@
   </div>
 </footer>
 
+<script>
+  function setLang(lang) {
+    localStorage.setItem('timelyops_language', lang)
+    document.getElementById('langEn').classList.toggle('active', lang === 'en')
+    document.getElementById('langEs').classList.toggle('active', lang === 'es')
+  }
+  // Initialise active state from localStorage on page load
+  ;(function() {
+    var lang = localStorage.getItem('timelyops_language') || 'en'
+    setLang(lang)
+  })()
+</script>
 </body>
 </html>

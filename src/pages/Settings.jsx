@@ -391,6 +391,7 @@ export default function Settings({ user }) {
       return
     }
 
+    localStorage.setItem('timelyops_language', language)
     await i18n.changeLanguage(language)
     showToast('Settings saved')
     setTimeout(() => window.location.reload(), 600)

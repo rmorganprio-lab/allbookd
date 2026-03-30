@@ -10,7 +10,7 @@ i18n
       en: { translation: en },
       es: { translation: es },
     },
-    lng: 'en',
+    lng: localStorage.getItem('timelyops_language') || 'en',
     fallbackLng: 'en',
     interpolation: {
       escapeValue: false, // React already escapes values
