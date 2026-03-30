@@ -111,7 +111,7 @@ export default function Settings({ user }) {
       .single()
     if (error) {
       console.error('Failed to load settings:', error)
-      showToast('Failed to load settings. Please try again.', 'error')
+      showToast(t('settings.toast_load_failed'), 'error')
       setLoading(false)
       return
     }
@@ -156,11 +156,11 @@ export default function Settings({ user }) {
 
   function validate() {
     const errs = {}
-    if (!orgName.trim()) errs.orgName = 'Business name is required.'
+    if (!orgName.trim()) errs.orgName = t('settings.error_org_name')
     if (taxRate === '' || isNaN(Number(taxRate)) || Number(taxRate) < 0 || Number(taxRate) > 100) {
-      errs.taxRate = 'Tax rate must be a number between 0 and 100.'
+      errs.taxRate = t('settings.error_tax_rate')
     }
-    if (paymentMethods.length === 0) errs.paymentMethods = 'At least one payment method is required.'
+    if (paymentMethods.length === 0) errs.paymentMethods = t('settings.error_payment_methods')
     return errs
   }
 
@@ -204,7 +204,7 @@ export default function Settings({ user }) {
       description: stForm.description.trim() || null,
       default_duration_minutes: Number(stForm.default_duration_minutes) || 120,
     })
-    if (error) { showToast('Failed to add service type.', 'error') }
+    if (error) { showToast(t('settings.toast_add_st_failed'), 'error') }
     else {
       setStForm({ name: '', description: '', default_duration_minutes: 120 })
       setStAdding(false)
@@ -222,14 +222,14 @@ export default function Settings({ user }) {
       description: stEditForm.description?.trim() || null,
       default_duration_minutes: Number(stEditForm.default_duration_minutes) || 120,
     }).eq('id', id)
-    if (error) { showToast('Failed to update service type.', 'error') }
+    if (error) { showToast(t('settings.toast_update_st_failed'), 'error') }
     else { setStEditing(null); await loadAllServiceTypes(); await loadPricing() }
     setStSaving(false)
   }
 
   async function toggleServiceTypeActive(st) {
     const { error } = await supabase.from('service_types').update({ is_active: !st.is_active }).eq('id', st.id)
-    if (error) { showToast('Failed to update service type.', 'error') }
+    if (error) { showToast(t('settings.toast_update_st_failed'), 'error') }
     else { await loadAllServiceTypes(); await loadPricing() }
   }
 
@@ -240,16 +240,16 @@ export default function Settings({ user }) {
       .eq('service_type_id', st.id)
     const pricingCount = pricingRows?.length ?? 0
 
-    let message = `Remove "${st.name}" from your service list?`
+    let message = t('settings.delete_st_confirm', { name: st.name })
     if (pricingCount > 0) {
-      message += ` This will also delete ${pricingCount} pricing entr${pricingCount !== 1 ? 'ies' : 'y'} associated with it.`
+      message += ' ' + t('settings.delete_st_pricing', { count: pricingCount })
     }
     setStConfirm({ id: st.id, message })
   }
 
   async function doDeleteServiceType(id) {
     const { error } = await supabase.from('service_types').delete().eq('id', id)
-    if (error) { showToast('Failed to delete service type.', 'error') }
+    if (error) { showToast(t('settings.toast_delete_st_failed'), 'error') }
     else { await loadAllServiceTypes(); await loadPricing() }
     setStConfirm(null)
   }
@@ -307,7 +307,7 @@ export default function Settings({ user }) {
     if (deleteServiceTypes && matchingIds.length > 0) {
       await supabase.from('service_types').delete().in('id', matchingIds)
     }
-    showToast(deleteServiceTypes ? 'Profile and service types removed' : 'Profile removed')
+    showToast(deleteServiceTypes ? t('settings.toast_profile_and_st_removed') : t('settings.toast_profile_removed'))
     setRemoveProfileConfirm(null)
     await loadProfiles()
     await loadAllServiceTypes()
@@ -338,19 +338,19 @@ export default function Settings({ user }) {
     }
     const { error: delErr } = await supabase.from('pricing_matrix').delete().eq('org_id', effectiveOrgId).eq('service_type_id', selectedServiceType)
     if (delErr) {
-      showToast('Failed to save pricing. Please try again.', 'error')
+      showToast(t('settings.toast_pricing_failed'), 'error')
       setPricingSaving(false)
       return
     }
     if (rows.length > 0) {
       const { error: insErr } = await supabase.from('pricing_matrix').insert(rows)
       if (insErr) {
-        showToast('Failed to save pricing. Please try again.', 'error')
+        showToast(t('settings.toast_pricing_failed'), 'error')
         setPricingSaving(false)
         return
       }
     }
-    showToast(`Pricing saved — ${rows.length} price${rows.length !== 1 ? 's' : ''} set`)
+    showToast(t('settings.toast_pricing_saved', { count: rows.length }))
     setPricingSaving(false)
   }
 
@@ -386,18 +386,18 @@ export default function Settings({ user }) {
 
     if (error) {
       console.error('Failed to save settings:', error)
-      showToast('Failed to save changes. Please try again.', 'error')
+      showToast(t('settings.toast_save_failed'), 'error')
       setSaving(false)
       return
     }
 
     localStorage.setItem('timelyops_language', language)
     await i18n.changeLanguage(language)
-    showToast('Settings saved')
+    showToast(t('settings.toast_saved'))
     setTimeout(() => window.location.reload(), 600)
   }
 
-  if (loading) return <div className="p-6 md:p-8 text-stone-400">Loading settings...</div>
+  if (loading) return <div className="p-6 md:p-8 text-stone-400">{t('settings.loading')}</div>
 
   const tzGroups = US_TIMEZONES.reduce((acc, tz) => {
     const g = tz.group || 'Other'
@@ -409,23 +409,23 @@ export default function Settings({ user }) {
   return (
     <div className="p-6 md:p-8 max-w-2xl">
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-stone-900">Settings</h1>
-        <p className="text-stone-500 text-sm mt-1">Organization preferences</p>
+        <h1 className="text-2xl font-bold text-stone-900">{t('settings.heading')}</h1>
+        <p className="text-stone-500 text-sm mt-1">{t('settings.subheading')}</p>
       </div>
 
       {!canEdit && (
         <div className="mb-6 p-4 bg-amber-50 border border-amber-200 rounded-xl text-sm text-amber-700">
-          Only the account owner can change settings.
+          {t('settings.read_only_notice')}
         </div>
       )}
 
       {/* Organization */}
       <div className="bg-white rounded-2xl border border-stone-200 p-6 mb-4">
-        <h2 className="text-sm font-semibold text-stone-500 uppercase tracking-wider mb-4">Organization</h2>
+        <h2 className="text-sm font-semibold text-stone-500 uppercase tracking-wider mb-4">{t('settings.section_org')}</h2>
 
         <div className="space-y-4">
           <div>
-            <label className="block text-xs font-medium text-stone-500 mb-1.5">Business Name</label>
+            <label className="block text-xs font-medium text-stone-500 mb-1.5">{t('settings.label_business_name')}</label>
             <input
               type="text"
               value={orgName}
@@ -437,7 +437,7 @@ export default function Settings({ user }) {
           </div>
 
           <div>
-            <label className="block text-xs font-medium text-stone-500 mb-1.5">Country</label>
+            <label className="block text-xs font-medium text-stone-500 mb-1.5">{t('settings.label_country')}</label>
             <select
               value={country}
               onChange={e => handleCountryChange(e.target.value)}
@@ -448,11 +448,11 @@ export default function Settings({ user }) {
                 <option key={c.code} value={c.code}>{c.label}</option>
               ))}
             </select>
-            <p className="text-xs text-stone-400 mt-1">Changing country updates currency and payment method defaults.</p>
+            <p className="text-xs text-stone-400 mt-1">{t('settings.label_country_hint')}</p>
           </div>
 
           <div>
-            <label className="block text-xs font-medium text-stone-500 mb-1.5">Timezone</label>
+            <label className="block text-xs font-medium text-stone-500 mb-1.5">{t('settings.label_timezone')}</label>
             <select
               value={timezone}
               onChange={e => setTimezone(e.target.value)}
@@ -467,11 +467,11 @@ export default function Settings({ user }) {
                 </optgroup>
               ))}
             </select>
-            <p className="text-xs text-stone-400 mt-1">All job dates and times are shown in this timezone.</p>
+            <p className="text-xs text-stone-400 mt-1">{t('settings.label_timezone_hint')}</p>
           </div>
 
           <div>
-            <label className="block text-xs font-medium text-stone-500 mb-2">Time Format</label>
+            <label className="block text-xs font-medium text-stone-500 mb-2">{t('settings.label_time_format')}</label>
             <div className="flex gap-2">
               {[
                 { value: '12h', label: '12-hour', example: formatTime('09:30', '12h') },
@@ -487,7 +487,7 @@ export default function Settings({ user }) {
                       : 'border-stone-200 bg-stone-50 text-stone-600 hover:border-stone-300'
                   }`}
                 >
-                  <span>{opt.label}</span>
+                  <span>{opt.value === '12h' ? t('settings.time_format_12h') : t('settings.time_format_24h')}</span>
                   <span className="block text-xs font-mono mt-0.5 opacity-70">{opt.example}</span>
                 </button>
               ))}
@@ -512,11 +512,11 @@ export default function Settings({ user }) {
 
       {/* Billing */}
       <div className="bg-white rounded-2xl border border-stone-200 p-6 mb-4">
-        <h2 className="text-sm font-semibold text-stone-500 uppercase tracking-wider mb-4">Billing</h2>
+        <h2 className="text-sm font-semibold text-stone-500 uppercase tracking-wider mb-4">{t('settings.section_billing')}</h2>
 
         <div className="space-y-4">
           <div>
-            <label className="block text-xs font-medium text-stone-500 mb-1.5">Default Tax Rate</label>
+            <label className="block text-xs font-medium text-stone-500 mb-1.5">{t('settings.label_tax_rate')}</label>
             <div className="flex items-center gap-2 max-w-[160px]">
               <div className="relative flex-1">
                 <input
@@ -533,11 +533,11 @@ export default function Settings({ user }) {
               </div>
             </div>
             {errors.taxRate && <p className="text-xs text-red-500 mt-1">{errors.taxRate}</p>}
-            <p className="text-xs text-stone-400 mt-1">Applied automatically when creating new invoices.</p>
+            <p className="text-xs text-stone-400 mt-1">{t('settings.label_tax_rate_hint')}</p>
           </div>
 
           <div>
-            <label className="block text-xs font-medium text-stone-500 mb-1.5">Tax Label</label>
+            <label className="block text-xs font-medium text-stone-500 mb-1.5">{t('settings.label_tax_label')}</label>
             <input
               type="text"
               value={taxLabel}
@@ -547,11 +547,11 @@ export default function Settings({ user }) {
               placeholder="Tax"
               className="w-full max-w-[200px] px-3 py-2.5 bg-stone-50 border border-stone-200 rounded-xl text-sm text-stone-900 focus:outline-none focus:ring-2 focus:ring-emerald-600 disabled:opacity-60"
             />
-            <p className="text-xs text-stone-400 mt-1">How the tax line is labelled on invoices — e.g. VAT, GST, Sales Tax.</p>
+            <p className="text-xs text-stone-400 mt-1">{t('settings.label_tax_label_hint')}</p>
           </div>
 
           <div>
-            <label className="block text-xs font-medium text-stone-500 mb-1.5">VAT / Tax Registration Number <span className="font-normal text-stone-400">(optional)</span></label>
+            <label className="block text-xs font-medium text-stone-500 mb-1.5">{t('settings.label_vat_number')} <span className="font-normal text-stone-400">{t('settings.label_vat_optional')}</span></label>
             <input
               type="text"
               value={vatNumber}
@@ -561,12 +561,12 @@ export default function Settings({ user }) {
               placeholder="e.g. GB123456789"
               className="w-full max-w-[280px] px-3 py-2.5 bg-stone-50 border border-stone-200 rounded-xl text-sm text-stone-900 focus:outline-none focus:ring-2 focus:ring-emerald-600 disabled:opacity-60"
             />
-            <p className="text-xs text-stone-400 mt-1">Printed on invoice PDFs where required by law.</p>
+            <p className="text-xs text-stone-400 mt-1">{t('settings.label_vat_hint')}</p>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div>
-              <label className="block text-xs font-medium text-stone-500 mb-1.5">Currency Code</label>
+              <label className="block text-xs font-medium text-stone-500 mb-1.5">{t('settings.label_currency_code')}</label>
               <input
                 type="text"
                 value={currencyCode}
@@ -578,7 +578,7 @@ export default function Settings({ user }) {
               />
             </div>
             <div>
-              <label className="block text-xs font-medium text-stone-500 mb-1.5">Currency Symbol</label>
+              <label className="block text-xs font-medium text-stone-500 mb-1.5">{t('settings.label_currency_symbol')}</label>
               <input
                 type="text"
                 value={currencySymbol}
@@ -590,7 +590,7 @@ export default function Settings({ user }) {
               />
             </div>
             <div>
-              <label className="block text-xs font-medium text-stone-500 mb-1.5">Calling Code</label>
+              <label className="block text-xs font-medium text-stone-500 mb-1.5">{t('settings.label_calling_code')}</label>
               <input
                 type="text"
                 value={callingCode}
@@ -607,8 +607,8 @@ export default function Settings({ user }) {
 
       {/* Payment Methods */}
       <div className="bg-white rounded-2xl border border-stone-200 p-6 mb-6">
-        <h2 className="text-sm font-semibold text-stone-500 uppercase tracking-wider mb-4">Payment Methods</h2>
-        <p className="text-xs text-stone-400 mb-4">These appear as chip options wherever payment method is selected.</p>
+        <h2 className="text-sm font-semibold text-stone-500 uppercase tracking-wider mb-4">{t('settings.section_payment_methods')}</h2>
+        <p className="text-xs text-stone-400 mb-4">{t('settings.payment_methods_hint')}</p>
 
         <div className="flex flex-wrap gap-2 mb-4">
           {paymentMethods.map(method => (
@@ -633,10 +633,10 @@ export default function Settings({ user }) {
               value={newMethod}
               onChange={e => setNewMethod(e.target.value)}
               onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addPaymentMethod() } }}
-              placeholder="Add payment method..."
+              placeholder={t('settings.add_method_ph')}
               className="flex-1 px-3 py-2 bg-stone-50 border border-stone-200 rounded-xl text-sm text-stone-900 placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-emerald-600"
             />
-            <button onClick={addPaymentMethod} className="px-3 py-2 bg-stone-100 text-stone-600 text-sm rounded-xl hover:bg-stone-200 transition-colors">Add</button>
+            <button onClick={addPaymentMethod} className="px-3 py-2 bg-stone-100 text-stone-600 text-sm rounded-xl hover:bg-stone-200 transition-colors">{t('settings.btn_add_method')}</button>
           </div>
         )}
         {errors.paymentMethods && <p className="text-xs text-red-500 mt-2">{errors.paymentMethods}</p>}
@@ -645,20 +645,20 @@ export default function Settings({ user }) {
       {/* Industry Profiles */}
       {canEdit && (
         <div className="bg-white rounded-2xl border border-stone-200 p-6 mb-4">
-          <h2 className="text-sm font-semibold text-stone-500 uppercase tracking-wider mb-1">Industry Profiles</h2>
+          <h2 className="text-sm font-semibold text-stone-500 uppercase tracking-wider mb-1">{t('settings.section_industry_profiles')}</h2>
           <p className="text-xs text-stone-400 mb-4">
-            Select your industry to get started with pre-built service types. You can customize them after.
+            {t('settings.profiles_hint')}
           </p>
 
           {profilesLoading ? (
-            <p className="text-sm text-stone-400">Loading profiles…</p>
+            <p className="text-sm text-stone-400">{t('settings.profiles_loading')}</p>
           ) : availableProfiles.length === 0 ? (
-            <p className="text-sm text-stone-400">No industry profiles have been configured yet.</p>
+            <p className="text-sm text-stone-400">{t('settings.profiles_none')}</p>
           ) : (
             <>
               {appliedProfileIds.length > 0 && (
                 <div className="mb-4">
-                  <p className="text-xs font-medium text-stone-500 mb-2">Applied profiles</p>
+                  <p className="text-xs font-medium text-stone-500 mb-2">{t('settings.profiles_applied')}</p>
                   <div className="flex flex-wrap gap-2">
                     {availableProfiles
                       .filter(p => appliedProfileIds.includes(p.id))
@@ -702,7 +702,7 @@ export default function Settings({ user }) {
                 disabled={profilesSaving || selectedProfileIds.length === 0}
                 className="px-4 py-2 bg-emerald-700 text-white text-sm font-medium rounded-xl hover:bg-emerald-800 disabled:opacity-50 transition-colors"
               >
-                {profilesSaving ? 'Applying…' : 'Apply Selected'}
+                {profilesSaving ? t('settings.btn_applying') : t('settings.btn_apply_selected')}
               </button>
             </>
           )}
@@ -713,18 +713,18 @@ export default function Settings({ user }) {
       {canEdit && (
         <div className="bg-white rounded-2xl border border-stone-200 p-6 mb-6">
           <div className="flex items-start justify-between mb-1">
-            <h2 className="text-sm font-semibold text-stone-500 uppercase tracking-wider">Service Types</h2>
+            <h2 className="text-sm font-semibold text-stone-500 uppercase tracking-wider">{t('settings.section_service_types')}</h2>
             {!stAdding && (
               <button
                 onClick={() => { setStAdding(true); setStForm({ name: '', description: '', default_duration_minutes: 120 }) }}
                 className="text-xs font-medium text-emerald-700 hover:underline flex-shrink-0"
               >
-                + Add Service Type
+                {t('settings.btn_add_service_type')}
               </button>
             )}
           </div>
           <p className="text-xs text-stone-400 mb-4">
-            These are the services your business offers. They appear in quotes, the booking agent, and the pricing matrix.
+            {t('settings.service_types_hint')}
           </p>
 
           {/* Add form */}
@@ -733,14 +733,14 @@ export default function Settings({ user }) {
               <input
                 autoFocus
                 className="w-full px-3 py-2 border border-stone-200 rounded-xl text-sm text-stone-800 placeholder-stone-400 bg-white focus:outline-none focus:ring-2 focus:ring-emerald-600"
-                placeholder="Service name (e.g. Deep Clean)"
+                placeholder={t('settings.service_type_ph_name')}
                 value={stForm.name}
                 onChange={e => setStForm(p => ({ ...p, name: e.target.value }))}
                 onKeyDown={e => { if (e.key === 'Enter') addServiceType() }}
               />
               <input
                 className="w-full px-3 py-2 border border-stone-200 rounded-xl text-sm text-stone-800 placeholder-stone-400 bg-white focus:outline-none focus:ring-2 focus:ring-emerald-600"
-                placeholder="Description (optional)"
+                placeholder={t('settings.service_type_ph_desc')}
                 value={stForm.description}
                 onChange={e => setStForm(p => ({ ...p, description: e.target.value }))}
               />
@@ -755,7 +755,7 @@ export default function Settings({ user }) {
                     value={stForm.default_duration_minutes}
                     onChange={e => setStForm(p => ({ ...p, default_duration_minutes: e.target.value }))}
                   />
-                  <span className="text-xs text-stone-400">min</span>
+                  <span className="text-xs text-stone-400">{t('settings.unit_min')}</span>
                 </div>
                 <div className="flex gap-2 ml-auto">
                   <button
@@ -763,13 +763,13 @@ export default function Settings({ user }) {
                     disabled={stSaving || !stForm.name.trim()}
                     className="px-4 py-2 bg-emerald-700 text-white text-sm font-medium rounded-xl hover:bg-emerald-800 disabled:opacity-50"
                   >
-                    {stSaving ? 'Saving…' : 'Add'}
+                    {stSaving ? t('settings.btn_saving') : t('settings.btn_add')}
                   </button>
                   <button
                     onClick={() => setStAdding(false)}
                     className="px-4 py-2 border border-stone-200 text-stone-600 text-sm rounded-xl hover:bg-stone-50"
                   >
-                    Cancel
+                    {t('settings.btn_cancel')}
                   </button>
                 </div>
               </div>
@@ -779,7 +779,7 @@ export default function Settings({ user }) {
           {/* Service type list */}
           <div className="space-y-2">
             {allServiceTypes.length === 0 && !stAdding && (
-              <p className="text-sm text-stone-400 py-2">No service types yet. Click "Add Service Type" to get started.</p>
+              <p className="text-sm text-stone-400 py-2">{t('settings.no_service_types')}</p>
             )}
             {allServiceTypes.map(st => (
               <div key={st.id} className={`border rounded-xl overflow-hidden transition-colors ${stEditing === st.id ? 'border-emerald-200' : 'border-stone-100'}`}>
@@ -790,13 +790,13 @@ export default function Settings({ user }) {
                       className="w-full px-2.5 py-2 border border-stone-200 rounded-lg text-sm text-stone-800 focus:outline-none focus:ring-2 focus:ring-emerald-600"
                       value={stEditForm.name}
                       onChange={e => setStEditForm(p => ({ ...p, name: e.target.value }))}
-                      placeholder="Service name"
+                      placeholder={t('settings.service_type_ph_edit_name')}
                     />
                     <input
                       className="w-full px-2.5 py-2 border border-stone-200 rounded-lg text-sm text-stone-800 placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-emerald-600"
                       value={stEditForm.description}
                       onChange={e => setStEditForm(p => ({ ...p, description: e.target.value }))}
-                      placeholder="Description (optional)"
+                      placeholder={t('settings.service_type_ph_desc')}
                     />
                     <div className="flex items-center gap-2">
                       <div className="flex items-center gap-1.5">
@@ -808,11 +808,11 @@ export default function Settings({ user }) {
                           value={stEditForm.default_duration_minutes}
                           onChange={e => setStEditForm(p => ({ ...p, default_duration_minutes: e.target.value }))}
                         />
-                        <span className="text-xs text-stone-400">min</span>
+                        <span className="text-xs text-stone-400">{t('settings.unit_min')}</span>
                       </div>
                       <div className="flex gap-2 ml-auto">
-                        <button onClick={() => saveEditServiceType(st.id)} disabled={stSaving} className="px-3 py-1.5 bg-emerald-700 text-white text-xs font-medium rounded-lg hover:bg-emerald-800 disabled:opacity-50">Save</button>
-                        <button onClick={() => setStEditing(null)} className="px-3 py-1.5 border border-stone-200 text-stone-600 text-xs rounded-lg hover:bg-stone-50">Cancel</button>
+                        <button onClick={() => saveEditServiceType(st.id)} disabled={stSaving} className="px-3 py-1.5 bg-emerald-700 text-white text-xs font-medium rounded-lg hover:bg-emerald-800 disabled:opacity-50">{t('settings.btn_save')}</button>
+                        <button onClick={() => setStEditing(null)} className="px-3 py-1.5 border border-stone-200 text-stone-600 text-xs rounded-lg hover:bg-stone-50">{t('settings.btn_cancel')}</button>
                       </div>
                     </div>
                   </div>
@@ -821,7 +821,7 @@ export default function Settings({ user }) {
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
                         <span className={`text-sm font-medium ${st.is_active ? 'text-stone-800' : 'text-stone-400 line-through'}`}>{st.name}</span>
-                        <span className="text-xs text-stone-400">{st.default_duration_minutes} min</span>
+                        <span className="text-xs text-stone-400">{st.default_duration_minutes} {t('settings.unit_min')}</span>
                       </div>
                       {st.description && (
                         <p className="text-xs text-stone-400 mt-0.5 truncate">{st.description}</p>
@@ -831,7 +831,7 @@ export default function Settings({ user }) {
                       onClick={() => toggleServiceTypeActive(st)}
                       className={`flex-shrink-0 px-2.5 py-1 rounded-lg text-xs font-medium transition-colors ${st.is_active ? 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100' : 'bg-stone-100 text-stone-500 hover:bg-stone-200'}`}
                     >
-                      {st.is_active ? 'Active' : 'Inactive'}
+                      {st.is_active ? t('settings.btn_active') : t('settings.btn_inactive')}
                     </button>
                     <button
                       onClick={() => { setStEditing(st.id); setStEditForm({ name: st.name, description: st.description || '', default_duration_minutes: st.default_duration_minutes }) }}
@@ -857,11 +857,11 @@ export default function Settings({ user }) {
       {stConfirm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40">
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6">
-            <h3 className="font-bold text-stone-900 mb-2">Delete Service Type</h3>
+            <h3 className="font-bold text-stone-900 mb-2">{t('settings.delete_st_title')}</h3>
             <p className="text-stone-500 text-sm mb-6">{stConfirm.message}</p>
             <div className="flex gap-3">
               <button onClick={() => setStConfirm(null)} className="flex-1 py-2.5 border border-stone-200 rounded-xl text-stone-600 text-sm hover:bg-stone-50">
-                Cancel
+                {t('settings.btn_cancel')}
               </button>
               <button onClick={() => doDeleteServiceType(stConfirm.id)} className="flex-1 py-2.5 bg-red-600 text-white text-sm font-medium rounded-xl hover:bg-red-700">
                 Delete
@@ -873,11 +873,11 @@ export default function Settings({ user }) {
 
       {/* Pricing Matrix */}
       <div className="bg-white rounded-2xl border border-stone-200 p-6 mb-6">
-        <h2 className="text-sm font-semibold text-stone-500 uppercase tracking-wider mb-1">Pricing Matrix</h2>
-        <p className="text-xs text-stone-400 mb-4">Set prices for each service, size, and frequency. Used by the AI booking agent.</p>
+        <h2 className="text-sm font-semibold text-stone-500 uppercase tracking-wider mb-1">{t('settings.section_pricing')}</h2>
+        <p className="text-xs text-stone-400 mb-4">{t('settings.pricing_hint')}</p>
 
         {serviceTypes.length === 0 ? (
-          <p className="text-sm text-stone-400">No active service types found. Add service types before setting prices.</p>
+          <p className="text-sm text-stone-400">{t('settings.no_active_service_types')}</p>
         ) : (
           <>
             {/* Service type selector */}
@@ -911,7 +911,7 @@ export default function Settings({ user }) {
                       : 'bg-stone-100 text-stone-600 hover:bg-stone-200'
                   }`}
                 >
-                  {f.label}
+                  {t('settings.freq_' + f.value)}
                 </button>
               ))}
             </div>
@@ -921,16 +921,16 @@ export default function Settings({ user }) {
               <table className="text-xs">
                 <thead>
                   <tr>
-                    <th className="pb-2 pr-4 text-stone-400 font-medium text-left">Beds / Baths</th>
+                    <th className="pb-2 pr-4 text-stone-400 font-medium text-left">{t('settings.col_beds_baths')}</th>
                     {BATH_OPTIONS.map(b => (
-                      <th key={b} className="pb-2 px-2 text-stone-400 font-medium text-center">{b} bath</th>
+                      <th key={b} className="pb-2 px-2 text-stone-400 font-medium text-center">{t('settings.col_bath', { n: b })}</th>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
                   {BED_OPTIONS.map(beds => (
                     <tr key={beds}>
-                      <td className="py-1.5 pr-4 text-stone-500 font-medium whitespace-nowrap">{beds} bed</td>
+                      <td className="py-1.5 pr-4 text-stone-500 font-medium whitespace-nowrap">{t('settings.col_bed', { n: beds })}</td>
                       {BATH_OPTIONS.map(baths => (
                         <td key={baths} className="py-1.5 px-1">
                           <div className="relative">
@@ -961,7 +961,7 @@ export default function Settings({ user }) {
                   disabled={pricingSaving}
                   className="px-4 py-2 bg-emerald-700 text-white text-sm font-medium rounded-xl hover:bg-emerald-800 disabled:opacity-50 transition-colors"
                 >
-                  {pricingSaving ? 'Saving…' : 'Save Pricing'}
+                  {pricingSaving ? t('settings.btn_saving_pricing') : t('settings.btn_save_pricing')}
                 </button>
                 <button
                   onClick={() => setShowPricingImport(true)}
@@ -970,7 +970,7 @@ export default function Settings({ user }) {
                   <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
                     <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
                   </svg>
-                  Import CSV
+                  {t('settings.btn_import_csv')}
                 </button>
               </div>
             )}
@@ -984,7 +984,7 @@ export default function Settings({ user }) {
           disabled={saving}
           className="w-full py-3 bg-emerald-700 text-white text-sm font-medium rounded-xl hover:bg-emerald-800 disabled:opacity-50 transition-colors"
         >
-          {saving ? 'Saving...' : 'Save Settings'}
+          {saving ? t('settings.btn_save_settings_saving') : t('settings.btn_save_settings')}
         </button>
       )}
 
@@ -1001,14 +1001,15 @@ export default function Settings({ user }) {
       {removeProfileConfirm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40">
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6">
-            <h3 className="font-bold text-stone-900 mb-2">Remove profile</h3>
+            <h3 className="font-bold text-stone-900 mb-2">{t('settings.remove_profile_title')}</h3>
             <p className="text-stone-500 text-sm mb-1">
-              Remove <span className="font-medium text-stone-700">{removeProfileConfirm.profileName}</span> from your account?
+              {t('settings.remove_profile_desc', { name: removeProfileConfirm.profileName })}
             </p>
             {removeProfileConfirm.matchingIds.length > 0 && (
               <p className="text-stone-400 text-xs mb-4">
-                {removeProfileConfirm.matchingIds.length} matching service type{removeProfileConfirm.matchingIds.length !== 1 ? 's' : ''} found
-                {removeProfileConfirm.pricingCount > 0 ? ` (${removeProfileConfirm.pricingCount} pricing entr${removeProfileConfirm.pricingCount !== 1 ? 'ies' : 'y'} will also be deleted)` : ''}.
+                {t('settings.remove_profile_matching', { count: removeProfileConfirm.matchingIds.length })}
+                {removeProfileConfirm.pricingCount > 0 && ' ' + t('settings.remove_profile_pricing', { count: removeProfileConfirm.pricingCount })}
+                {'.'}
               </p>
             )}
             <div className="flex flex-col gap-2">
@@ -1017,20 +1018,20 @@ export default function Settings({ user }) {
                   onClick={() => doRemoveProfile(true)}
                   className="w-full py-2.5 bg-red-600 hover:bg-red-700 text-white text-sm font-medium rounded-xl"
                 >
-                  Remove profile and service types
+                  {t('settings.btn_remove_profile_and_st')}
                 </button>
               )}
               <button
                 onClick={() => doRemoveProfile(false)}
                 className="w-full py-2.5 border border-stone-200 text-stone-700 text-sm font-medium rounded-xl hover:bg-stone-50"
               >
-                Remove profile only
+                {t('settings.btn_remove_profile_only')}
               </button>
               <button
                 onClick={() => setRemoveProfileConfirm(null)}
                 className="w-full py-2.5 text-stone-400 text-sm hover:text-stone-600"
               >
-                Cancel
+                {t('settings.btn_cancel')}
               </button>
             </div>
           </div>

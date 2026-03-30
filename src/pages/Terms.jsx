@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 
 function Logo() {
   return (
@@ -16,6 +17,7 @@ function Logo() {
 }
 
 export default function Terms() {
+  const { t } = useTranslation()
   return (
     <div className="min-h-screen bg-stone-50 px-4 py-12">
       <div className="max-w-3xl mx-auto">
@@ -25,7 +27,7 @@ export default function Terms() {
           <Link to="/" className="inline-block mb-4">
             <Logo />
           </Link>
-          <h1 className="text-3xl font-bold text-stone-900 mb-2">Terms of Service</h1>
+          <h1 className="text-3xl font-bold text-stone-900 mb-2">{t('terms.title')}</h1>
           <p className="text-sm text-stone-400">Last updated: March 26, 2026</p>
         </div>
 

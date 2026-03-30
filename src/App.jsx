@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { supabase } from './lib/supabase'
 import i18n from './lib/i18n'
 import { SubscriptionProvider } from './contexts/SubscriptionContext'
@@ -88,6 +89,7 @@ function AppRoutes({ user, session }) {
 }
 
 function App() {
+  const { t } = useTranslation()
   const [session, setSession] = useState(null)
   const [user, setUser] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -228,7 +230,7 @@ function App() {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-stone-50">
-        <div className="text-stone-400 text-lg">Loading...</div>
+        <div className="text-stone-400 text-lg">{t('app.loading')}</div>
       </div>
     )
   }
@@ -237,13 +239,13 @@ function App() {
     return (
       <div className="min-h-screen flex items-center justify-center bg-stone-50">
         <div className="text-center">
-          <div className="text-stone-600 text-lg mb-2">Couldn't connect</div>
-          <p className="text-stone-400 text-sm mb-4">Check your connection and try again.</p>
+          <div className="text-stone-600 text-lg mb-2">{t('app.error_title')}</div>
+          <p className="text-stone-400 text-sm mb-4">{t('app.error_desc')}</p>
           <button
             onClick={() => window.location.reload()}
             className="px-4 py-2 bg-emerald-700 text-white rounded-lg hover:bg-emerald-800 text-sm font-medium"
           >
-            Retry
+            {t('app.btn_retry')}
           </button>
         </div>
       </div>
@@ -254,8 +256,8 @@ function App() {
     return (
       <div className="min-h-screen flex items-center justify-center bg-stone-50">
         <div className="text-center">
-          <div className="text-stone-600 text-lg mb-2">Account not found</div>
-          <p className="text-stone-400 text-sm">Your phone number is not linked to any organization.</p>
+          <div className="text-stone-600 text-lg mb-2">{t('app.account_not_found')}</div>
+          <p className="text-stone-400 text-sm">{t('app.account_not_found_desc')}</p>
           <button
             onClick={() => {
               const savedPhone = localStorage.getItem('allbookd_phone')
@@ -265,7 +267,7 @@ function App() {
             }}
             className="mt-4 px-4 py-2 bg-stone-200 rounded-lg text-stone-600 hover:bg-stone-300"
           >
-            Sign out
+            {t('app.btn_sign_out')}
           </button>
         </div>
       </div>
@@ -280,11 +282,11 @@ function App() {
       return (
         <div className="min-h-screen flex items-center justify-center bg-stone-50 px-4">
           <div className="text-center max-w-sm">
-            <div className="text-stone-700 text-lg font-semibold mb-2">Account paused</div>
+            <div className="text-stone-700 text-lg font-semibold mb-2">{t('app.account_paused')}</div>
             <p className="text-stone-400 text-sm">
-              Your account is paused. Please contact{' '}
+              {t('app.account_paused_contact_prefix')}{' '}
               <a href="mailto:info@timelyops.com" className="text-emerald-700 underline">info@timelyops.com</a>
-              {' '}to reactivate.
+              {' '}{t('app.account_paused_contact_suffix')}
             </p>
           </div>
         </div>
@@ -295,11 +297,11 @@ function App() {
       return (
         <div className="min-h-screen flex items-center justify-center bg-stone-50 px-4">
           <div className="text-center max-w-sm">
-            <div className="text-stone-700 text-lg font-semibold mb-2">Account cancelled</div>
+            <div className="text-stone-700 text-lg font-semibold mb-2">{t('app.account_cancelled')}</div>
             <p className="text-stone-400 text-sm">
-              Your account has been cancelled. Please contact{' '}
+              {t('app.account_cancelled_contact_prefix')}{' '}
               <a href="mailto:info@timelyops.com" className="text-emerald-700 underline">info@timelyops.com</a>
-              {' '}if you'd like to reactivate.
+              {' '}{t('app.account_cancelled_contact_suffix')}
             </p>
           </div>
         </div>

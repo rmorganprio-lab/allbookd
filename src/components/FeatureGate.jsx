@@ -1,7 +1,9 @@
 import { useSubscription } from '../contexts/SubscriptionContext'
 import { requiredTier } from '../lib/tiers'
+import { useTranslation } from 'react-i18next'
 
 function UpgradePrompt({ featureSlug }) {
+  const { t } = useTranslation()
   const needed = requiredTier(featureSlug)
   if (!needed) return null
 
@@ -13,16 +15,16 @@ function UpgradePrompt({ featureSlug }) {
         </svg>
       </div>
       <p className="text-sm font-semibold text-stone-800 mb-1">
-        {needed.name} plan required
+        {t('featuregate.plan_required', { plan: needed.name })}
       </p>
       <p className="text-sm text-stone-500 mb-4">
-        This feature is included in the {needed.name} plan at ${needed.price}/mo.
+        {t('featuregate.plan_desc', { plan: needed.name, price: needed.price })}
       </p>
       <a
         href="mailto:info@timelyops.com?subject=Upgrade%20enquiry"
         className="inline-block px-4 py-2 bg-emerald-700 text-white text-sm font-medium rounded-xl hover:bg-emerald-800 transition-colors"
       >
-        Contact us to upgrade
+        {t('featuregate.contact_upgrade')}
       </a>
     </div>
   )

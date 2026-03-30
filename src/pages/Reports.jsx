@@ -8,6 +8,7 @@ import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, Legend,
 } from 'recharts'
+import { useTranslation } from 'react-i18next'
 
 // ─── Helpers ─────────────────────────────────────────────────
 
@@ -113,6 +114,7 @@ function DailyTab({ user }) {
   const currencySymbol = user?.organizations?.settings?.currency_symbol || '$'
   const today = todayInTimezone(tz)
   const { showToast } = useToast()
+  const { t } = useTranslation()
   const [date, setDate] = useState(today)
   const [jobs, setJobs] = useState([])
   const [payments, setPayments] = useState([])
@@ -130,7 +132,7 @@ function DailyTab({ user }) {
     ])
     if (jobsRes.error) {
       console.error('Failed to load daily report data:', jobsRes.error)
-      showToast('Failed to load report data. Please try again.', 'error')
+      showToast(t('reports.error_load'), 'error')
       setLoading(false)
       return
     }
@@ -178,37 +180,37 @@ function DailyTab({ user }) {
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polyline points="9 18 15 12 9 6"/></svg>
         </button>
         {date !== today && (
-          <button onClick={() => setDate(today)} className="text-xs text-emerald-700 hover:underline">Today</button>
+          <button onClick={() => setDate(today)} className="text-xs text-emerald-700 hover:underline">{t('reports.today')}</button>
         )}
       </div>
 
       {loading ? (
-        <div className="text-stone-400 text-sm py-8 text-center">Loading...</div>
+        <div className="text-stone-400 text-sm py-8 text-center">{t('reports.loading')}</div>
       ) : (
         <>
           {/* Metrics */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
             <MetricCard
-              label="Jobs Completed"
+              label={t('reports.metric_jobs_completed')}
               value={`${completed.length} / ${jobs.length}`}
-              sub={`${completionRate}% completion rate`}
+              sub={t('reports.sub_completion_rate', { pct: completionRate })}
               subColor={completionRate >= 90 ? 'text-emerald-600' : completionRate >= 70 ? 'text-amber-600' : 'text-red-500'}
             />
             <MetricCard
-              label="Revenue Collected"
+              label={t('reports.metric_revenue_collected')}
               value={fmtMoney(totalRevenue, currencySymbol)}
-              sub={`${payments.length} payment${payments.length !== 1 ? 's' : ''}`}
+              sub={t('reports.sub_payments', { count: payments.length })}
             />
             <MetricCard
-              label="On-Time Arrivals"
+              label={t('reports.metric_on_time')}
               value={`${onTimeCount} / ${arrived.length}`}
-              sub={lateCount > 0 ? `${lateCount} late arrival${lateCount !== 1 ? 's' : ''}` : arrived.length > 0 ? 'All on time' : 'No arrivals yet'}
+              sub={lateCount > 0 ? t('reports.sub_late', { count: lateCount }) : arrived.length > 0 ? t('reports.sub_all_on_time') : t('reports.sub_no_arrivals')}
               subColor={lateCount > 0 ? 'text-amber-600' : 'text-emerald-600'}
             />
             <MetricCard
-              label="Pending Jobs"
+              label={t('reports.metric_pending_jobs')}
               value={pending.length}
-              sub={unassigned.length > 0 ? `${unassigned.length} unassigned` : pending.length > 0 ? 'All assigned' : 'None pending'}
+              sub={unassigned.length > 0 ? t('reports.sub_unassigned', { count: unassigned.length }) : pending.length > 0 ? t('reports.sub_all_assigned') : t('reports.sub_none_pending')}
               subColor={unassigned.length > 0 ? 'text-amber-600' : 'text-stone-400'}
             />
           </div>
@@ -216,21 +218,21 @@ function DailyTab({ user }) {
           {/* Job detail table */}
           <div className="bg-white rounded-2xl border border-stone-200 overflow-hidden">
             <div className="px-5 py-4 border-b border-stone-100">
-              <SectionTitle>Today's Job Details — {formatDate(date)}</SectionTitle>
+              <SectionTitle>{t('reports.section_job_details', { date: formatDate(date) })}</SectionTitle>
             </div>
             {jobs.length === 0 ? (
-              <EmptyState message="No jobs scheduled for this date." />
+              <EmptyState message={t('reports.no_jobs')} />
             ) : (
               <div>
                 <div className="hidden md:grid grid-cols-12 gap-3 px-5 py-2.5 border-b border-stone-100 text-xs font-semibold text-stone-400 uppercase tracking-wider">
-                  <div className="col-span-2">Worker</div>
-                  <div className="col-span-2">Client</div>
-                  <div className="col-span-1">Sched</div>
-                  <div className="col-span-1">Arrived</div>
-                  <div className="col-span-1">Done</div>
-                  <div className="col-span-2">Duration</div>
-                  <div className="col-span-1">Status</div>
-                  <div className="col-span-2">Payment</div>
+                  <div className="col-span-2">{t('reports.col_worker')}</div>
+                  <div className="col-span-2">{t('reports.col_client')}</div>
+                  <div className="col-span-1">{t('reports.col_sched')}</div>
+                  <div className="col-span-1">{t('reports.col_arrived')}</div>
+                  <div className="col-span-1">{t('reports.col_done')}</div>
+                  <div className="col-span-2">{t('reports.col_duration')}</div>
+                  <div className="col-span-1">{t('reports.col_status')}</div>
+                  <div className="col-span-2">{t('reports.col_payment')}</div>
                 </div>
                 {jobs.map(job => {
                   const actualMins = minutesBetween(job.arrived_at, job.completed_at)
@@ -239,7 +241,7 @@ function DailyTab({ user }) {
                   return (
                     <div key={job.id} className={`grid grid-cols-12 gap-3 px-5 py-3.5 border-b border-stone-50 items-center text-sm ${rowAccent(job)}`}>
                       <div className="col-span-2 font-medium text-stone-700 truncate">
-                        {workers[job.worker_id] || <span className="text-stone-400 italic text-xs">Unassigned</span>}
+                        {workers[job.worker_id] || <span className="text-stone-400 italic text-xs">{t('reports.unassigned')}</span>}
                       </div>
                       <div className="col-span-2 text-stone-600 truncate">{job.clients?.name || '—'}</div>
                       <div className="col-span-1 text-stone-500 text-xs">{job.start_time ? formatTime(job.start_time) : '—'}</div>
@@ -252,8 +254,8 @@ function DailyTab({ user }) {
                       </div>
                       <div className="col-span-2 text-stone-500 text-xs">
                         {actualMins !== null
-                          ? <>{fmtMins(actualMins)} <span className="text-stone-300">/ est {fmtMins(job.duration_minutes)}</span></>
-                          : job.duration_minutes ? <span className="text-stone-300">est {fmtMins(job.duration_minutes)}</span> : '—'}
+                          ? <>{fmtMins(actualMins)} <span className="text-stone-300">/ {t('reports.est')} {fmtMins(job.duration_minutes)}</span></>
+                          : job.duration_minutes ? <span className="text-stone-300">{t('reports.est')} {fmtMins(job.duration_minutes)}</span> : '—'}
                       </div>
                       <div className="col-span-1">
                         <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium capitalize ${
@@ -264,9 +266,9 @@ function DailyTab({ user }) {
                       </div>
                       <div className="col-span-2 text-xs">
                         {paid
-                          ? <span className="font-medium text-emerald-600">✓ Paid</span>
+                          ? <span className="font-medium text-emerald-600">{t('reports.paid')}</span>
                           : job.status === 'completed'
-                            ? <span className="font-medium text-amber-600">Unpaid</span>
+                            ? <span className="font-medium text-amber-600">{t('reports.unpaid')}</span>
                             : <span className="text-stone-300">—</span>}
                       </div>
                     </div>
@@ -288,6 +290,7 @@ function WeeklyTab({ user }) {
   const currencySymbol = user?.organizations?.settings?.currency_symbol || '$'
   const today = todayInTimezone(tz)
   const { showToast } = useToast()
+  const { t } = useTranslation()
   const [weekStart, setWeekStart] = useState(() => getMondayOfWeek(today))
   const [jobs, setJobs] = useState([])
   const [payments, setPayments] = useState([])
@@ -309,7 +312,7 @@ function WeeklyTab({ user }) {
     ])
     if (jobsRes.error) {
       console.error('Failed to load weekly report data:', jobsRes.error)
-      showToast('Failed to load report data. Please try again.', 'error')
+      showToast(t('reports.error_load'), 'error')
       setLoading(false)
       return
     }
@@ -364,32 +367,32 @@ function WeeklyTab({ user }) {
         onNext={() => setWeekStart(addDays(weekStart, 7))}
         label={weekLabel}
         onReset={weekStart !== thisWeek ? () => setWeekStart(thisWeek) : null}
-        resetLabel="This week"
+        resetLabel={t('reports.this_week')}
       />
 
       {loading ? (
-        <div className="text-stone-400 text-sm py-8 text-center">Loading...</div>
+        <div className="text-stone-400 text-sm py-8 text-center">{t('reports.loading')}</div>
       ) : (
         <>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-            <MetricCard label="Total Revenue" value={fmtMoney(totalRevenue, currencySymbol)} />
-            <MetricCard label="Total Jobs" value={jobs.length} sub={`${completed.length} completed`} />
-            <MetricCard label="Avg Job Value" value={avgJobValue > 0 ? fmtMoney(avgJobValue, currencySymbol) : '—'} />
-            <MetricCard label="Active Clients" value={activeClientIds.size} />
+            <MetricCard label={t('reports.metric_total_revenue')} value={fmtMoney(totalRevenue, currencySymbol)} />
+            <MetricCard label={t('reports.metric_total_jobs')} value={jobs.length} sub={t('reports.sub_completed', { count: completed.length })} />
+            <MetricCard label={t('reports.metric_avg_job_value')} value={avgJobValue > 0 ? fmtMoney(avgJobValue, currencySymbol) : '—'} />
+            <MetricCard label={t('reports.metric_active_clients')} value={activeClientIds.size} />
           </div>
 
           {/* Revenue by day */}
           <div className="bg-white rounded-2xl border border-stone-200 p-5 mb-6">
-            <SectionTitle>Revenue by Day</SectionTitle>
+            <SectionTitle>{t('reports.section_revenue_by_day')}</SectionTitle>
             {totalRevenue === 0 ? (
-              <EmptyState message="No payments recorded this week." />
+              <EmptyState message={t('reports.no_payments_week')} />
             ) : (
               <ResponsiveContainer width="100%" height={200}>
                 <BarChart data={revenueByDay} margin={{ top: 4, right: 8, bottom: 0, left: 8 }}>
                   <XAxis dataKey="day" tick={{ fontSize: 12, fill: '#78716c' }} axisLine={false} tickLine={false} />
                   <YAxis tick={{ fontSize: 11, fill: '#a8a29e' }} axisLine={false} tickLine={false} tickFormatter={v => `$${v}`} width={48} />
                   <Tooltip
-                    formatter={v => [`${currencySymbol}${Number(v).toFixed(2)}`, 'Revenue']}
+                    formatter={v => [`${currencySymbol}${Number(v).toFixed(2)}`, t('reports.tooltip_revenue')]}
                     contentStyle={{ borderRadius: '12px', border: '1px solid #e7e5e0', fontSize: 12 }}
                   />
                   <Bar dataKey="revenue" fill={EMERALD} radius={[6, 6, 0, 0]} />
@@ -401,11 +404,11 @@ function WeeklyTab({ user }) {
           <div className="grid md:grid-cols-2 gap-4">
             {/* Jobs by worker */}
             <div className="bg-white rounded-2xl border border-stone-200 overflow-hidden">
-              <div className="px-5 py-4 border-b border-stone-100"><SectionTitle>Jobs by Worker</SectionTitle></div>
-              {workerRows.length === 0 ? <EmptyState message="No worker data." /> : (
+              <div className="px-5 py-4 border-b border-stone-100"><SectionTitle>{t('reports.section_jobs_by_worker')}</SectionTitle></div>
+              {workerRows.length === 0 ? <EmptyState message={t('reports.no_worker_data')} /> : (
                 <div>
                   <div className="grid grid-cols-4 gap-2 px-4 py-2.5 border-b border-stone-100 text-xs font-semibold text-stone-400 uppercase">
-                    <div>Worker</div><div className="text-right">Jobs</div><div className="text-right">Revenue</div><div className="text-right">Avg Time</div>
+                    <div>{t('reports.col_worker')}</div><div className="text-right">{t('reports.col_jobs')}</div><div className="text-right">{t('reports.col_revenue')}</div><div className="text-right">{t('reports.col_avg_time')}</div>
                   </div>
                   {workerRows.map((w, i) => (
                     <div key={i} className="grid grid-cols-4 gap-2 px-4 py-3 border-b border-stone-50 text-sm items-center">
@@ -421,11 +424,11 @@ function WeeklyTab({ user }) {
 
             {/* Top clients */}
             <div className="bg-white rounded-2xl border border-stone-200 overflow-hidden">
-              <div className="px-5 py-4 border-b border-stone-100"><SectionTitle>Top Clients</SectionTitle></div>
-              {clientRows.length === 0 ? <EmptyState message="No client data." /> : (
+              <div className="px-5 py-4 border-b border-stone-100"><SectionTitle>{t('reports.section_top_clients')}</SectionTitle></div>
+              {clientRows.length === 0 ? <EmptyState message={t('reports.no_client_data')} /> : (
                 <div>
                   <div className="grid grid-cols-3 gap-2 px-4 py-2.5 border-b border-stone-100 text-xs font-semibold text-stone-400 uppercase">
-                    <div>Client</div><div className="text-right">Jobs</div><div className="text-right">Revenue</div>
+                    <div>{t('reports.col_client')}</div><div className="text-right">{t('reports.col_jobs')}</div><div className="text-right">{t('reports.col_revenue')}</div>
                   </div>
                   {clientRows.map((c, i) => (
                     <div key={i} className="grid grid-cols-3 gap-2 px-4 py-3 border-b border-stone-50 text-sm items-center">
@@ -451,6 +454,7 @@ function MonthlyTab({ user }) {
   const currencySymbol = user?.organizations?.settings?.currency_symbol || '$'
   const now = new Date(todayInTimezone(tz) + 'T12:00:00')
   const { showToast } = useToast()
+  const { t } = useTranslation()
   const [year, setYear] = useState(now.getFullYear())
   const [month, setMonth] = useState(now.getMonth() + 1)
   const [data, setData] = useState(null)
@@ -484,7 +488,7 @@ function MonthlyTab({ user }) {
 
     if (jobsRes.error) {
       console.error('Failed to load monthly report data:', jobsRes.error)
-      showToast('Failed to load report data. Please try again.', 'error')
+      showToast(t('reports.error_load'), 'error')
       setLoading(false)
       return
     }
@@ -508,7 +512,7 @@ function MonthlyTab({ user }) {
     return (
       <div>
         <PrevNext onPrev={prevMonth} onNext={nextMonth} label={monthLabel} />
-        <div className="text-stone-400 text-sm py-8 text-center">Loading...</div>
+        <div className="text-stone-400 text-sm py-8 text-center">{t('reports.loading')}</div>
       </div>
     )
   }
@@ -576,7 +580,7 @@ function MonthlyTab({ user }) {
     const color = good ? 'text-emerald-600' : 'text-red-500'
     const sign = value > 0 ? '+' : ''
     const display = pct ? `${sign}${value.toFixed(1)}%` : `${sign}${fmtMoney(Math.abs(value), currencySymbol)}`
-    return <span className={`text-xs ${color}`}>{display} vs last month</span>
+    return <span className={`text-xs ${color}`}>{display} {t('reports.vs_last_month')}</span>
   }
 
   return (
@@ -586,22 +590,22 @@ function MonthlyTab({ user }) {
       {/* Metrics */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
         <div className="bg-white rounded-2xl border border-stone-200 p-4">
-          <div className="text-xs font-medium text-stone-500 mb-2">Total Revenue</div>
+          <div className="text-xs font-medium text-stone-500 mb-2">{t('reports.metric_total_revenue')}</div>
           <div className="text-2xl font-bold text-stone-900">{fmtMoney(totalRevenue, currencySymbol)}</div>
           <div className="mt-1"><DeltaBadge value={revenueChangePct} pct /></div>
         </div>
         <div className="bg-white rounded-2xl border border-stone-200 p-4">
-          <div className="text-xs font-medium text-stone-500 mb-2">Total Jobs</div>
+          <div className="text-xs font-medium text-stone-500 mb-2">{t('reports.metric_total_jobs')}</div>
           <div className="text-2xl font-bold text-stone-900">{completed.length}</div>
           <div className="mt-1"><DeltaBadge value={jobsDelta} /></div>
         </div>
         <div className="bg-white rounded-2xl border border-stone-200 p-4">
-          <div className="text-xs font-medium text-stone-500 mb-2">Active Clients</div>
+          <div className="text-xs font-medium text-stone-500 mb-2">{t('reports.metric_active_clients')}</div>
           <div className="text-2xl font-bold text-stone-900">{activeClients.size}</div>
-          {newClients.length > 0 && <div className="text-xs text-emerald-600 mt-1">{newClients.length} new this month</div>}
+          {newClients.length > 0 && <div className="text-xs text-emerald-600 mt-1">{t('reports.new_this_month', { count: newClients.length })}</div>}
         </div>
         <div className="bg-white rounded-2xl border border-stone-200 p-4">
-          <div className="text-xs font-medium text-stone-500 mb-2">Avg Job Value</div>
+          <div className="text-xs font-medium text-stone-500 mb-2">{t('reports.metric_avg_job_value')}</div>
           <div className="text-2xl font-bold text-stone-900">{avgJobValue > 0 ? fmtMoney(avgJobValue, currencySymbol) : '—'}</div>
           <div className="mt-1"><DeltaBadge value={avgDelta} /></div>
         </div>
@@ -610,9 +614,9 @@ function MonthlyTab({ user }) {
       {/* Charts */}
       <div className="grid md:grid-cols-2 gap-4 mb-6">
         <div className="bg-white rounded-2xl border border-stone-200 p-5">
-          <SectionTitle>Revenue by Service Type</SectionTitle>
+          <SectionTitle>{t('reports.section_revenue_by_service')}</SectionTitle>
           {pieData.length === 0 ? (
-            <EmptyState message="No payment data this month." />
+            <EmptyState message={t('reports.no_payment_data_month')} />
           ) : (
             <ResponsiveContainer width="100%" height={220}>
               <PieChart>
@@ -627,12 +631,12 @@ function MonthlyTab({ user }) {
         </div>
 
         <div className="bg-white rounded-2xl border border-stone-200 p-5">
-          <SectionTitle>Client Retention</SectionTitle>
+          <SectionTitle>{t('reports.section_client_retention')}</SectionTitle>
           <div className="space-y-3 mt-2">
             {[
-              { label: 'Returning clients', sub: 'Had jobs last month too', value: returningClients, color: 'text-emerald-700' },
-              { label: 'New clients', sub: 'First job this month', value: newClients.length, color: 'text-blue-600' },
-              { label: 'Churned clients', sub: 'Had jobs last month, none this month', value: churnedClients, color: churnedClients > 0 ? 'text-red-500' : 'text-stone-300' },
+              { label: t('reports.retention_returning'), sub: t('reports.retention_returning_sub'), value: returningClients, color: 'text-emerald-700' },
+              { label: t('reports.retention_new'), sub: t('reports.retention_new_sub'), value: newClients.length, color: 'text-blue-600' },
+              { label: t('reports.retention_churned'), sub: t('reports.retention_churned_sub'), value: churnedClients, color: churnedClients > 0 ? 'text-red-500' : 'text-stone-300' },
             ].map(row => (
               <div key={row.label} className="flex justify-between items-center py-2 border-b border-stone-100 last:border-0">
                 <div>
@@ -648,14 +652,14 @@ function MonthlyTab({ user }) {
 
       {/* Revenue by client */}
       <div className="bg-white rounded-2xl border border-stone-200 overflow-hidden mb-4">
-        <div className="px-5 py-4 border-b border-stone-100"><SectionTitle>Revenue by Client (Top 10)</SectionTitle></div>
-        {clientRows.length === 0 ? <EmptyState message="No payment data this month." /> : (
+        <div className="px-5 py-4 border-b border-stone-100"><SectionTitle>{t('reports.section_revenue_by_client')}</SectionTitle></div>
+        {clientRows.length === 0 ? <EmptyState message={t('reports.no_payment_data_month')} /> : (
           <div>
             <div className="hidden md:grid grid-cols-5 gap-4 px-5 py-2.5 border-b border-stone-100 text-xs font-semibold text-stone-400 uppercase tracking-wider">
-              <div className="col-span-2">Client</div>
-              <div className="text-right">Jobs</div>
-              <div className="text-right">Revenue</div>
-              <div className="text-right">% of Total</div>
+              <div className="col-span-2">{t('reports.col_client')}</div>
+              <div className="text-right">{t('reports.col_jobs')}</div>
+              <div className="text-right">{t('reports.col_revenue')}</div>
+              <div className="text-right">{t('reports.col_pct_of_total')}</div>
             </div>
             {clientRows.map((c, i) => (
               <div key={i} className="grid grid-cols-5 gap-4 px-5 py-3 border-b border-stone-50 text-sm items-center">
@@ -671,15 +675,15 @@ function MonthlyTab({ user }) {
 
       {/* Revenue by worker */}
       <div className="bg-white rounded-2xl border border-stone-200 overflow-hidden">
-        <div className="px-5 py-4 border-b border-stone-100"><SectionTitle>Revenue by Worker</SectionTitle></div>
-        {workerRows.length === 0 ? <EmptyState message="No worker data this month." /> : (
+        <div className="px-5 py-4 border-b border-stone-100"><SectionTitle>{t('reports.section_revenue_by_worker')}</SectionTitle></div>
+        {workerRows.length === 0 ? <EmptyState message={t('reports.no_worker_data_month')} /> : (
           <div>
             <div className="hidden md:grid grid-cols-5 gap-4 px-5 py-2.5 border-b border-stone-100 text-xs font-semibold text-stone-400 uppercase tracking-wider">
-              <div>Worker</div>
-              <div className="text-right">Jobs</div>
-              <div className="text-right">Revenue</div>
-              <div className="text-right">Avg Duration</div>
-              <div className="text-right">On-Time %</div>
+              <div>{t('reports.col_worker')}</div>
+              <div className="text-right">{t('reports.col_jobs')}</div>
+              <div className="text-right">{t('reports.col_revenue')}</div>
+              <div className="text-right">{t('reports.col_avg_duration')}</div>
+              <div className="text-right">{t('reports.col_on_time_pct')}</div>
             </div>
             {workerRows.map((w, i) => {
               const onTimePct = w.arrived > 0 ? Math.round((w.onTime / w.arrived) * 100) : null
@@ -709,6 +713,7 @@ function AlertsTab({ user }) {
   const currencySymbol = user?.organizations?.settings?.currency_symbol || '$'
   const today = todayInTimezone(tz)
   const { showToast } = useToast()
+  const { t } = useTranslation()
   const [alerts, setAlerts] = useState([])
   const [loading, setLoading] = useState(true)
 
@@ -726,7 +731,7 @@ function AlertsTab({ user }) {
 
     if (jobsRes.error) {
       console.error('Failed to load alerts data:', jobsRes.error)
-      showToast('Failed to load report data. Please try again.', 'error')
+      showToast(t('reports.error_load'), 'error')
       setLoading(false)
       return
     }
@@ -753,7 +758,7 @@ function AlertsTab({ user }) {
         const est = Number(j.duration_minutes)
         if (actual !== null && est > 0 && actual < est * 0.5) {
           found.push({
-            level: 'red', type: 'Job too short',
+            level: 'red', type: 'job_short',
             desc: `${j.clients?.name || 'Unknown'}: ${fmtMins(actual)} actual vs ${fmtMins(est)} estimated`,
             date: j.date, id: `short-${j.id}`,
           })
@@ -765,7 +770,7 @@ function AlertsTab({ user }) {
       .filter(j => j.status === 'scheduled' && !j.arrived_at && j.date <= today)
       .forEach(j => {
         found.push({
-          level: 'red', type: 'No-show',
+          level: 'red', type: 'no_show',
           desc: `${j.clients?.name || 'Unknown'}: scheduled ${j.start_time ? formatTime(j.start_time) : ''} on ${formatDate(j.date)}`,
           date: j.date, id: `noshow-${j.id}`,
         })
@@ -779,7 +784,7 @@ function AlertsTab({ user }) {
         const est = Number(j.duration_minutes)
         if (actual !== null && est > 0 && actual > est * 1.5) {
           found.push({
-            level: 'amber', type: 'Job too long',
+            level: 'amber', type: 'job_long',
             desc: `${j.clients?.name || 'Unknown'}: ${fmtMins(actual)} actual vs ${fmtMins(est)} estimated`,
             date: j.date, id: `long-${j.id}`,
           })
@@ -791,7 +796,7 @@ function AlertsTab({ user }) {
       .filter(j => j.status === 'completed' && j.date <= twoDaysAgo && !paidJobIds.has(j.id) && Number(j.price) > 0)
       .forEach(j => {
         found.push({
-          level: 'amber', type: 'Payment gap',
+          level: 'amber', type: 'payment_gap',
           desc: `${j.clients?.name || 'Unknown'}: completed ${formatDate(j.date)}, ${fmtMoney(j.price, currencySymbol)} due`,
           date: j.date, id: `payment-${j.id}`,
         })
@@ -811,7 +816,7 @@ function AlertsTab({ user }) {
     Object.entries(recurringClients).forEach(([clientId, info]) => {
       if (!recentClientIds.has(clientId)) {
         found.push({
-          level: 'gray', type: 'Dormant client',
+          level: 'gray', type: 'dormant_client',
           desc: `${info.name || 'Unknown'}: last job ${formatDate(info.date)} (${info.freq} schedule)`,
           date: info.date, id: `dormant-${clientId}`,
         })
@@ -833,12 +838,12 @@ function AlertsTab({ user }) {
   return (
     <div>
       {loading ? (
-        <div className="text-stone-400 text-sm py-8 text-center">Loading...</div>
+        <div className="text-stone-400 text-sm py-8 text-center">{t('reports.loading')}</div>
       ) : alerts.length === 0 ? (
         <div className="text-center py-16">
           <div className="text-4xl mb-3">✓</div>
-          <div className="text-stone-700 font-medium mb-1">No active alerts</div>
-          <div className="text-stone-400 text-sm">Everything looks good.</div>
+          <div className="text-stone-700 font-medium mb-1">{t('reports.alerts_no_alerts')}</div>
+          <div className="text-stone-400 text-sm">{t('reports.alerts_all_good')}</div>
         </div>
       ) : (
         <>
@@ -847,19 +852,19 @@ function AlertsTab({ user }) {
             {counts.red > 0 && (
               <div className="flex items-center gap-1.5 text-sm">
                 <span className="w-2.5 h-2.5 rounded-full bg-red-500 inline-block" />
-                <span className="font-semibold text-red-700">{counts.red} critical</span>
+                <span className="font-semibold text-red-700">{t('reports.alerts_critical', { count: counts.red })}</span>
               </div>
             )}
             {counts.amber > 0 && (
               <div className="flex items-center gap-1.5 text-sm">
                 <span className="w-2.5 h-2.5 rounded-full bg-amber-400 inline-block" />
-                <span className="font-semibold text-amber-700">{counts.amber} warning</span>
+                <span className="font-semibold text-amber-700">{t('reports.alerts_warning', { count: counts.amber })}</span>
               </div>
             )}
             {counts.gray > 0 && (
               <div className="flex items-center gap-1.5 text-sm">
                 <span className="w-2.5 h-2.5 rounded-full bg-stone-400 inline-block" />
-                <span className="text-stone-500">{counts.gray} info</span>
+                <span className="text-stone-500">{t('reports.alerts_info', { count: counts.gray })}</span>
               </div>
             )}
           </div>
@@ -869,7 +874,7 @@ function AlertsTab({ user }) {
               <div key={alert.id} className={`bg-white rounded-2xl border border-stone-200 border-l-4 ${borderColor[alert.level]} p-4 flex items-start gap-3`}>
                 <span className={`w-2.5 h-2.5 rounded-full mt-0.5 flex-shrink-0 ${dotColor[alert.level]}`} />
                 <div className="flex-1 min-w-0">
-                  <div className={`text-sm font-semibold ${labelColor[alert.level]}`}>{alert.type}</div>
+                  <div className={`text-sm font-semibold ${labelColor[alert.level]}`}>{t('reports.alert_' + alert.type)}</div>
                   <div className="text-sm text-stone-600 mt-0.5">{alert.desc}</div>
                 </div>
                 {alert.date && (
@@ -888,23 +893,24 @@ function AlertsTab({ user }) {
 
 // ─── MAIN ─────────────────────────────────────────────────────
 
-const TABS = [
-  { id: 'daily', label: 'Daily' },
-  { id: 'weekly', label: 'Weekly' },
-  { id: 'monthly', label: 'Monthly' },
-  { id: 'alerts', label: 'Alerts' },
-]
-
 export default function Reports({ user }) {
+  const { t } = useTranslation()
   const [tab, setTab] = useState('daily')
   const [showExport, setShowExport] = useState(false)
   const canSeeExport = ['ceo', 'support'].includes(user?.role)
+
+  const TABS = [
+    { id: 'daily', label: t('reports.tab_daily') },
+    { id: 'weekly', label: t('reports.tab_weekly') },
+    { id: 'monthly', label: t('reports.tab_monthly') },
+    { id: 'alerts', label: t('reports.tab_alerts') },
+  ]
 
   return (
     <div className="p-6 md:p-8">
       <div className="flex items-start justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-stone-900">Reports</h1>
+          <h1 className="text-2xl font-bold text-stone-900">{t('reports.heading')}</h1>
           <p className="text-stone-500 text-sm mt-1">{user?.organizations?.name}</p>
         </div>
         {canSeeExport && (
@@ -918,7 +924,7 @@ export default function Reports({ user }) {
                 <polyline points="7 10 12 15 17 10"/>
                 <line x1="12" y1="15" x2="12" y2="3"/>
               </svg>
-              Export Data
+              {t('reports.export_data')}
             </button>
           </FeatureGate>
         )}

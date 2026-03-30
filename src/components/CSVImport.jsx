@@ -1,4 +1,5 @@
 import { useState, useRef } from 'react'
+import { useTranslation } from 'react-i18next'
 import { parseCSV, downloadCSV, generateTemplate, downloadXLSXTemplate, normalizePhone } from '../lib/csv'
 
 /**
@@ -12,6 +13,7 @@ import { parseCSV, downloadCSV, generateTemplate, downloadXLSXTemplate, normaliz
  *   entityName - "clients" or "workers" for display
  */
 export default function CSVImport({ onClose, onImport, templateDef, validateRows, entityName }) {
+  const { t } = useTranslation()
   const [step, setStep] = useState('upload') // upload | preview | importing | done
   const [rows, setRows] = useState([])
   const [parseErrors, setParseErrors] = useState([])
@@ -78,12 +80,12 @@ export default function CSVImport({ onClose, onImport, templateDef, validateRows
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h2 className="text-lg font-bold text-stone-900">Import {entityName}</h2>
+            <h2 className="text-lg font-bold text-stone-900">{t('csvimport.title', { entityName })}</h2>
             <p className="text-sm text-stone-500 mt-0.5">
-              {step === 'upload' && 'Upload a CSV file or download the template first'}
-              {step === 'preview' && `${validRows.length} valid, ${invalidRows.length} with issues`}
-              {step === 'importing' && 'Importing...'}
-              {step === 'done' && 'Import complete'}
+              {step === 'upload' && t('csvimport.step_upload')}
+              {step === 'preview' && t('csvimport.step_preview', { valid: validRows.length, invalid: invalidRows.length })}
+              {step === 'importing' && t('csvimport.step_importing')}
+              {step === 'done' && t('csvimport.step_done')}
             </p>
           </div>
           <button onClick={onClose} className="p-1.5 text-stone-400 hover:text-stone-600">
@@ -98,15 +100,15 @@ export default function CSVImport({ onClose, onImport, templateDef, validateRows
             <div className="mb-6 p-4 bg-emerald-50 border border-emerald-200 rounded-xl">
               <div className="flex items-start justify-between">
                 <div>
-                  <div className="text-sm font-medium text-emerald-800">Start with the template</div>
+                  <div className="text-sm font-medium text-emerald-800">{t('csvimport.template_title')}</div>
                   <div className="text-xs text-emerald-600 mt-1">
-                    Download the template, fill in your {entityName}, then upload the CSV here.
-                    Only <strong>{templateDef.required[0]?.replace(/_/g, ' ')}</strong> is required — all other columns are optional.
+                    {t('csvimport.template_desc', { entityName })}
+                    {t('csvimport.template_required', { required: templateDef.required[0]?.replace(/_/g, ' ') || '' })}
                   </div>
-                  <div className="text-xs text-emerald-600 mt-1">Duplicate records (matched by phone or email) will be automatically skipped.</div>
+                  <div className="text-xs text-emerald-600 mt-1">{t('csvimport.template_dedup')}</div>
                 </div>
                 <button onClick={handleDownloadTemplate} className="shrink-0 ml-4 px-4 py-2 bg-emerald-700 text-white text-sm font-medium rounded-xl hover:bg-emerald-800 transition-colors">
-                  Download Template
+                  {t('csvimport.btn_download_template')}
                 </button>
               </div>
             </div>
@@ -121,8 +123,8 @@ export default function CSVImport({ onClose, onImport, templateDef, validateRows
                 <polyline points="17 8 12 3 7 8"/>
                 <line x1="12" y1="3" x2="12" y2="15"/>
               </svg>
-              <div className="text-sm font-medium text-stone-600">Click to upload CSV file</div>
-              <div className="text-xs text-stone-400 mt-1">or drag and drop</div>
+              <div className="text-sm font-medium text-stone-600">{t('csvimport.upload_click')}</div>
+              <div className="text-xs text-stone-400 mt-1">{t('csvimport.upload_drag')}</div>
               <input
                 ref={fileRef}
                 type="file"
@@ -135,14 +137,14 @@ export default function CSVImport({ onClose, onImport, templateDef, validateRows
             {/* Parse errors */}
             {parseErrors.length > 0 && (
               <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-xl">
-                <div className="text-sm font-medium text-red-800 mb-1">Issues with file</div>
+                <div className="text-sm font-medium text-red-800 mb-1">{t('csvimport.issues_title')}</div>
                 {parseErrors.map((e, i) => <div key={i} className="text-xs text-red-600">{e}</div>)}
               </div>
             )}
 
             {/* Column reference */}
             <div className="mt-6">
-              <div className="text-xs font-semibold text-stone-400 uppercase tracking-wider mb-2">Available Columns</div>
+              <div className="text-xs font-semibold text-stone-400 uppercase tracking-wider mb-2">{t('csvimport.cols_title')}</div>
               <div className="flex flex-wrap gap-1.5">
                 {templateDef.headers.map(h => (
                   <span key={h} className={`px-2 py-1 rounded-lg text-xs font-medium ${
@@ -165,26 +167,26 @@ export default function CSVImport({ onClose, onImport, templateDef, validateRows
             <div className="grid grid-cols-3 gap-3 mb-4">
               <div className="bg-stone-50 rounded-xl p-3 text-center">
                 <div className="text-2xl font-bold text-stone-900">{rows.length}</div>
-                <div className="text-xs text-stone-500">Total rows</div>
+                <div className="text-xs text-stone-500">{t('csvimport.preview_total')}</div>
               </div>
               <div className="bg-emerald-50 rounded-xl p-3 text-center">
                 <div className="text-2xl font-bold text-emerald-700">{validRows.length}</div>
-                <div className="text-xs text-emerald-600">Ready to import</div>
+                <div className="text-xs text-emerald-600">{t('csvimport.preview_ready')}</div>
               </div>
               <div className={`rounded-xl p-3 text-center ${invalidRows.length > 0 ? 'bg-amber-50' : 'bg-stone-50'}`}>
                 <div className={`text-2xl font-bold ${invalidRows.length > 0 ? 'text-amber-600' : 'text-stone-400'}`}>{invalidRows.length}</div>
-                <div className={`text-xs ${invalidRows.length > 0 ? 'text-amber-500' : 'text-stone-400'}`}>With issues</div>
+                <div className={`text-xs ${invalidRows.length > 0 ? 'text-amber-500' : 'text-stone-400'}`}>{t('csvimport.preview_issues')}</div>
               </div>
             </div>
 
             {/* Invalid rows */}
             {invalidRows.length > 0 && (
               <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-xl">
-                <div className="text-sm font-medium text-amber-800 mb-2">Rows with issues (will be skipped)</div>
+                <div className="text-sm font-medium text-amber-800 mb-2">{t('csvimport.invalid_rows_title')}</div>
                 <div className="max-h-32 overflow-y-auto space-y-1">
                   {invalidRows.map(r => (
                     <div key={r._row} className="text-xs text-amber-700">
-                      Row {r._row}: {r.name || [r.first_name, r.last_name].filter(Boolean).join(' ') || '(no name)'} — {r._issues.join(', ')}
+                      {t('csvimport.invalid_row', { row: r._row, name: r.name || [r.first_name, r.last_name].filter(Boolean).join(' ') || '(no name)', issues: r._issues.join(', ') })}
                     </div>
                   ))}
                 </div>
@@ -193,8 +195,8 @@ export default function CSVImport({ onClose, onImport, templateDef, validateRows
 
             {/* Summary sentence */}
             <div className="text-sm text-stone-600 mb-3">
-              {validRows.length} row{validRows.length !== 1 ? 's' : ''} ready to import
-              {invalidRows.length > 0 && <span className="text-amber-600"> · {invalidRows.length} with errors (will be skipped)</span>}
+              {t('csvimport.summary_ready', { count: validRows.length })}
+              {invalidRows.length > 0 && <span className="text-amber-600">{t('csvimport.summary_errors', { count: invalidRows.length })}</span>}
             </div>
 
             {/* Preview table */}
@@ -203,12 +205,12 @@ export default function CSVImport({ onClose, onImport, templateDef, validateRows
                 <table className="w-full text-xs">
                   <thead className="bg-stone-50 sticky top-0">
                     <tr>
-                      <th className="px-3 py-2 text-left font-semibold text-stone-500">Status</th>
-                      <th className="px-3 py-2 text-left font-semibold text-stone-500">Name</th>
-                      <th className="px-3 py-2 text-left font-semibold text-stone-500">Phone</th>
-                      <th className="px-3 py-2 text-left font-semibold text-stone-500">Email</th>
-                      {entityName === 'clients' && <th className="px-3 py-2 text-left font-semibold text-stone-500">Address</th>}
-                      {entityName === 'workers' && <th className="px-3 py-2 text-left font-semibold text-stone-500">Role</th>}
+                      <th className="px-3 py-2 text-left font-semibold text-stone-500">{t('csvimport.col_status')}</th>
+                      <th className="px-3 py-2 text-left font-semibold text-stone-500">{t('csvimport.col_name')}</th>
+                      <th className="px-3 py-2 text-left font-semibold text-stone-500">{t('csvimport.col_phone')}</th>
+                      <th className="px-3 py-2 text-left font-semibold text-stone-500">{t('csvimport.col_email')}</th>
+                      {entityName === 'clients' && <th className="px-3 py-2 text-left font-semibold text-stone-500">{t('csvimport.col_address')}</th>}
+                      {entityName === 'workers' && <th className="px-3 py-2 text-left font-semibold text-stone-500">{t('csvimport.col_role')}</th>}
                     </tr>
                   </thead>
                   <tbody>
@@ -232,7 +234,7 @@ export default function CSVImport({ onClose, onImport, templateDef, validateRows
               </div>
               {rows.length > 50 && (
                 <div className="px-3 py-2 bg-stone-50 text-xs text-stone-400 text-center border-t border-stone-100">
-                  Showing first 50 of {rows.length} rows
+                  {t('csvimport.showing_first', { total: rows.length })}
                 </div>
               )}
             </div>
@@ -240,14 +242,14 @@ export default function CSVImport({ onClose, onImport, templateDef, validateRows
             {/* Actions */}
             <div className="flex gap-3">
               <button onClick={() => { setStep('upload'); setRows([]); setParseErrors([]) }} className="flex-1 py-2.5 bg-stone-100 text-stone-600 text-sm font-medium rounded-xl hover:bg-stone-200 transition-colors">
-                Back
+                {t('csvimport.btn_back')}
               </button>
               <button
                 onClick={handleImport}
                 disabled={validRows.length === 0}
                 className="flex-1 py-2.5 bg-emerald-700 text-white text-sm font-medium rounded-xl hover:bg-emerald-800 disabled:opacity-50 transition-colors"
               >
-                Import {validRows.length} {entityName}
+                {t('csvimport.btn_import', { count: validRows.length, entityName })}
               </button>
             </div>
           </div>
@@ -257,7 +259,7 @@ export default function CSVImport({ onClose, onImport, templateDef, validateRows
         {step === 'importing' && (
           <div className="text-center py-12">
             <div className="inline-block w-8 h-8 border-3 border-emerald-200 border-t-emerald-700 rounded-full animate-spin mb-4" style={{ borderWidth: '3px' }} />
-            <div className="text-sm text-stone-600">Importing {validRows.length} {entityName}...</div>
+            <div className="text-sm text-stone-600">{t('csvimport.btn_import_progress', { count: validRows.length, entityName })}</div>
           </div>
         )}
 
@@ -269,10 +271,10 @@ export default function CSVImport({ onClose, onImport, templateDef, validateRows
                 <div className="w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-4">
                   <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#059669" strokeWidth="2.5" strokeLinecap="round"><polyline points="20 6 9 17 4 12"/></svg>
                 </div>
-                <div className="text-lg font-bold text-stone-900 mb-1">Import Complete</div>
-                <div className="text-sm text-stone-500">{importResult.count} {entityName} imported successfully</div>
+                <div className="text-lg font-bold text-stone-900 mb-1">{t('csvimport.done_title')}</div>
+                <div className="text-sm text-stone-500">{t('csvimport.done_count', { count: importResult.count, entityName })}</div>
                 {importResult.skipped > 0 && (
-                  <div className="text-xs text-amber-600 mt-1">{importResult.skipped} duplicates skipped</div>
+                  <div className="text-xs text-amber-600 mt-1">{t('csvimport.done_skipped', { count: importResult.skipped })}</div>
                 )}
               </>
             ) : (
@@ -280,12 +282,12 @@ export default function CSVImport({ onClose, onImport, templateDef, validateRows
                 <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
                   <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#DC2626" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
                 </div>
-                <div className="text-lg font-bold text-stone-900 mb-1">Import Failed</div>
+                <div className="text-lg font-bold text-stone-900 mb-1">{t('csvimport.failed_title')}</div>
                 {importResult.errors?.map((e, i) => <div key={i} className="text-sm text-red-600">{e}</div>)}
               </>
             )}
             <button onClick={onClose} className="mt-6 px-6 py-2.5 bg-emerald-700 text-white text-sm font-medium rounded-xl hover:bg-emerald-800 transition-colors">
-              Done
+              {t('csvimport.btn_done')}
             </button>
           </div>
         )}
