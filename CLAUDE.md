@@ -1,7 +1,7 @@
 # TimelyOps — Claude Code Project Context
 
 ## What this is
-TimelyOps is a multi-tenant business management SaaS for small service businesses, starting with housecleaning. Built by a solo founder (Rich) with a stealth first customer (Hilda) already lined up on the Growth tier.
+TimelyOps is a multi-tenant business management SaaS for small service businesses, starting with housecleaning. Built by a solo founder (Rich) with a stealth first customer (Hilda) already lined up on the Pro tier.
 
 The product name in branding is **TimelyOps**. The GitHub repo and Supabase project are named `allbookd` (previous name — do not rename).
 
@@ -30,7 +30,8 @@ Not yet integrated (planned): Claude API (Growth tier AI agents), Stripe (online
 - RLS enforces org isolation — every SELECT/INSERT/UPDATE/DELETE policy checks `org_id = user_org_id()`
 - `user_org_id()` — SECURITY DEFINER function: `SELECT org_id FROM users WHERE id = auth.uid()`
 - `user_role()` — SECURITY DEFINER function: `SELECT role FROM users WHERE id = auth.uid()`
-- Platform admins (`is_platform_admin = true`) bypass RLS via a separate ALL policy
+- Platform admins (`is_platform_admin = true`) bypass RLS via a separate ALL policy using `is_platform_admin()` SECURITY DEFINER function
+- `is_platform_admin()` — SECURITY DEFINER function: bypasses RLS on `users` lookup to prevent recursive policy evaluation
 - All data pages derive effective org via: `const effectiveOrgId = adminViewOrg?.id ?? user?.org_id`
 
 ## Architecture principles
@@ -58,17 +59,26 @@ src/
     QuoteApproval.jsx   — public, no auth, /approve/:token
     InvoiceView.jsx     — public, no auth, /invoice/:token
     PaymentReceipt.jsx  — public, no auth, /receipt/:token
+    BookingPage.jsx     — public, no auth, /book/:slug — AI booking widget
+    Terms.jsx           — public, no auth, /terms
+    Privacy.jsx         — public, no auth, /privacy
     admin/
       AdminDashboard.jsx
-      AdminOrgs.jsx
-      AdminUsers.jsx
+      AdminOrgs.jsx     — org table + OrgDetailPanel (side panel); View As / Edit / Delete actions per row
+      AdminOrgDetail.jsx — full-page org detail at /admin/orgs/:id
+      AdminUsers.jsx    — user table + "+ New User" modal
+      AdminUserDetail.jsx — full-page user detail at /admin/users/:id
       AdminAudit.jsx
+      AdminProfiles.jsx — industry profile management at /admin/profiles
   components/
-    Layout.jsx          — nav, mobile menu, admin banner
+    Layout.jsx          — nav, mobile menu, admin banner (stone-800, sticky)
     DeliveryModal.jsx   — email/SMS/copy-link picker
     FeatureGate.jsx     — tier gate wrapper
     CSVImport.jsx       — multi-step CSV import flow
     ExportModal.jsx     — multi-table data export
+    ErrorBoundary.jsx   — wraps all routes in App.jsx
+    LanguageSwitcher.jsx — en/es toggle used in Settings
+    PricingImport.jsx   — XLSX pricing matrix import, used in Settings + OrgDetailPanel
   lib/
     supabase.js         — Supabase client
     tiers.js            — tier/feature definitions, hasFeature()
@@ -76,6 +86,9 @@ src/
     timezone.js         — formatting, timezone math, US_TIMEZONES list
     auditLog.js         — logAudit() helper
     i18n.js             — i18next init (reads localStorage language on startup)
+    formatAddress.js    — formatName(), formatAddress(), formatAddressLines()
+    formatCurrency.js   — formatCurrency(amount, symbol)
+    industryProfiles.js — applyProfilesToOrg(), buildApplyToast()
   locales/
     en.json             — English strings
     es.json             — Spanish strings

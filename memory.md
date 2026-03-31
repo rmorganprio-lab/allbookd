@@ -1,6 +1,6 @@
 # TimelyOps — Project Status Board
 
-Last updated: 2026-03-30 (full i18n implemented — English + Spanish across all pages)
+Last updated: 2026-03-31 (platform admin UI fully built; RLS migration applied)
 
 ---
 
@@ -40,9 +40,12 @@ Fully implemented as of 2026-03-30.
 | `/terms` | Terms.jsx | ✅ Full | Public, no auth; Terms of Service (20 sections, v2 dated 2026-03-26). |
 | `/privacy` | Privacy.jsx | ✅ Full | Public, no auth; Privacy Policy (15 sections, v2 dated 2026-03-26, GDPR-compliant). |
 | `/admin` | AdminDashboard.jsx | ✅ Full | Platform-wide stats, tier breakdown |
-| `/admin/orgs` | AdminOrgs.jsx | ✅ Full | Org CRUD, tier/status changes, add users, "View As" org scoping |
-| `/admin/users` | AdminUsers.jsx | ✅ Full | User directory, platform admin toggle, credential updates |
+| `/admin/orgs` | AdminOrgs.jsx | ✅ Full | Org table with View As / Edit / Delete actions; OrgDetailPanel side panel (settings, subscription, users, service types, pricing matrix, industry profiles); Create org |
+| `/admin/orgs/:id` | AdminOrgDetail.jsx | ✅ Full | Full-page org detail — two-column: left (settings/subscription), right (users/service types/pricing matrix) |
+| `/admin/users` | AdminUsers.jsx | ✅ Full | User directory, "+ New User" modal with org selector |
+| `/admin/users/:id` | AdminUserDetail.jsx | ✅ Full | Full-page user detail — edit profile, org, role; is_platform_admin toggle; auth credential update |
 | `/admin/audit` | AdminAudit.jsx | ✅ Full | Filterable audit log, 50/page |
+| `/admin/profiles` | AdminProfiles.jsx | ✅ Full | Industry profile management |
 
 ---
 
@@ -132,6 +135,10 @@ id, org_id, user_id, user_name, user_role, is_admin_action, action (`create`/`up
 ### Key DB helper functions (SECURITY DEFINER)
 - `user_org_id()` — returns caller's org_id from users table
 - `user_role()` — returns caller's role from users table
+- `is_platform_admin()` — returns caller's is_platform_admin flag; SECURITY DEFINER to bypass RLS on users table (prevents infinite recursion in RLS policies)
+
+### Platform admin RLS (migration 20260331000000_platform_admin_rls.sql — applied 2026-03-31)
+All 23 tables have a `tablename_platform_admin` policy: `FOR ALL USING (is_platform_admin())`. Tables with older inline-lookup policies (org_sequences, credit_notes, booking_conversations) were updated to use the function.
 
 ### FK delete behaviour (SET NULL, not RESTRICT)
 Deleting a job NULLs: `payments.job_id`, `invoice_line_items.job_id`, `jobs.invoice_id`
