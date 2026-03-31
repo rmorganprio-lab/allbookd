@@ -372,12 +372,12 @@ function OrgDetailPanel({ org, onClose, onUpdated, onViewOrg, onDelete, adminUse
   const [stEditForm, setStEditForm]                   = useState({})
   const [stSaving, setStSaving]                       = useState(false)
 
-  // Industry profile state (single-profile selector)
+  // Industry profiles state (multi-profile)
   const [availableProfiles, setAvailableProfiles]     = useState([])
   const [profilesLoaded, setProfilesLoaded]           = useState(false)
-  const [currentProfileId, setCurrentProfileId]       = useState(null)
+  const [appliedProfileIds, setAppliedProfileIds]     = useState([])
   const [profilesSaving, setProfilesSaving]           = useState(false)
-  const [profileConfirm, setProfileConfirm]           = useState(null) // profile id pending confirmation
+  const [removeProfileConfirm, setRemoveProfileConfirm] = useState(null) // profile id to confirm removal
 
   // Service types panel state (separate from pricing)
   const [stPanelOpen, setStPanelOpen]                 = useState(false)
@@ -485,10 +485,10 @@ function OrgDetailPanel({ org, onClose, onUpdated, onViewOrg, onDelete, adminUse
   async function loadProfilesForOrg() {
     const [{ data: allProfiles }, { data: applied }] = await Promise.all([
       supabase.from('industry_profiles').select('id, name, description').eq('is_active', true).order('sort_order'),
-      supabase.from('organization_profiles').select('profile_id').eq('org_id', org.id).limit(1),
+      supabase.from('organization_profiles').select('profile_id').eq('org_id', org.id),
     ])
     setAvailableProfiles(allProfiles || [])
-    setCurrentProfileId(applied?.[0]?.profile_id ?? null)
+    setAppliedProfileIds((applied || []).map(r => r.profile_id))
     setProfilesLoaded(true)
   }
 
@@ -498,13 +498,27 @@ function OrgDetailPanel({ org, onClose, onUpdated, onViewOrg, onDelete, adminUse
       const nameMap = Object.fromEntries(availableProfiles.map(p => [p.id, p.name]))
       const result = await applyProfilesToOrg(org.id, [profileId], nameMap)
       showToast(buildApplyToast(result))
-      setCurrentProfileId(profileId)
+      setAppliedProfileIds(prev => [...prev, profileId])
       if (pricingLoaded) await loadPricingForOrg()
     } catch (err) {
       showToast(err.message, 'error')
     }
-    setProfileConfirm(null)
     setProfilesSaving(false)
+  }
+
+  async function removeProfile(profileId) {
+    const { error } = await supabase
+      .from('organization_profiles')
+      .delete()
+      .eq('org_id', org.id)
+      .eq('profile_id', profileId)
+    if (error) {
+      showToast('Failed to remove profile.', 'error')
+    } else {
+      showToast('Profile removed')
+      setAppliedProfileIds(prev => prev.filter(id => id !== profileId))
+    }
+    setRemoveProfileConfirm(null)
   }
 
   function getPricingValue(stId, freq, beds, baths) {
@@ -812,47 +826,58 @@ function OrgDetailPanel({ org, onClose, onUpdated, onViewOrg, onDelete, adminUse
               </div>
             )}
           </section>
-          {/* Industry Profile */}
+          {/* Industry Profiles */}
           <section className="border-t border-stone-100 pt-4">
-            <h3 className="text-xs font-semibold text-stone-400 uppercase tracking-wide mb-3">Industry Profile</h3>
+            <h3 className="text-xs font-semibold text-stone-400 uppercase tracking-wide mb-3">Industry Profiles</h3>
             {!profilesLoaded ? (
               <p className="text-xs text-stone-400">Loading…</p>
             ) : availableProfiles.length === 0 ? (
               <p className="text-xs text-stone-400">No active profiles. Create them at <span className="font-mono">/admin/profiles</span>.</p>
             ) : (
               <div className="space-y-2">
-                <div className="flex items-center gap-2 text-xs">
-                  <span className="text-stone-400">Current:</span>
-                  {currentProfileId ? (
-                    <span className="font-medium text-emerald-700">
-                      {availableProfiles.find(p => p.id === currentProfileId)?.name ?? 'Unknown profile'}
-                    </span>
-                  ) : (
-                    <span className="text-stone-400 italic">No profile assigned</span>
-                  )}
-                </div>
-                <div className="flex gap-2">
+                {/* Applied profiles list */}
+                {appliedProfileIds.length === 0 ? (
+                  <p className="text-xs text-stone-400 italic">No profiles applied yet.</p>
+                ) : (
+                  <div className="flex flex-wrap gap-1.5">
+                    {appliedProfileIds.map(pid => {
+                      const profile = availableProfiles.find(p => p.id === pid)
+                      return (
+                        <span key={pid} className="inline-flex items-center gap-1 pl-2.5 pr-1 py-0.5 bg-emerald-50 text-emerald-700 rounded-full text-xs font-medium">
+                          {profile?.name ?? 'Unknown'}
+                          <button
+                            onClick={() => setRemoveProfileConfirm(pid)}
+                            className="w-4 h-4 flex items-center justify-center rounded-full hover:bg-emerald-200 text-emerald-500 hover:text-emerald-900 text-sm leading-none"
+                            title="Remove profile"
+                          >
+                            ×
+                          </button>
+                        </span>
+                      )
+                    })}
+                  </div>
+                )}
+
+                {/* Add profile dropdown — only shows profiles not yet applied */}
+                {availableProfiles.filter(p => !appliedProfileIds.includes(p.id)).length > 0 && (
                   <select
-                    defaultValue=""
+                    value=""
                     onChange={e => {
                       const id = e.target.value
-                      if (!id) return
-                      if (currentProfileId && currentProfileId !== id) {
-                        setProfileConfirm(id)
-                      } else {
-                        applyProfile(id)
-                      }
-                      e.target.value = ''
+                      if (id) applyProfile(id)
                     }}
-                    className="flex-1 px-2 py-1.5 border border-stone-200 rounded-lg text-xs text-stone-700 bg-white focus:outline-none focus:ring-1 focus:ring-emerald-600"
+                    className="w-full px-2 py-1.5 border border-stone-200 rounded-lg text-xs text-stone-700 bg-white focus:outline-none focus:ring-1 focus:ring-emerald-600"
                     disabled={profilesSaving}
                   >
-                    <option value="">Apply a profile…</option>
-                    {availableProfiles.map(p => (
-                      <option key={p.id} value={p.id}>{p.name}</option>
-                    ))}
+                    <option value="">Add profile…</option>
+                    {availableProfiles
+                      .filter(p => !appliedProfileIds.includes(p.id))
+                      .map(p => (
+                        <option key={p.id} value={p.id}>{p.name}</option>
+                      ))}
                   </select>
-                </div>
+                )}
+
                 <p className="text-[10px] text-stone-400">
                   Applying a profile copies its service types to this org. Existing service types are never deleted.
                 </p>
@@ -1105,13 +1130,13 @@ function OrgDetailPanel({ org, onClose, onUpdated, onViewOrg, onDelete, adminUse
         />
       )}
 
-      {profileConfirm && (
+      {removeProfileConfirm && (
         <ConfirmModal
-          title="Change industry profile?"
-          message={`This org already has "${availableProfiles.find(p => p.id === currentProfileId)?.name}" applied. Changing to "${availableProfiles.find(p => p.id === profileConfirm)?.name}" will add its service types. Existing service types will not be deleted. Continue?`}
-          danger={false}
-          onConfirm={() => applyProfile(profileConfirm)}
-          onCancel={() => setProfileConfirm(null)}
+          title="Remove profile?"
+          message={`Remove "${availableProfiles.find(p => p.id === removeProfileConfirm)?.name}" from this org? Service types already added will not be deleted.`}
+          danger={true}
+          onConfirm={() => removeProfile(removeProfileConfirm)}
+          onCancel={() => setRemoveProfileConfirm(null)}
         />
       )}
     </>
