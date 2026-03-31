@@ -19,7 +19,9 @@ import Invoices from './pages/Invoices'
 import Reports from './pages/Reports'
 import AdminDashboard from './pages/admin/AdminDashboard'
 import AdminOrgs from './pages/admin/AdminOrgs'
+import AdminOrgDetail from './pages/admin/AdminOrgDetail'
 import AdminUsers from './pages/admin/AdminUsers'
+import AdminUserDetail from './pages/admin/AdminUserDetail'
 import AdminAudit from './pages/admin/AdminAudit'
 import AdminProfiles from './pages/admin/AdminProfiles'
 import Settings from './pages/Settings'
@@ -68,7 +70,9 @@ function AppRoutes({ user, session }) {
             {/* Platform admin routes */}
             <Route path="admin" element={<AdminGuard user={user}><ErrorBoundary><AdminDashboard /></ErrorBoundary></AdminGuard>} />
             <Route path="admin/orgs" element={<AdminGuard user={user}><ErrorBoundary><AdminOrgs user={user} /></ErrorBoundary></AdminGuard>} />
+            <Route path="admin/orgs/:id" element={<AdminGuard user={user}><ErrorBoundary><AdminOrgDetail user={user} /></ErrorBoundary></AdminGuard>} />
             <Route path="admin/users" element={<AdminGuard user={user}><ErrorBoundary><AdminUsers user={user} /></ErrorBoundary></AdminGuard>} />
+            <Route path="admin/users/:id" element={<AdminGuard user={user}><ErrorBoundary><AdminUserDetail user={user} /></ErrorBoundary></AdminGuard>} />
             <Route path="admin/audit" element={<AdminGuard user={user}><ErrorBoundary><AdminAudit /></ErrorBoundary></AdminGuard>} />
             <Route path="admin/profiles" element={<AdminGuard user={user}><ErrorBoundary><AdminProfiles /></ErrorBoundary></AdminGuard>} />
           </Route>
