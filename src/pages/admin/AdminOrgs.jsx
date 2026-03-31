@@ -707,9 +707,8 @@ function OrgDetailPanel({ org, onClose, onUpdated, onViewOrg, onDelete, adminUse
                 <div>
                   <label className="block text-xs text-stone-500 mb-1">Tier</label>
                   <select value={form.tier} onChange={e => setField('tier', e.target.value)} className={INPUT}>
-                    <option value="starter">Starter ($79/mo)</option>
-                    <option value="professional">Professional ($129/mo)</option>
-                    <option value="growth">Growth ($249/mo)</option>
+                    <option value="essentials">Essentials ($99/mo)</option>
+                    <option value="pro">Pro ($149/mo)</option>
                   </select>
                 </div>
                 <div>
