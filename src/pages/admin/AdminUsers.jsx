@@ -31,6 +31,80 @@ const fmtDate = d => d ? new Date(d).toLocaleDateString('en-US', { month: 'short
 
 const INPUT = 'w-full px-3 py-2.5 border border-stone-200 rounded-xl text-sm text-stone-800 bg-white focus:outline-none focus:ring-2 focus:ring-emerald-600'
 
+// ─── Create User Modal ────────────────────────────────────────
+
+function CreateUserModal({ onClose, onCreated, adminUser }) {
+  const { showToast } = useToast()
+  const [orgs, setOrgs] = useState([])
+  const [form, setForm] = useState({ name: '', email: '', phone: '', role: 'worker', orgId: '' })
+  const [loading, setLoading] = useState(false)
+
+  useEffect(() => {
+    supabase.from('organizations').select('id, name').order('name')
+      .then(({ data }) => setOrgs(data || []))
+  }, [])
+
+  function set(k, v) { setForm(p => ({ ...p, [k]: v })) }
+
+  async function handleSubmit(e) {
+    e.preventDefault()
+    setLoading(true)
+    const newId = crypto.randomUUID()
+    const { error } = await supabase.from('users').insert({
+      id:          newId,
+      name:        form.name.trim(),
+      email:       form.email.trim().toLowerCase() || null,
+      phone:       form.phone.trim() || null,
+      role:        form.role,
+      org_id:      form.orgId || null,
+      auth_linked: false,
+    })
+    if (error) { showToast(error.message, 'error'); setLoading(false); return }
+    showToast('User created')
+    if (adminUser) {
+      await logAudit({ supabase, user: adminUser, action: 'create', entityType: 'user', entityId: newId, changes: { name: form.name.trim(), role: form.role, org_id: form.orgId || null }, metadata: { source: 'admin_panel' } })
+    }
+    onCreated()
+  }
+
+  return (
+    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/40">
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm">
+        <div className="flex items-center justify-between px-5 pt-5 pb-4 border-b border-stone-100">
+          <h3 className="font-bold text-stone-900">New User</h3>
+          <button onClick={onClose} className="p-1.5 text-stone-400 hover:text-stone-600 rounded-lg hover:bg-stone-100">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+              <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+            </svg>
+          </button>
+        </div>
+        <form onSubmit={handleSubmit} className="px-5 py-4 space-y-3">
+          <input required placeholder="Full name" value={form.name} onChange={e => set('name', e.target.value)} className={INPUT} />
+          <input type="email" placeholder="Email (optional)" value={form.email} onChange={e => set('email', e.target.value)} className={INPUT} />
+          <input type="tel" placeholder="Phone (optional)" value={form.phone} onChange={e => set('phone', e.target.value)} className={INPUT} />
+          <select value={form.role} onChange={e => set('role', e.target.value)} className={INPUT}>
+            <option value="ceo">Owner (CEO)</option>
+            <option value="manager">Manager</option>
+            <option value="worker">Worker</option>
+          </select>
+          <select value={form.orgId} onChange={e => set('orgId', e.target.value)} className={INPUT}>
+            <option value="">— No organization —</option>
+            {orgs.map(o => <option key={o.id} value={o.id}>{o.name}</option>)}
+          </select>
+          <div className="flex gap-3 pt-1">
+            <button type="button" onClick={onClose} className="flex-1 py-2 border border-stone-200 rounded-xl text-stone-600 text-sm hover:bg-stone-50">
+              Cancel
+            </button>
+            <button type="submit" disabled={loading} className="flex-1 py-2 bg-emerald-700 text-white text-sm font-medium rounded-xl hover:bg-emerald-800 disabled:opacity-50">
+              {loading ? 'Creating…' : 'Create User'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  )
+}
+
 // ─── User Detail Panel ────────────────────────────────────────
 
 function UserDetailPanel({ user, onClose, onUpdated, adminUser }) {
@@ -247,6 +321,7 @@ export default function AdminUsers({ user: adminUser }) {
   const [loading, setLoading]           = useState(true)
   const [search, setSearch]             = useState('')
   const [selectedUser, setSelectedUser] = useState(null)
+  const [showCreate, setShowCreate]     = useState(false)
 
   useEffect(() => { fetchUsers() }, [])
 
@@ -274,13 +349,24 @@ export default function AdminUsers({ user: adminUser }) {
           <h1 className="text-2xl font-bold text-stone-900">Users</h1>
           <p className="text-stone-500 text-sm mt-1">{users.length} total across all orgs</p>
         </div>
-        <input
-          type="search"
-          placeholder="Search…"
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-          className="px-3 py-2 border border-stone-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-600 w-48"
-        />
+        <div className="flex items-center gap-2">
+          <input
+            type="search"
+            placeholder="Search…"
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            className="px-3 py-2 border border-stone-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-600 w-48"
+          />
+          <button
+            onClick={() => setShowCreate(true)}
+            className="flex items-center gap-1.5 px-3 py-2 bg-emerald-700 text-white text-sm font-medium rounded-xl hover:bg-emerald-800"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+              <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+            </svg>
+            New User
+          </button>
+        </div>
       </div>
 
       {loading ? (
@@ -322,6 +408,14 @@ export default function AdminUsers({ user: adminUser }) {
             </tbody>
           </table>
         </div>
+      )}
+
+      {showCreate && (
+        <CreateUserModal
+          onClose={() => setShowCreate(false)}
+          onCreated={() => { setShowCreate(false); fetchUsers() }}
+          adminUser={adminUser}
+        />
       )}
 
       {selectedUser && (

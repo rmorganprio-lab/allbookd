@@ -335,7 +335,7 @@ function CreateOrgModal({ onClose, onCreated, adminUser }) {
 
 // ─── Org Detail Panel ─────────────────────────────────────────
 
-function OrgDetailPanel({ org, onClose, onUpdated, onViewOrg, adminUser }) {
+function OrgDetailPanel({ org, onClose, onUpdated, onViewOrg, onDelete, adminUser }) {
   const { showToast } = useToast()
   const [form, setForm] = useState({
     name:               org.name,
@@ -662,6 +662,12 @@ function OrgDetailPanel({ org, onClose, onUpdated, onViewOrg, adminUser }) {
               className="px-3 py-1.5 bg-emerald-700 text-white text-xs font-medium rounded-lg hover:bg-emerald-800"
             >
               View org data
+            </button>
+            <button
+              onClick={onDelete}
+              className="px-3 py-1.5 bg-red-50 text-red-600 text-xs font-medium rounded-lg hover:bg-red-100"
+            >
+              Delete
             </button>
             <button onClick={onClose} className="p-1.5 text-stone-400 hover:text-stone-600 rounded-lg hover:bg-stone-100">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
@@ -1242,6 +1248,7 @@ export default function AdminOrgs({ user }) {
   const [loading, setLoading]     = useState(true)
   const [showCreate, setShowCreate] = useState(false)
   const [selectedOrg, setSelectedOrg] = useState(null)
+  const [deleteOrgConfirm, setDeleteOrgConfirm] = useState(null)
 
   useEffect(() => { fetchOrgs() }, [])
 
@@ -1263,6 +1270,18 @@ export default function AdminOrgs({ user }) {
   function handleViewOrg(org) {
     setAdminViewOrg(org)
     navigate('/')
+  }
+
+  async function deleteOrg(orgId) {
+    const { error } = await supabase.from('organizations').delete().eq('id', orgId)
+    if (error) {
+      showToast('Failed to delete organization. Please try again.', 'error')
+    } else {
+      showToast('Organization deleted')
+      setSelectedOrg(null)
+      fetchOrgs()
+    }
+    setDeleteOrgConfirm(null)
   }
 
   async function handleOrgUpdated() {
@@ -1307,6 +1326,7 @@ export default function AdminOrgs({ user }) {
                 <th className="text-left px-4 py-3 text-xs font-semibold text-stone-500 uppercase tracking-wide">Status</th>
                 <th className="text-left px-4 py-3 text-xs font-semibold text-stone-500 uppercase tracking-wide hidden lg:table-cell">Staff</th>
                 <th className="text-left px-4 py-3 text-xs font-semibold text-stone-500 uppercase tracking-wide hidden lg:table-cell">Created</th>
+                <th className="text-right px-4 py-3 text-xs font-semibold text-stone-500 uppercase tracking-wide">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -1327,11 +1347,33 @@ export default function AdminOrgs({ user }) {
                     <td className="px-4 py-3"><StatusBadge status={org.subscription_status} /></td>
                     <td className="px-4 py-3 text-stone-500 hidden lg:table-cell">{org.users?.length ?? 0}</td>
                     <td className="px-4 py-3 text-stone-400 text-xs hidden lg:table-cell">{fmtDate(org.created_at)}</td>
+                    <td className="px-4 py-3 text-right" onClick={e => e.stopPropagation()}>
+                      <div className="flex items-center justify-end gap-1">
+                        <button
+                          onClick={() => handleViewOrg(org)}
+                          className="px-2 py-1 text-xs text-amber-700 bg-amber-50 hover:bg-amber-100 rounded-lg font-medium"
+                        >
+                          View As
+                        </button>
+                        <button
+                          onClick={() => navigate(`/admin/orgs/${org.id}`)}
+                          className="px-2 py-1 text-xs text-stone-600 bg-stone-100 hover:bg-stone-200 rounded-lg font-medium"
+                        >
+                          Edit
+                        </button>
+                        <button
+                          onClick={() => setDeleteOrgConfirm({ orgId: org.id, orgName: org.name })}
+                          className="px-2 py-1 text-xs text-red-600 bg-red-50 hover:bg-red-100 rounded-lg font-medium"
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    </td>
                   </tr>
                 )
               })}
               {orgs.length === 0 && (
-                <tr><td colSpan={6} className="px-4 py-10 text-center text-stone-400">No organizations yet.</td></tr>
+                <tr><td colSpan={7} className="px-4 py-10 text-center text-stone-400">No organizations yet.</td></tr>
               )}
             </tbody>
           </table>
@@ -1352,7 +1394,17 @@ export default function AdminOrgs({ user }) {
           onClose={() => setSelectedOrg(null)}
           onUpdated={handleOrgUpdated}
           onViewOrg={() => handleViewOrg(selectedOrg)}
+          onDelete={() => setDeleteOrgConfirm({ orgId: selectedOrg.id, orgName: selectedOrg.name })}
           adminUser={user}
+        />
+      )}
+
+      {deleteOrgConfirm && (
+        <ConfirmModal
+          title="Delete organization?"
+          message={`Permanently delete "${deleteOrgConfirm.orgName}"? All users, clients, jobs, invoices, and other data in this org will be removed. This cannot be undone.`}
+          onConfirm={() => deleteOrg(deleteOrgConfirm.orgId)}
+          onCancel={() => setDeleteOrgConfirm(null)}
         />
       )}
     </div>
