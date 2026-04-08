@@ -785,9 +785,48 @@
     }
     .lang-option:hover { background: var(--stone-100); }
     .lang-option.active { color: var(--emerald-700); font-weight: 600; background: var(--emerald-50); }
+
+    /* ─── ANNOUNCEMENT BANNER ──────────────────────────────── */
+    #announce-banner {
+      background: #1D9E75;
+      color: #fff;
+      font-size: 14px;
+      font-weight: 500;
+      height: 40px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0 48px;
+      position: relative;
+      line-height: 1.3;
+    }
+    #announce-banner.hidden { display: none; }
+    #announce-dismiss {
+      position: absolute;
+      right: 16px;
+      top: 50%;
+      transform: translateY(-50%);
+      background: none;
+      border: none;
+      color: rgba(255,255,255,0.75);
+      font-size: 18px;
+      line-height: 1;
+      cursor: pointer;
+      padding: 4px 6px;
+      border-radius: 4px;
+      font-family: inherit;
+      transition: color .15s, background .15s;
+    }
+    #announce-dismiss:hover { color: #fff; background: rgba(255,255,255,0.15); }
   </style>
 </head>
 <body>
+
+<!-- ─── ANNOUNCEMENT BANNER ──────────────────────────────── -->
+<div id="announce-banner">
+  <span data-i18n="announce_text">Limited: Free personal onboarding for our first 10 customers — we set everything up for you ($500 value).</span>
+  <button id="announce-dismiss" onclick="dismissBanner()" aria-label="Dismiss">&times;</button>
+</div>
 
 <!-- ─── NAV ──────────────────────────────────────────────── -->
 <nav>
@@ -1220,6 +1259,7 @@
   ]
 
   var TRANSLATIONS = {
+    announce_text:    { en: 'Limited: Free personal onboarding for our first 10 customers \u2014 we set everything up for you ($500 value).', es: 'Limitado: Incorporaci\u00f3n personal gratuita para nuestros primeros 10 clientes \u2014 nosotros configuramos todo por ti.' },
     nav_badge:        { en: 'Now in early access',   es: 'En acceso anticipado' },
     nav_features:     { en: 'Features',               es: 'Funciones' },
     nav_how:          { en: 'How It Works',           es: 'C\u00f3mo funciona' },
@@ -1330,6 +1370,19 @@
     footer_privacy:   { en: 'Privacy Policy',       es: 'Pol\u00edtica de Privacidad' },
     footer_copy:      { en: '\u00a9 2026 TimelyOps. The Netherlands.', es: '\u00a9 2026 TimelyOps. Pa\u00edses Bajos.' },
   }
+
+  // ─── BANNER DISMISS ─────────────────────────────────────
+  function dismissBanner() {
+    document.getElementById('announce-banner').classList.add('hidden')
+    localStorage.setItem('timelyops_banner_dismissed', '1')
+  }
+
+  ;(function() {
+    if (localStorage.getItem('timelyops_banner_dismissed') === '1') {
+      var b = document.getElementById('announce-banner')
+      if (b) b.classList.add('hidden')
+    }
+  })()
 
   function applyLang(lang) {
     var t = TRANSLATIONS
