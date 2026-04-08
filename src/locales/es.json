@@ -1004,5 +1004,21 @@
   },
   "privacy": {
     "title": "Política de Privacidad"
+  },
+  "booking": {
+    "loading": "Cargando…",
+    "booking_with": "Reserva un servicio con",
+    "welcome": "¡Hola! Vamos a agendar tu limpieza.",
+    "trust_signal": "Obtén una cotización y agenda en menos de 2 minutos",
+    "starting": "Iniciando conversación…",
+    "input_placeholder": "Escribe tu mensaje…",
+    "powered_by": "Desarrollado por",
+    "not_found_title": "Página de reservas no disponible",
+    "not_found_body": "Este enlace no corresponde a una página de reservas activa. Por favor contacta al negocio directamente.",
+    "confirmed_title": "¡Solicitud de reserva enviada!",
+    "confirmed_body": "El equipo revisará tu solicitud y confirmará pronto.",
+    "confirmed_body_org": "{{org}} revisará tu solicitud y confirmará pronto.",
+    "error_generic": "Algo salió mal. Por favor intenta de nuevo.",
+    "error_connection": "Error de conexión. Por favor intenta de nuevo."
   }
 }

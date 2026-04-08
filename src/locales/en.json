@@ -1004,5 +1004,21 @@
   },
   "privacy": {
     "title": "Privacy Policy"
+  },
+  "booking": {
+    "loading": "Loading…",
+    "booking_with": "Book a service with",
+    "welcome": "Hi! Let's get your cleaning booked.",
+    "trust_signal": "Get a quote and book in under 2 minutes",
+    "starting": "Starting conversation…",
+    "input_placeholder": "Type your message…",
+    "powered_by": "Powered by",
+    "not_found_title": "Booking not available",
+    "not_found_body": "This link doesn't match an active booking page. Please contact the business directly.",
+    "confirmed_title": "Booking request submitted!",
+    "confirmed_body": "The team will review your request and confirm shortly.",
+    "confirmed_body_org": "{{org}} will review your request and confirm shortly.",
+    "error_generic": "Something went wrong. Please try again.",
+    "error_connection": "Connection error. Please try again."
   }
 }
