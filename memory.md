@@ -1,6 +1,6 @@
 # TimelyOps — Project Status Board
 
-Last updated: 2026-03-31 (platform admin UI fully built; RLS migration applied)
+Last updated: 2026-04-09 (security hardening verified; landing page Grand Slam Offer; booking page redesigned; 30-day guarantee added)
 
 ---
 
@@ -36,8 +36,8 @@ Fully implemented as of 2026-03-30.
 | `/approve/:token` | QuoteApproval.jsx | ✅ Full | Public, no auth; approve/decline with reason |
 | `/invoice/:token` | InvoiceView.jsx | ✅ Full | Public, no auth; shows invoice with line items |
 | `/receipt/:token` | PaymentReceipt.jsx | ✅ Full | Public, no auth; shows payment receipt |
-| `/book/:slug` | BookingPage.jsx | ✅ Full | Public, no auth; web widget that drives the booking-agent Edge Function. All tiers (Essentials+). |
-| `/terms` | Terms.jsx | ✅ Full | Public, no auth; Terms of Service (20 sections, v2 dated 2026-03-26). |
+| `/book/:slug` | BookingPage.jsx | ✅ Full | Public, no auth; web widget that drives the booking-agent Edge Function. All tiers (Essentials+). Teal chat UI (#1D9E75 user bubbles, #F0FAF5 agent bubbles). EN\|ES language toggle (localStorage). All strings i18n'd under `booking.*`. Agent responds in customer's language automatically. |
+| `/terms` | Terms.jsx | ✅ Full | Public, no auth; Terms of Service (21 sections incl. 8A, v2 dated 2026-03-26). Section 8A: 30-day money-back guarantee — i18n keys `terms.guarantee_title` / `terms.guarantee_body`. |
 | `/privacy` | Privacy.jsx | ✅ Full | Public, no auth; Privacy Policy (15 sections, v2 dated 2026-03-26, GDPR-compliant). |
 | `/admin` | AdminDashboard.jsx | ✅ Full | Platform-wide stats, tier breakdown |
 | `/admin/orgs` | AdminOrgs.jsx | ✅ Full | Org table with View As / Edit / Delete actions; OrgDetailPanel side panel (settings, subscription, users, service types, pricing matrix, industry profiles); Create org |
@@ -168,11 +168,12 @@ Deleting an invoice NULLs: `payments.invoice_id`, `jobs.invoice_id`
 **Security:** Public responses stripped of client email/phone/id and org id — only display fields returned. `approve_quote` enforces `valid_until` expiry (returns 410 if expired). `decline_reason` capped at 1000 chars. All user data HTML-escaped in notification emails.
 **Env vars:** `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`
 
-### `booking-agent` (v1 — deployed 2026-03-26)
+### `booking-agent` (v2 — language-matching added 2026-04-09)
 **What:** AI-powered booking agent for the `/book/:slug` web widget. Accepts `{ org_slug, conversation_id?, message }`. Runs an agentic loop (up to 6 Claude calls) using tools: `get_service_types`, `check_availability`, `get_pricing` (looks up `pricing_matrix`), `create_pending_job` (creates client + job at status `pending_confirmation`, notifies org owner via SMS).
 **Auth:** `--no-verify-jwt` — public endpoint. Gated by `hasFeature(org, 'ai_inbound_agent')` (Essentials tier — all orgs).
 **Rate limit:** Max 10 messages per conversation.
 **Model:** `claude-sonnet-4-6` (claude-sonnet-4-20250514)
+**Language:** System prompt instructs agent to always respond in the customer's language — Spanish in → Spanish out; French in → French out. No comment on the language switch.
 **Stores:** Conversation in `booking_conversations` table. Created jobs have `source = 'web_booking'`, `status = 'pending_confirmation'`.
 **Env vars:** `ANTHROPIC_API_KEY`, `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_PHONE_NUMBER`, `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`
 
@@ -188,7 +189,7 @@ Deleting an invoice NULLs: `payments.invoice_id`, `jobs.invoice_id`
 | Service | What it does | Credentials location |
 |---------|-------------|---------------------|
 | Supabase | DB, Auth, RLS, Edge Functions | `src/lib/supabase.js` (anon key), Edge Function env vars (service role) |
-| Resend | Transactional email | `RESEND_API_KEY` in Supabase Edge Function settings |
+| Resend | Transactional email | `RESEND_API_KEY` in Supabase Edge Function settings. Confirmed working in production — 5 emails delivered as of April 2026. |
 | Twilio | SMS delivery | `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_PHONE_NUMBER` in Supabase Edge Function settings |
 | Vercel | Hosting + CI/CD | Auto-deploy on push to `main` |
 | GitHub | Source control | `rmorganprio-lab/allbookd` |
@@ -265,36 +266,69 @@ Clicking a job card on the Dashboard calls `routerNavigate('/schedule', { state:
 
 ---
 
+## Landing page (public/landing.html)
+
+Fully rewritten 2026-04-09 for cleaning-business-only positioning using a **Grand Slam Offer** framework.
+
+**i18n system:** Plain JS `TRANSLATIONS` object with `data-i18n` / `data-i18n-html` attributes; `applyLang(lang)` applies on page load and language switch. Separate from the React `react-i18next` system used in the app.
+
+**Announcement banner:** Slim teal (#1D9E75) banner above nav. Dismissible; state persisted to `localStorage('timelyops_banner_dismissed')`. "Founding offer" copy — free personal onboarding for first 10 customers.
+
+**Section order (top to bottom):**
+1. Announcement banner
+2. Nav (sticky, blur backdrop)
+3. Hero — "What if your cleaning business ran itself…" — guarantee-forward subhead; "Get started free" CTA (mailto)
+4. Stats bar
+5. Value stack (`id="value"`) — 6 items with value badges; dark reveal box: "Total value: $806/mo + $500 setup → Your price: $99/mo. Setup: $0."
+6. Guarantee — shield icon, "Try it risk-free for 30 days", full refund promise
+7. Problem — "Sound familiar?" — 3 pain-point cards
+8. How it works — 6-step pipeline in 2×3 grid
+9. Pricing — 2 tiers (Essentials $99/mo, Pro $149/mo)
+10. Social proof — placeholder card
+11. Final CTA — "Get started free"
+12. Footer
+
+Nav `#features` link replaced with `#value` to match new section id.
+
+---
+
 ## Known issues / blockers
 
 - **Audit log gaps** — `logAudit()` not wired to core page actions (client creates/edits, invoice creates, quote sends, payments). Only admin actions are logged.
 - **No automated reminders** — Professional tier feature. `needs_assignment_reminder` flag is stored on jobs but notification system not built. TODO comment in Schedule.jsx `handleSave`.
 - **No online payments** — Invoice view page shows balance but has no Stripe integration. Outstanding invoices require manual payment recording.
 
-## Security posture (Phase 4 complete)
+## Security posture (all 12 items verified live — 2026-04-09)
+
+All items below confirmed in live codebase and live Supabase DB via pg_policies query.
 
 - **Tokens:** `crypto.randomUUID()` everywhere — cryptographically secure UUIDs. ✓
 - **Public pages:** QuoteApproval, InvoiceView, PaymentReceipt import no auth context. ✓
-- **Public API responses:** Stripped to minimum needed fields (no client email/phone, no internal IDs).
-- **Quote expiry:** `approve_quote` returns 410 if `valid_until` is in the past.
-- **HTML escaping:** `escapeHtml()` applied to all user data in email templates (send-email, quote-action).
-- **Org ownership:** send-email verifies the requesting user's org_id matches the record's org_id before sending.
-- **Rate limiting:** send-email: 60s cooldown per recipient+type. send-sms: 5/hour per number.
-- **Edge Function auth:** send-email, send-sms, admin-update-auth-user all require valid JWT. quote-action is intentionally public (token-based).
-- **RLS:** All tables have RLS enabled. Users UPDATE policy has `WITH CHECK` preventing role/org/admin escalation. quotes and clients DELETE restricted to ceo+manager. Duplicate payments policies removed.
-- **Session expiry:** Redirects to /login?expired=1 with banner instead of silent landing page redirect.
+- **Public API responses:** Stripped to minimum needed fields (no client email/phone, no internal IDs). ✓
+- **Quote expiry:** `approve_quote` returns 410 if `valid_until` is in the past. ✓
+- **HTML escaping:** `escapeHtml()` applied to all user data in email templates (send-email, quote-action). ✓
+- **Org ownership:** send-email verifies the requesting user's org_id matches the record's org_id before sending. ✓
+- **Rate limiting:** send-email: 60s cooldown per recipient+type (checks email_log). send-sms: 5/hour per number (checks email_log, channel='sms'). ✓
+- **Edge Function auth:** send-email, send-sms, admin-update-auth-user all require valid JWT (manual auth.getUser() — deployed --no-verify-jwt). quote-action is intentionally public (token-based). ✓
+- **RLS — users UPDATE:** Policy `"Users can update their own profile"` has WITH CHECK enforcing role, org_id, and is_platform_admin must equal current DB values. Self-escalation impossible. ✓
+- **RLS — clients DELETE:** Policy `"Managers can delete clients"` — restricted to user_role() = ANY ('ceo','manager') within same org (+ platform admin). Workers blocked. ✓
+- **RLS — quotes DELETE:** Hard-delete blocked entirely — policy dropped in audit_controls_schema migration. Void/reverse only. ✓
+- **ErrorBoundary:** Wraps every individual route and the entire app in App.jsx. ✓
+- **Session expiry:** onAuthStateChange detects unintentional drop; window.location.replace('/login?expired=1'). ✓
 
 ---
 
 ## TODO / open items
 
-- [ ] Wire `logAudit()` to core page actions (clients, invoices, payments, quotes)
-- [ ] Automated reminders system (Professional tier) — wire `needs_assignment_reminder` to 24h-before notification
+- [ ] Wire `logAudit()` to core page actions (clients, invoices, payments, quotes) — currently only admin actions logged
+- [ ] Automated reminders system (Pro tier) — `needs_assignment_reminder` flag is stored on jobs; notification system not yet built (TODO comment in Schedule.jsx `handleSave`)
 - [ ] Stripe integration for online payment on `/invoice/:token` page
+- [ ] Before/after photo uploads — mentioned as Pro tier feature but NOT yet in `tiers.js` or UI; needs feature slug added and storage wired up
 - [ ] AI outbound sequences add-on (`ai_outbound_agents`) — follow-ups, payment chasing
-- [ ] Route planning (Pro tier) — feature slug added to tiers.js, UI not yet built
+- [ ] Route planning (Pro tier) — feature slug in tiers.js, UI not yet built
 - [ ] Client booking portal (add-on)
-- [ ] Worker GPS check-in (Pro tier)
-- [ ] Auto review requests (Pro tier)
+- [ ] Worker GPS check-in (Pro tier) — feature slug in tiers.js, UI not yet built
+- [ ] Auto review requests (Pro tier) — feature slug in tiers.js, UI not yet built
 - [ ] QuickBooks sync (add-on)
 - [ ] Supply tracking (add-on)
+- [ ] Social proof section on landing page — currently a placeholder card; needs real customer quote

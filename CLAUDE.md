@@ -102,7 +102,7 @@ supabase/functions/
   send-sms/             — Twilio SMS
   quote-action/         — public token actions + get_receipt
   admin-update-auth-user/ — update Supabase auth credentials
-  booking-agent/        — public AI booking agent (no JWT), uses claude-sonnet-4-20250514, 4 tools
+  booking-agent/        — public AI booking agent (no JWT), uses claude-sonnet-4-20250514, 4 tools; responds in customer's language automatically
 public/
   landing.html          — static landing page
   favicon.ico + PNGs    — favicons (committed to git)
@@ -123,7 +123,7 @@ public/
 ## Pricing tiers
 Defined in `src/lib/tiers.js`:
 - **Essentials** $99/mo, up to 5 staff — dashboard, clients, workers, schedule, quotes, payments, invoices, reports view, client timeline, worker check-in time, AI inbound agent
-- **Pro** $149/mo, up to 10 staff — adds reports export, automated reminders, job checklists, worker GPS check-in, auto review requests, route planning
+- **Pro** $149/mo, up to 10 staff — adds reports export, automated reminders, job checklists, worker GPS check-in, auto review requests, route planning (before/after photo uploads planned but not yet in tiers.js or UI)
 - **Add-ons** available per `ADD_ONS` in tiers.js
 - $500 implementation fee for all new customers
 - Founding customer discount structure in place (Hilda)
@@ -156,6 +156,8 @@ All items below are confirmed in the live codebase and live Supabase DB:
 
 ## Keeping documentation current
 After completing any task that adds, removes, or changes a feature, 
-database table, Edge Function, or integration, update memory.md to 
-reflect the change before committing. If a change affects the tech 
-stack, architecture, or coding conventions, update CLAUDE.md too.
+database table, Edge Function, or integration, update both:
+- `~/Desktop/TimelyOps/memory.md` — the project's source-of-truth status board (routes, schema, edge functions, TODOs)
+- `~/Desktop/TimelyOps/CLAUDE.md` — if the change affects tech stack, architecture, or coding conventions
+
+Update memory.md before committing the change.
