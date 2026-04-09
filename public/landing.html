@@ -10,7 +10,7 @@
   <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
   <link rel="manifest" href="/site.webmanifest">
   <meta name="theme-color" content="#1AA378">
-  <meta name="description" content="TimelyOps is the all-in-one app built for cleaning companies — scheduling, quoting, invoicing, payments, and an AI agent that books new clients 24/7." />
+  <meta name="description" content="TimelyOps gives your cleaning business an AI agent that books clients 24/7, a full operations platform, and personal onboarding — try it free for 30 days." />
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -65,7 +65,6 @@
 
     .logo { flex-shrink: 0; }
 
-    /* Wordmark: "Timely[clock]ps" — clock serves as the O in Ops */
     .logo-wordmark {
       display: inline-flex;
       align-items: center;
@@ -82,20 +81,13 @@
       height: 19px;
       color: var(--emerald-700);
       flex-shrink: 0;
-      /* nudge to optically align with cap height */
       margin: 0 0.5px;
       position: relative;
       top: -0.5px;
     }
 
-    /* Smaller wordmark variant for footer */
-    .logo-wordmark-sm {
-      font-size: 18px;
-    }
-    .logo-wordmark-sm .logo-o {
-      width: 16px;
-      height: 16px;
-    }
+    .logo-wordmark-sm { font-size: 18px; }
+    .logo-wordmark-sm .logo-o { width: 16px; height: 16px; }
 
     .early-badge {
       background: var(--emerald-50);
@@ -170,7 +162,7 @@
     }
 
     .hero h1 {
-      font-size: clamp(32px, 4vw, 48px);
+      font-size: clamp(30px, 4vw, 46px);
       font-weight: 800;
       line-height: 1.15;
       color: var(--stone-900);
@@ -239,8 +231,7 @@
 
     .mockup-header .dots { display: flex; gap: 6px; }
     .mockup-header .dot {
-      width: 10px;
-      height: 10px;
+      width: 10px; height: 10px;
       border-radius: 50%;
       background: rgba(255,255,255,0.25);
     }
@@ -248,69 +239,24 @@
     .mockup-header .dot:nth-child(2) { background: #febc2e; }
     .mockup-header .dot:nth-child(3) { background: #28c840; }
 
-    .mockup-org {
-      font-size: 12px;
-      color: rgba(255,255,255,0.6);
-      margin-left: 8px;
-      font-weight: 500;
-    }
+    .mockup-org { font-size: 12px; color: rgba(255,255,255,0.6); margin-left: 8px; font-weight: 500; }
     .mockup-org span { color: rgba(255,255,255,0.9); }
 
     .mockup-body { padding: 20px; }
-
     .mockup-greeting { margin-bottom: 16px; }
     .mockup-greeting .hi { font-size: 16px; font-weight: 700; color: var(--stone-900); }
     .mockup-greeting .date { font-size: 11px; color: var(--stone-400); margin-top: 2px; }
 
-    .mockup-stats {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 10px;
-      margin-bottom: 16px;
-    }
-
-    .mockup-stat {
-      background: var(--stone-50);
-      border: 1px solid var(--stone-200);
-      border-radius: 10px;
-      padding: 12px 14px;
-    }
+    .mockup-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 16px; }
+    .mockup-stat { background: var(--stone-50); border: 1px solid var(--stone-200); border-radius: 10px; padding: 12px 14px; }
     .mockup-stat .val { font-size: 24px; font-weight: 800; color: var(--stone-900); line-height: 1; }
     .mockup-stat .lbl { font-size: 10px; color: var(--stone-400); margin-top: 3px; text-transform: uppercase; letter-spacing: 0.05em; }
 
-    .mockup-section-title {
-      font-size: 10px;
-      font-weight: 700;
-      color: var(--stone-400);
-      text-transform: uppercase;
-      letter-spacing: 0.08em;
-      margin-bottom: 8px;
-    }
-
+    .mockup-section-title { font-size: 10px; font-weight: 700; color: var(--stone-400); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 8px; }
     .mockup-jobs { display: flex; flex-direction: column; gap: 8px; }
+    .mockup-job { display: flex; align-items: center; gap: 10px; background: var(--stone-50); border: 1px solid var(--stone-200); border-radius: 10px; padding: 10px 12px; }
 
-    .mockup-job {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      background: var(--stone-50);
-      border: 1px solid var(--stone-200);
-      border-radius: 10px;
-      padding: 10px 12px;
-    }
-
-    .avatar {
-      width: 30px;
-      height: 30px;
-      border-radius: 8px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 10px;
-      font-weight: 700;
-      flex-shrink: 0;
-      color: var(--white);
-    }
+    .avatar { width: 30px; height: 30px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 700; flex-shrink: 0; color: var(--white); }
     .avatar-green { background: var(--emerald-700); }
     .avatar-blue  { background: #2563eb; }
 
@@ -318,149 +264,134 @@
     .job-name { font-size: 12px; font-weight: 600; color: var(--stone-700); }
     .job-loc  { font-size: 10px; color: var(--stone-400); }
 
-    .job-status {
-      font-size: 10px;
-      font-weight: 700;
-      padding: 3px 8px;
-      border-radius: 99px;
-      white-space: nowrap;
-    }
+    .job-status { font-size: 10px; font-weight: 700; padding: 3px 8px; border-radius: 99px; white-space: nowrap; }
     .status-active { background: var(--emerald-50); color: var(--emerald-700); }
     .status-next   { background: #dbeafe; color: #1d4ed8; }
 
     /* ─── STATS BAR ────────────────────────────────────────── */
-    .stats-bar {
-      border-top: 1px solid var(--stone-200);
-      border-bottom: 1px solid var(--stone-200);
-      background: var(--white);
-    }
-
-    .stats-bar-inner {
-      max-width: 1100px;
-      margin: 0 auto;
-      padding: 0 24px;
-      display: grid;
-      grid-template-columns: repeat(4, 1fr);
-    }
-
-    .stat-item {
-      padding: 32px 24px;
-      text-align: center;
-      border-right: 1px solid var(--stone-200);
-    }
+    .stats-bar { border-top: 1px solid var(--stone-200); border-bottom: 1px solid var(--stone-200); background: var(--white); }
+    .stats-bar-inner { max-width: 1100px; margin: 0 auto; padding: 0 24px; display: grid; grid-template-columns: repeat(4, 1fr); }
+    .stat-item { padding: 32px 24px; text-align: center; border-right: 1px solid var(--stone-200); }
     .stat-item:last-child { border-right: none; }
-
-    .stat-val {
-      font-size: 36px;
-      font-weight: 800;
-      color: var(--emerald-700);
-      line-height: 1;
-      letter-spacing: -0.02em;
-    }
-
-    .stat-lbl {
-      font-size: 13px;
-      color: var(--stone-500);
-      margin-top: 6px;
-      font-weight: 500;
-    }
+    .stat-val { font-size: 36px; font-weight: 800; color: var(--emerald-700); line-height: 1; letter-spacing: -0.02em; }
+    .stat-lbl { font-size: 13px; color: var(--stone-500); margin-top: 6px; font-weight: 500; }
 
     /* ─── SECTION BASE ─────────────────────────────────────── */
-    .section {
-      max-width: 1100px;
-      margin: 0 auto;
-      padding: 80px 24px;
-    }
+    .section { max-width: 1100px; margin: 0 auto; padding: 80px 24px; }
 
     .section-label {
-      font-size: 11px;
-      font-weight: 700;
-      letter-spacing: 0.1em;
-      text-transform: uppercase;
-      color: var(--emerald-700);
-      margin-bottom: 12px;
+      font-size: 11px; font-weight: 700; letter-spacing: 0.1em;
+      text-transform: uppercase; color: var(--emerald-700); margin-bottom: 12px;
     }
 
     .section-title {
-      font-size: clamp(26px, 3vw, 38px);
-      font-weight: 800;
-      letter-spacing: -0.02em;
-      color: var(--stone-900);
-      line-height: 1.2;
-      margin-bottom: 16px;
+      font-size: clamp(26px, 3vw, 38px); font-weight: 800; letter-spacing: -0.02em;
+      color: var(--stone-900); line-height: 1.2; margin-bottom: 16px;
     }
 
-    .section-sub {
-      font-size: 17px;
-      color: var(--stone-500);
-      line-height: 1.7;
-      max-width: 600px;
-    }
+    .section-sub { font-size: 17px; color: var(--stone-500); line-height: 1.7; max-width: 600px; }
 
     /* ─── PROBLEM ──────────────────────────────────────────── */
-    .problem {
-      background: var(--stone-900);
+    .problem { background: var(--stone-900); }
+    .problem .section { text-align: center; }
+    .problem .section-label { color: var(--emerald-600); }
+    .problem .section-title { color: var(--white); margin-bottom: 20px; }
+    .problem .section-sub { color: rgba(255,255,255,0.65); max-width: 640px; margin: 0 auto; font-size: 18px; }
+
+    /* ─── FEATURE CARDS (used in problem section) ──────────── */
+    .features-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; }
+
+    .feature-card {
+      background: var(--white); border: 1px solid var(--stone-200);
+      border-radius: var(--radius-lg); padding: 28px;
+      transition: box-shadow .2s, transform .2s;
+    }
+    .feature-card:hover { box-shadow: 0 8px 24px rgba(0,0,0,0.07); transform: translateY(-2px); }
+
+    .feature-icon {
+      width: 44px; height: 44px; background: var(--emerald-50); border-radius: 12px;
+      display: flex; align-items: center; justify-content: center;
+      margin-bottom: 16px; color: var(--emerald-700);
     }
 
-    .problem .section {
+    .feature-title { font-size: 16px; font-weight: 700; color: var(--stone-900); margin-bottom: 8px; }
+    .feature-desc { font-size: 14px; color: var(--stone-500); line-height: 1.65; }
+
+    /* ─── VALUE STACK ──────────────────────────────────────── */
+    .value-stack { display: flex; flex-direction: column; gap: 10px; margin-top: 48px; }
+
+    .value-item {
+      background: var(--white);
+      border: 1px solid var(--stone-200);
+      border-left: 4px solid var(--emerald-600);
+      border-radius: var(--radius);
+      padding: 20px 24px;
+      display: flex;
+      align-items: center;
+      gap: 20px;
+      transition: box-shadow .2s;
+    }
+    .value-item:hover { box-shadow: 0 4px 16px rgba(0,0,0,0.06); }
+
+    .value-icon {
+      width: 40px; height: 40px; background: var(--emerald-50); border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0; color: var(--emerald-700);
+    }
+
+    .value-body { flex: 1; min-width: 0; }
+    .value-name { font-size: 15px; font-weight: 700; color: var(--stone-900); margin-bottom: 3px; }
+    .value-desc { font-size: 13px; color: var(--stone-500); line-height: 1.5; }
+
+    .value-badge { flex-shrink: 0; text-align: right; }
+    .value-badge-label { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--stone-400); display: block; }
+    .value-badge-amount { font-size: 15px; font-weight: 700; color: var(--stone-600); }
+    .value-badge-amount.included { color: var(--emerald-700); }
+
+    .value-reveal {
+      margin-top: 32px;
+      background: var(--stone-900);
+      border-radius: var(--radius-lg);
+      padding: 40px;
       text-align: center;
     }
 
-    .problem .section-label { color: var(--emerald-600); }
-
-    .problem .section-title { color: var(--white); margin-bottom: 20px; }
-
-    .problem .section-sub {
-      color: rgba(255,255,255,0.65);
-      max-width: 640px;
-      margin: 0 auto;
-      font-size: 18px;
-    }
-
-    /* ─── FEATURES ─────────────────────────────────────────── */
-    .features-header { margin-bottom: 48px; }
-
-    .features-grid {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 24px;
-    }
-
-    .feature-card {
-      background: var(--white);
-      border: 1px solid var(--stone-200);
-      border-radius: var(--radius-lg);
-      padding: 28px;
-      transition: box-shadow .2s, transform .2s;
-    }
-    .feature-card:hover {
-      box-shadow: 0 8px 24px rgba(0,0,0,0.07);
-      transform: translateY(-2px);
-    }
-
-    .feature-icon {
-      width: 44px;
-      height: 44px;
-      background: var(--emerald-50);
-      border-radius: 12px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      margin-bottom: 16px;
-      color: var(--emerald-700);
-    }
-
-    .feature-title {
+    .value-reveal-total {
       font-size: 16px;
+      color: rgba(255,255,255,0.55);
+      margin-bottom: 16px;
+    }
+    .value-reveal-total strong { color: rgba(255,255,255,0.8); }
+
+    .value-reveal-divider {
+      width: 48px; height: 2px;
+      background: var(--emerald-600);
+      margin: 0 auto 20px;
+      border-radius: 2px;
+    }
+
+    .value-reveal-your {
+      font-size: 13px;
       font-weight: 700;
-      color: var(--stone-900);
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--emerald-600);
       margin-bottom: 8px;
     }
 
-    .feature-desc {
-      font-size: 14px;
-      color: var(--stone-500);
-      line-height: 1.65;
+    .value-reveal-price {
+      font-size: clamp(40px, 6vw, 64px);
+      font-weight: 800;
+      color: var(--white);
+      letter-spacing: -0.03em;
+      line-height: 1;
+      margin-bottom: 8px;
+    }
+
+    .value-reveal-note {
+      font-size: 13px;
+      color: rgba(255,255,255,0.5);
+      margin-top: 12px;
     }
 
     /* ─── HOW IT WORKS ─────────────────────────────────────── */
@@ -488,82 +419,58 @@
     .step { text-align: center; position: relative; z-index: 1; }
 
     .step-num {
-      width: 56px;
-      height: 56px;
-      background: var(--emerald-700);
-      color: var(--white);
-      border-radius: 50%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 20px;
-      font-weight: 800;
-      margin: 0 auto 20px;
+      width: 56px; height: 56px; background: var(--emerald-700); color: var(--white);
+      border-radius: 50%; display: flex; align-items: center; justify-content: center;
+      font-size: 20px; font-weight: 800; margin: 0 auto 20px;
       border: 4px solid var(--stone-100);
     }
 
-    .step-title {
-      font-size: 15px;
-      font-weight: 700;
-      color: var(--stone-900);
-      margin-bottom: 8px;
+    .step-title { font-size: 15px; font-weight: 700; color: var(--stone-900); margin-bottom: 8px; }
+    .step-desc { font-size: 13px; color: var(--stone-500); line-height: 1.6; }
+
+    /* ─── GUARANTEE ─────────────────────────────────────────── */
+    .guarantee-bg { background: var(--stone-50); }
+
+    .guarantee-card {
+      background: var(--white);
+      border: 2px solid var(--emerald-600);
+      border-radius: var(--radius-lg);
+      padding: 56px 48px;
+      max-width: 720px;
+      margin: 0 auto;
+      text-align: center;
+      box-shadow: 0 4px 32px rgba(4,120,87,0.08);
     }
 
-    .step-desc {
-      font-size: 13px;
-      color: var(--stone-500);
-      line-height: 1.6;
+    .guarantee-icon {
+      width: 64px; height: 64px; background: var(--emerald-50); border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      margin: 0 auto 24px; color: var(--emerald-700);
     }
+
+    .guarantee-title {
+      font-size: clamp(22px, 3vw, 30px); font-weight: 800;
+      color: var(--stone-900); letter-spacing: -0.02em; margin-bottom: 16px;
+    }
+
+    .guarantee-body { font-size: 17px; color: var(--stone-500); line-height: 1.7; max-width: 560px; margin: 0 auto; }
 
     /* ─── PRICING ──────────────────────────────────────────── */
     .pricing-wrap {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 24px;
-      margin-top: 48px;
-      max-width: 860px;
-      margin-left: auto;
-      margin-right: auto;
+      display: grid; grid-template-columns: 1fr 1fr;
+      gap: 24px; margin-top: 48px; max-width: 860px;
+      margin-left: auto; margin-right: auto;
     }
 
-    @media (max-width: 640px) {
-      .pricing-wrap { grid-template-columns: 1fr; }
-    }
+    @media (max-width: 640px) { .pricing-wrap { grid-template-columns: 1fr; } }
 
-    .pricing-card {
-      background: var(--white);
-      border: 2px solid var(--stone-200);
-      border-radius: var(--radius-lg);
-      padding: 36px;
-      width: 100%;
-    }
+    .pricing-card { background: var(--white); border: 2px solid var(--stone-200); border-radius: var(--radius-lg); padding: 36px; width: 100%; }
+    .pricing-card.pricing-card--featured { border-color: var(--emerald-700); box-shadow: 0 12px 40px rgba(4,120,87,0.12); }
 
-    .pricing-card.pricing-card--featured {
-      border-color: var(--emerald-700);
-      box-shadow: 0 12px 40px rgba(4,120,87,0.12);
-    }
-
-    .pricing-badge {
-      display: inline-block;
-      background: var(--emerald-700);
-      color: var(--white);
-      font-size: 11px;
-      font-weight: 700;
-      letter-spacing: 0.08em;
-      text-transform: uppercase;
-      padding: 4px 12px;
-      border-radius: 99px;
-      margin-bottom: 20px;
-    }
-
+    .pricing-badge { display: inline-block; background: var(--emerald-700); color: var(--white); font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; padding: 4px 12px; border-radius: 99px; margin-bottom: 20px; }
     .pricing-plan { font-size: 22px; font-weight: 700; color: var(--stone-900); margin-bottom: 4px; }
 
-    .pricing-price {
-      display: flex;
-      align-items: flex-end;
-      gap: 6px;
-      margin: 16px 0 6px;
-    }
+    .pricing-price { display: flex; align-items: flex-end; gap: 6px; margin: 16px 0 6px; }
     .price-amount { font-size: 56px; font-weight: 800; color: var(--stone-900); line-height: 1; letter-spacing: -0.03em; }
     .price-dollar { font-size: 28px; font-weight: 700; color: var(--stone-400); line-height: 1.4; }
     .price-period { font-size: 16px; color: var(--stone-400); padding-bottom: 6px; }
@@ -571,146 +478,93 @@
     .pricing-note { font-size: 13px; color: var(--stone-400); margin-bottom: 28px; }
 
     .pricing-features { list-style: none; margin-bottom: 32px; }
-
-    .pricing-features li {
-      display: flex;
-      align-items: flex-start;
-      gap: 10px;
-      font-size: 14px;
-      color: var(--stone-700);
-      padding: 7px 0;
-      border-bottom: 1px solid var(--stone-100);
-    }
+    .pricing-features li { display: flex; align-items: flex-start; gap: 10px; font-size: 14px; color: var(--stone-700); padding: 7px 0; border-bottom: 1px solid var(--stone-100); }
     .pricing-features li:last-child { border-bottom: none; }
-
     .pricing-features li::before {
-      content: '';
-      width: 18px;
-      height: 18px;
-      background: var(--emerald-50);
-      border-radius: 50%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      flex-shrink: 0;
+      content: ''; width: 18px; height: 18px; background: var(--emerald-50); border-radius: 50%;
+      display: flex; align-items: center; justify-content: center; flex-shrink: 0;
       background-image: url("data:image/svg+xml,%3Csvg width='10' height='8' viewBox='0 0 10 8' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 4l2.5 2.5L9 1' stroke='%23047857' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
-      background-repeat: no-repeat;
-      background-position: center;
-      margin-top: 1px;
+      background-repeat: no-repeat; background-position: center; margin-top: 1px;
     }
 
-    .btn-cta-full {
-      display: block;
-      width: 100%;
-      text-align: center;
-      background: var(--emerald-700);
-      color: var(--white);
-      font-size: 16px;
-      font-weight: 700;
-      padding: 16px;
-      border-radius: var(--radius);
-      transition: background .15s;
-    }
+    .btn-cta-full { display: block; width: 100%; text-align: center; background: var(--emerald-700); color: var(--white); font-size: 16px; font-weight: 700; padding: 16px; border-radius: var(--radius); transition: background .15s; }
     .btn-cta-full:hover { background: #036045; }
 
-    /* ─── CONTACT CTA ──────────────────────────────────────── */
-    .contact-cta {
-      background: var(--emerald-700);
-    }
+    /* ─── SOCIAL PROOF ──────────────────────────────────────── */
+    .proof-bg { background: var(--stone-100); }
 
-    .contact-cta .section {
+    .proof-card {
+      background: var(--white);
+      border: 1px solid var(--stone-200);
+      border-radius: var(--radius-lg);
+      padding: 48px;
+      max-width: 640px;
+      margin: 40px auto 0;
       text-align: center;
     }
 
+    .proof-avatar-row {
+      display: flex; align-items: center; justify-content: center;
+      gap: 8px; margin-bottom: 20px;
+    }
+
+    .proof-dot {
+      width: 44px; height: 44px; border-radius: 50%; border: 2px solid var(--white);
+      background: var(--emerald-700); display: flex; align-items: center; justify-content: center;
+      font-size: 13px; font-weight: 700; color: var(--white);
+    }
+
+    .proof-quote { font-size: 17px; color: var(--stone-600); line-height: 1.7; font-style: italic; margin-bottom: 24px; }
+
+    .proof-cta-link {
+      display: inline-flex; align-items: center; gap: 6px;
+      background: var(--emerald-700); color: var(--white);
+      font-size: 14px; font-weight: 600;
+      padding: 10px 20px; border-radius: var(--radius);
+      transition: background .15s;
+    }
+    .proof-cta-link:hover { background: #036045; }
+
+    /* ─── CONTACT CTA ──────────────────────────────────────── */
+    .contact-cta { background: var(--emerald-700); }
+    .contact-cta .section { text-align: center; }
     .contact-cta .section-title { color: var(--white); margin-bottom: 12px; }
+    .contact-cta .section-sub { color: rgba(255,255,255,0.8); margin: 0 auto 32px; max-width: 520px; }
 
-    .contact-cta .section-sub {
-      color: rgba(255,255,255,0.8);
-      margin: 0 auto 32px;
-      max-width: 520px;
-    }
-
-    .contact-links {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 12px;
-      flex-wrap: wrap;
-    }
+    .contact-links { display: flex; align-items: center; justify-content: center; gap: 12px; flex-wrap: wrap; }
 
     .contact-link {
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      background: rgba(255,255,255,0.15);
-      border: 1.5px solid rgba(255,255,255,0.3);
-      color: var(--white);
-      font-size: 15px;
-      font-weight: 600;
-      padding: 12px 24px;
-      border-radius: var(--radius);
-      transition: background .15s;
+      display: inline-flex; align-items: center; gap: 8px;
+      background: rgba(255,255,255,0.15); border: 1.5px solid rgba(255,255,255,0.3);
+      color: var(--white); font-size: 15px; font-weight: 600;
+      padding: 12px 24px; border-radius: var(--radius); transition: background .15s;
     }
     .contact-link:hover { background: rgba(255,255,255,0.25); }
 
     /* ─── FOOTER ───────────────────────────────────────────── */
-    footer {
-      background: var(--stone-900);
-      color: rgba(255,255,255,0.7);
-    }
+    footer { background: var(--stone-900); color: rgba(255,255,255,0.7); }
 
     .footer-inner {
-      max-width: 1100px;
-      margin: 0 auto;
-      padding: 48px 24px 32px;
-      display: grid;
-      grid-template-columns: 1fr auto auto auto;
-      gap: 48px;
-      align-items: start;
+      max-width: 1100px; margin: 0 auto; padding: 48px 24px 32px;
+      display: grid; grid-template-columns: 1fr auto auto auto;
+      gap: 48px; align-items: start;
     }
 
     .footer-brand .logo-text .name { color: var(--white); }
     .footer-brand .logo-text .sub  { color: rgba(255,255,255,0.4); }
+    .footer-brand p { font-size: 13px; color: rgba(255,255,255,0.5); line-height: 1.65; margin-top: 12px; max-width: 260px; }
 
-    .footer-brand p {
-      font-size: 13px;
-      color: rgba(255,255,255,0.5);
-      line-height: 1.65;
-      margin-top: 12px;
-      max-width: 260px;
-    }
-
-    .footer-col h4 {
-      font-size: 11px;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 0.08em;
-      color: rgba(255,255,255,0.4);
-      margin-bottom: 12px;
-    }
-
+    .footer-col h4 { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: rgba(255,255,255,0.4); margin-bottom: 12px; }
     .footer-col ul { list-style: none; }
     .footer-col ul li { margin-bottom: 8px; }
-    .footer-col ul li a {
-      font-size: 14px;
-      color: rgba(255,255,255,0.65);
-      transition: color .15s;
-    }
+    .footer-col ul li a { font-size: 14px; color: rgba(255,255,255,0.65); transition: color .15s; }
     .footer-col ul li a:hover { color: var(--white); }
 
     .footer-bottom {
-      max-width: 1100px;
-      margin: 0 auto;
-      padding: 0 24px 24px;
-      border-top: 1px solid rgba(255,255,255,0.08);
-      padding-top: 20px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      font-size: 12px;
-      color: rgba(255,255,255,0.35);
-      flex-wrap: wrap;
-      gap: 8px;
+      max-width: 1100px; margin: 0 auto; padding: 0 24px 24px;
+      border-top: 1px solid rgba(255,255,255,0.08); padding-top: 20px;
+      display: flex; justify-content: space-between; align-items: center;
+      font-size: 12px; color: rgba(255,255,255,0.35); flex-wrap: wrap; gap: 8px;
     }
 
     /* ─── RESPONSIVE ───────────────────────────────────────── */
@@ -722,6 +576,9 @@
       .stats-bar-inner { grid-template-columns: 1fr 1fr; }
       .stat-item:nth-child(2) { border-right: none; }
       .footer-inner { grid-template-columns: 1fr; gap: 32px; }
+      .value-item { flex-wrap: wrap; }
+      .value-badge { text-align: left; }
+      .guarantee-card { padding: 40px 24px; }
     }
 
     @media (max-width: 600px) {
@@ -731,91 +588,46 @@
       .stats-bar-inner { grid-template-columns: 1fr 1fr; }
       .hero-ctas { flex-direction: column; }
       .btn-primary, .btn-secondary { justify-content: center; }
+      .value-reveal { padding: 32px 20px; }
+      .proof-card { padding: 32px 20px; }
     }
 
     /* ─── LANGUAGE SWITCHER ─────────────────────────────────── */
-    .lang-switcher {
-      position: relative;
-      flex-shrink: 0;
-    }
+    .lang-switcher { position: relative; flex-shrink: 0; }
     .lang-trigger {
-      display: flex;
-      align-items: center;
-      gap: 3px;
-      background: none;
-      border: none;
-      cursor: pointer;
-      padding: 4px 8px;
-      border-radius: 8px;
-      color: var(--stone-500);
-      font-size: 12px;
-      font-weight: 500;
-      font-family: inherit;
-      transition: color .15s, background .15s;
+      display: flex; align-items: center; gap: 3px; background: none; border: none;
+      cursor: pointer; padding: 4px 8px; border-radius: 8px; color: var(--stone-500);
+      font-size: 12px; font-weight: 500; font-family: inherit; transition: color .15s, background .15s;
     }
     .lang-trigger:hover { color: var(--stone-700); background: var(--stone-100); }
     .lang-trigger svg { flex-shrink: 0; transition: transform .15s; }
     .lang-trigger.open svg { transform: rotate(180deg); }
     .lang-dropdown {
-      display: none;
-      position: absolute;
-      top: calc(100% + 4px);
-      left: 0;
-      background: var(--white);
-      border: 1px solid var(--stone-200);
-      border-radius: 12px;
-      box-shadow: 0 4px 16px rgba(0,0,0,.08);
-      padding: 4px;
-      min-width: 110px;
-      z-index: 200;
+      display: none; position: absolute; top: calc(100% + 4px); left: 0;
+      background: var(--white); border: 1px solid var(--stone-200); border-radius: 12px;
+      box-shadow: 0 4px 16px rgba(0,0,0,.08); padding: 4px; min-width: 110px; z-index: 200;
     }
     .lang-dropdown.open { display: block; }
     .lang-option {
-      width: 100%;
-      text-align: left;
-      background: none;
-      border: none;
-      cursor: pointer;
-      padding: 6px 10px;
-      border-radius: 8px;
-      font-size: 12px;
-      font-family: inherit;
-      color: var(--stone-700);
-      transition: background .12s;
+      width: 100%; text-align: left; background: none; border: none; cursor: pointer;
+      padding: 6px 10px; border-radius: 8px; font-size: 12px; font-family: inherit;
+      color: var(--stone-700); transition: background .12s;
     }
     .lang-option:hover { background: var(--stone-100); }
     .lang-option.active { color: var(--emerald-700); font-weight: 600; background: var(--emerald-50); }
 
     /* ─── ANNOUNCEMENT BANNER ──────────────────────────────── */
     #announce-banner {
-      background: #1D9E75;
-      color: #fff;
-      font-size: 14px;
-      font-weight: 500;
-      height: 40px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      padding: 0 48px;
-      position: relative;
-      line-height: 1.3;
+      background: #1D9E75; color: #fff; font-size: 14px; font-weight: 500;
+      height: 40px; display: flex; align-items: center; justify-content: center;
+      padding: 0 48px; position: relative; line-height: 1.3;
     }
     #announce-banner.hidden { display: none; }
     #announce-dismiss {
-      position: absolute;
-      right: 16px;
-      top: 50%;
-      transform: translateY(-50%);
-      background: none;
-      border: none;
-      color: rgba(255,255,255,0.75);
-      font-size: 18px;
-      line-height: 1;
-      cursor: pointer;
-      padding: 4px 6px;
-      border-radius: 4px;
-      font-family: inherit;
-      transition: color .15s, background .15s;
+      position: absolute; right: 16px; top: 50%; transform: translateY(-50%);
+      background: none; border: none; color: rgba(255,255,255,0.75); font-size: 18px;
+      line-height: 1; cursor: pointer; padding: 4px 6px; border-radius: 4px;
+      font-family: inherit; transition: color .15s, background .15s;
     }
     #announce-dismiss:hover { color: #fff; background: rgba(255,255,255,0.15); }
   </style>
@@ -840,7 +652,7 @@
     <span class="early-badge" data-i18n="nav_badge">Now in early access</span>
 
     <div class="nav-links">
-      <a href="#features" data-i18n="nav_features">Features</a>
+      <a href="#value" data-i18n="nav_features">Features</a>
       <a href="#how-it-works" data-i18n="nav_how">How It Works</a>
       <a href="#pricing" data-i18n="nav_pricing">Pricing</a>
       <div class="lang-switcher" id="landingLangSwitcher">
@@ -865,11 +677,11 @@
   <div class="hero">
     <div>
       <div class="hero-label" data-i18n="nav_badge">Now in early access</div>
-      <h1 data-i18n="hero_h1">Stop juggling your cleaning business. Start running it.</h1>
-      <p data-i18n="hero_p">TimelyOps is the all-in-one app built for cleaning companies — scheduling, quoting, invoicing, payments, and an AI agent that books new clients 24/7. One app. One price. Everything works together.</p>
+      <h1 data-i18n="hero_h1">What if your cleaning business ran itself — even while you're on a job?</h1>
+      <p data-i18n="hero_p">TimelyOps gives you an AI assistant that books new clients 24/7, a complete operations system, and personal onboarding where we do all the work. Try it for 30 days — if it doesn't save you 5 hours a week, you pay nothing.</p>
       <div class="hero-ctas">
-        <a href="mailto:info@timelyops.com?subject=Interested%20in%20TimelyOps" class="btn-primary">
-          <span data-i18n="hero_cta1">Get started</span>
+        <a href="mailto:info@timelyops.com?subject=I%20want%20to%20try%20TimelyOps" class="btn-primary">
+          <span data-i18n="hero_cta1">Get started free</span>
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
         </a>
       </div>
@@ -878,11 +690,7 @@
 
     <div class="app-mockup">
       <div class="mockup-header">
-        <div class="dots">
-          <div class="dot"></div>
-          <div class="dot"></div>
-          <div class="dot"></div>
-        </div>
+        <div class="dots"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>
         <div class="mockup-org"><span>Bright Home Cleaning</span> · TimelyOps</div>
       </div>
       <div class="mockup-body">
@@ -955,10 +763,7 @@
 
       <div class="feature-card">
         <div class="feature-icon">
-          <!-- Moon / Sunday night -->
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
-          </svg>
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
         </div>
         <div class="feature-title" data-i18n="problem_card1_title">Sunday night scheduling</div>
         <div class="feature-desc" data-i18n="problem_card1_desc">You spend your Sunday nights planning the week's schedule. By Tuesday, someone calls in sick and the whole thing falls apart.</div>
@@ -966,10 +771,7 @@
 
       <div class="feature-card">
         <div class="feature-icon">
-          <!-- Message / chasing -->
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
-          </svg>
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
         </div>
         <div class="feature-title" data-i18n="problem_card2_title">Chasing payments</div>
         <div class="feature-desc" data-i18n="problem_card2_desc">The job's done. The house is spotless. But you're still texting the client two weeks later asking when they'll pay.</div>
@@ -977,10 +779,7 @@
 
       <div class="feature-card">
         <div class="feature-icon">
-          <!-- Grid / drowning in apps -->
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/>
-          </svg>
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
         </div>
         <div class="feature-title" data-i18n="problem_card3_title">Drowning in apps</div>
         <div class="feature-desc" data-i18n="problem_card3_desc">Google Calendar for scheduling. QuickBooks for invoicing. A spreadsheet for pricing. Group texts for your team. Nothing talks to each other.</div>
@@ -989,6 +788,116 @@
     </div>
   </div>
 </div>
+
+<!-- ─── VALUE STACK ───────────────────────────────────────── -->
+<section id="value">
+  <div class="section">
+    <div class="section-label" data-i18n="value_label">What You Get</div>
+    <h2 class="section-title" data-i18n="value_title">Everything you'd pay for separately — in one price.</h2>
+    <p class="section-sub" data-i18n="value_sub">Here's what you get with TimelyOps, and what it would cost to piece this together from other tools.</p>
+
+    <div class="value-stack">
+
+      <div class="value-item">
+        <div class="value-icon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+        </div>
+        <div class="value-body">
+          <div class="value-name" data-i18n="value1_title">AI booking agent — answers leads 24/7 by phone, SMS, and web</div>
+          <div class="value-desc" data-i18n="value1_desc">Books new clients automatically in any language. Works while you sleep, while you're on a job, all weekend.</div>
+        </div>
+        <div class="value-badge">
+          <span class="value-badge-label" data-i18n="value_lbl">Value</span>
+          <span class="value-badge-amount" data-i18n="value1_val">$79/mo</span>
+        </div>
+      </div>
+
+      <div class="value-item">
+        <div class="value-icon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
+        </div>
+        <div class="value-body">
+          <div class="value-name" data-i18n="value2_title">Complete operations platform — scheduling, quoting, invoicing, payments, worker management</div>
+          <div class="value-desc" data-i18n="value2_desc">Everything connected. Quote a job, schedule it, complete it, get paid — no switching apps, no re-entering data.</div>
+        </div>
+        <div class="value-badge">
+          <span class="value-badge-label" data-i18n="value_lbl">Value</span>
+          <span class="value-badge-amount" data-i18n="value2_val">$149/mo</span>
+        </div>
+      </div>
+
+      <div class="value-item">
+        <div class="value-icon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        </div>
+        <div class="value-body">
+          <div class="value-name" data-i18n="value3_title">Personal onboarding — we import your clients, configure your pricing, and train your team</div>
+          <div class="value-desc" data-i18n="value3_desc">We do the setup work for you. Waived for founding customers — normally $500.</div>
+        </div>
+        <div class="value-badge">
+          <span class="value-badge-label" data-i18n="value_lbl">Value</span>
+          <span class="value-badge-amount" data-i18n="value3_val">$500 — waived</span>
+        </div>
+      </div>
+
+      <div class="value-item">
+        <div class="value-icon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+        </div>
+        <div class="value-body">
+          <div class="value-name" data-i18n="value4_title">Auto-generated booking page with your business link</div>
+          <div class="value-desc" data-i18n="value4_desc">Share one link — by text, WhatsApp, or email. Prospects book directly without calling you.</div>
+        </div>
+        <div class="value-badge">
+          <span class="value-badge-label" data-i18n="value_lbl">Value</span>
+          <span class="value-badge-amount" data-i18n="value4_val">$29/mo</span>
+        </div>
+      </div>
+
+      <div class="value-item">
+        <div class="value-icon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+        </div>
+        <div class="value-body">
+          <div class="value-name" data-i18n="value5_title">English + Spanish bilingual — your whole team uses it in their language</div>
+          <div class="value-desc" data-i18n="value5_desc">Full bilingual interface, switchable anytime. No separate translation add-on needed.</div>
+        </div>
+        <div class="value-badge">
+          <span class="value-badge-label" data-i18n="value_lbl">Value</span>
+          <span class="value-badge-amount" data-i18n="value5_val">$49/mo</span>
+        </div>
+      </div>
+
+      <div class="value-item">
+        <div class="value-icon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+        </div>
+        <div class="value-body">
+          <div class="value-name" data-i18n="value6_title">Works on any phone, tablet, or computer — no app download needed</div>
+          <div class="value-desc" data-i18n="value6_desc">Your team opens a browser link. That's it. Nothing to install, nothing to update.</div>
+        </div>
+        <div class="value-badge">
+          <span class="value-badge-label" data-i18n="value_lbl">Value</span>
+          <span class="value-badge-amount included" data-i18n="value6_val">Included</span>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- The reveal -->
+    <div class="value-reveal">
+      <div class="value-reveal-total">
+        <span data-i18n="value_total_label">Total value:</span>
+        <strong data-i18n="value_total_amount"> $806/mo + $500 setup</strong>
+      </div>
+      <div class="value-reveal-divider"></div>
+      <div class="value-reveal-your" data-i18n="value_your_label">Your price</div>
+      <div class="value-reveal-price" data-i18n="value_your_amount">$99/mo. Setup: $0.</div>
+      <div class="value-reveal-note" data-i18n="value_your_note">Founding customers only — setup fee waived, price locked for 12 months.</div>
+    </div>
+
+  </div>
+</section>
 
 <!-- ─── HOW IT WORKS ──────────────────────────────────────── -->
 <div class="how-bg" id="how-it-works">
@@ -1032,108 +941,22 @@
   </div>
 </div>
 
-<!-- ─── FEATURES ─────────────────────────────────────────── -->
-<section id="features">
+<!-- ─── GUARANTEE ─────────────────────────────────────────── -->
+<div class="guarantee-bg">
   <div class="section">
-    <div class="features-header">
-      <div class="section-label" data-i18n="features_label">Features</div>
-      <h2 class="section-title" data-i18n="features_title">Built for cleaning. Not adapted from plumbing software.</h2>
-      <p class="section-sub" data-i18n="features_sub">Eight tools that cover everything your cleaning business needs — from your first lead to your last payment of the day.</p>
-    </div>
-
-    <div class="features-grid">
-
-      <div class="feature-card">
-        <div class="feature-icon">
-          <!-- Zap / AI -->
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
-          </svg>
-        </div>
-        <div class="feature-title" data-i18n="feat1_title">AI booking agent</div>
-        <div class="feature-desc" data-i18n="feat1_desc">Your business answers leads 24/7 — even at 9pm on a Saturday. The AI agent takes inquiries by phone, SMS, or web, checks your availability, quotes a price, and books the job. Included on all plans.</div>
+    <div class="guarantee-card">
+      <div class="guarantee-icon">
+        <!-- Shield check -->
+        <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="9 12 11 14 15 10"/>
+        </svg>
       </div>
-
-      <div class="feature-card">
-        <div class="feature-icon">
-          <!-- Calendar -->
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
-          </svg>
-        </div>
-        <div class="feature-title" data-i18n="feat2_title">Smart scheduling</div>
-        <div class="feature-desc" data-i18n="feat2_desc">Recurring jobs, team calendars, and worker assignment. When someone calls in sick, see who's available and reassign in seconds.</div>
-      </div>
-
-      <div class="feature-card">
-        <div class="feature-icon">
-          <!-- Document -->
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>
-          </svg>
-        </div>
-        <div class="feature-title" data-i18n="feat3_title">Instant quoting</div>
-        <div class="feature-desc" data-i18n="feat3_desc">Select the client, pick the service, and the price auto-fills from your pricing matrix. Send a professional quote by text or email. Client approves with one tap.</div>
-      </div>
-
-      <div class="feature-card">
-        <div class="feature-icon">
-          <!-- File + -->
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/>
-          </svg>
-        </div>
-        <div class="feature-title" data-i18n="feat4_title">Invoicing + PDF</div>
-        <div class="feature-desc" data-i18n="feat4_desc">Create invoices from completed jobs with one click. Download branded PDFs and send via WhatsApp, text, or email.</div>
-      </div>
-
-      <div class="feature-card">
-        <div class="feature-icon">
-          <!-- Credit card -->
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/>
-          </svg>
-        </div>
-        <div class="feature-title" data-i18n="feat5_title">On-site payment collection</div>
-        <div class="feature-desc" data-i18n="feat5_desc">Worker finishes the job, taps Complete, and records the payment — cash, Venmo, Zelle, card. Receipt sent automatically.</div>
-      </div>
-
-      <div class="feature-card">
-        <div class="feature-icon">
-          <!-- Home / property -->
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/>
-          </svg>
-        </div>
-        <div class="feature-title" data-i18n="feat6_title">Client profiles with property details</div>
-        <div class="feature-desc" data-i18n="feat6_desc">Alarm codes, key access, parking instructions, pet details — everything your cleaners need, right on their job card. No more calling the office.</div>
-      </div>
-
-      <div class="feature-card">
-        <div class="feature-icon">
-          <!-- Globe / bilingual -->
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
-          </svg>
-        </div>
-        <div class="feature-title" data-i18n="feat7_title">English + Spanish</div>
-        <div class="feature-desc" data-i18n="feat7_desc">Your whole team uses the app in the language they're comfortable with. Full bilingual interface, switchable anytime.</div>
-      </div>
-
-      <div class="feature-card">
-        <div class="feature-icon">
-          <!-- Monitor / any device -->
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/>
-          </svg>
-        </div>
-        <div class="feature-title" data-i18n="feat8_title">Works on any device</div>
-        <div class="feature-desc" data-i18n="feat8_desc">Phone, tablet, or computer. No app store download needed — just open your browser.</div>
-      </div>
-
+      <div class="section-label" style="justify-content: center; display: flex;" data-i18n="guarantee_label">30-Day Guarantee</div>
+      <h2 class="guarantee-title" data-i18n="guarantee_title">Try it risk-free for 30 days</h2>
+      <p class="guarantee-body" data-i18n="guarantee_body">Use TimelyOps for a full month. If it doesn't save you at least 5 hours a week on scheduling, invoicing, and chasing payments, email us and we'll refund every penny. No questions, no hassle.</p>
     </div>
   </div>
-</section>
+</div>
 
 <!-- ─── PRICING ───────────────────────────────────────────── -->
 <section id="pricing">
@@ -1193,16 +1016,34 @@
   </div>
 </section>
 
-<!-- ─── CONTACT CTA ───────────────────────────────────────── -->
+<!-- ─── SOCIAL PROOF ──────────────────────────────────────── -->
+<div class="proof-bg">
+  <div class="section">
+    <div style="text-align: center;">
+      <div class="section-label" data-i18n="proof_label">Early Access</div>
+      <h2 class="section-title" data-i18n="proof_title">Built for cleaning businesses like yours</h2>
+    </div>
+    <div class="proof-card">
+      <div class="proof-avatar-row">
+        <div class="proof-dot">BH</div>
+      </div>
+      <p class="proof-quote" data-i18n="proof_quote">"We're onboarding our first customers now. Ask us for a demo and see it for yourself."</p>
+      <a href="mailto:info@timelyops.com?subject=Demo%20Request" class="proof-cta-link">
+        <span data-i18n="proof_cta">Ask for a demo</span>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+      </a>
+    </div>
+  </div>
+</div>
+
+<!-- ─── FINAL CTA ─────────────────────────────────────────── -->
 <div class="contact-cta">
   <div class="section">
     <h2 class="section-title" data-i18n="cta_title">Ready to stop juggling?</h2>
     <div class="contact-links">
-      <a href="mailto:info@timelyops.com?subject=Interested%20in%20TimelyOps" class="contact-link">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/>
-        </svg>
-        <span data-i18n="cta_btn">Get started</span>
+      <a href="mailto:info@timelyops.com?subject=I%20want%20to%20try%20TimelyOps" class="contact-link">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+        <span data-i18n="cta_btn">Get started free</span>
       </a>
     </div>
     <p style="margin-top: 20px; font-size: 15px; color: rgba(255,255,255,0.75);" data-i18n="cta_questions">Questions? Email info@timelyops.com — real person, real answers.</p>
@@ -1231,7 +1072,7 @@
     <div class="footer-col">
       <h4 data-i18n="footer_product_h">Product</h4>
       <ul>
-        <li><a href="#features" data-i18n="nav_features">Features</a></li>
+        <li><a href="#value" data-i18n="nav_features">Features</a></li>
         <li><a href="#how-it-works" data-i18n="nav_how">How It Works</a></li>
         <li><a href="#pricing" data-i18n="nav_pricing">Pricing</a></li>
         <li><a href="/login" data-i18n="nav_signin">Sign In</a></li>
@@ -1266,9 +1107,9 @@
     nav_pricing:      { en: 'Pricing',                es: 'Precios' },
     nav_signin:       { en: 'Sign In',                es: 'Iniciar sesi\u00f3n' },
 
-    hero_h1:          { en: 'Stop juggling your cleaning business. Start running it.', es: 'Deja de hacer malabares con tu negocio de limpieza. Empieza a manejarlo.' },
-    hero_p:           { en: 'TimelyOps is the all-in-one app built for cleaning companies \u2014 scheduling, quoting, invoicing, payments, and an AI agent that books new clients 24/7. One app. One price. Everything works together.', es: 'TimelyOps es la app todo en uno hecha para negocios de limpieza \u2014 agenda, cotizaciones, facturas, pagos, y un agente con IA que agenda clientes nuevos las 24 horas. Una sola app. Un solo precio. Todo funciona junto.' },
-    hero_cta1:        { en: 'Get started',            es: 'Comenzar' },
+    hero_h1:          { en: 'What if your cleaning business ran itself \u2014 even while you\u2019re on a job?', es: '\u00bfY si tu negocio de limpieza funcionara solo \u2014 incluso mientras est\u00e1s trabajando?' },
+    hero_p:           { en: 'TimelyOps gives you an AI assistant that books new clients 24/7, a complete operations system, and personal onboarding where we do all the work. Try it for 30 days \u2014 if it doesn\u2019t save you 5 hours a week, you pay nothing.', es: 'TimelyOps te da un asistente con IA que agenda clientes nuevos las 24 horas, un sistema de operaciones completo, y una incorporaci\u00f3n personal donde nosotros hacemos todo el trabajo. Pr\u00faebalo 30 d\u00edas \u2014 si no te ahorra al menos 5 horas por semana, no pagas nada.' },
+    hero_cta1:        { en: 'Get started free',       es: 'Empieza gratis' },
     hero_email:       { en: 'Or email info@timelyops.com \u2014 we\u2019ll set everything up for you.', es: 'O esr\u00edbenos a info@timelyops.com \u2014 nosotros lo configuramos todo por ti.' },
 
     mockup_today_jobs:     { en: "Today's Jobs",      es: 'Trabajos hoy' },
@@ -1291,6 +1132,34 @@
     problem_card3_title: { en: 'Drowning in apps',   es: 'Ahogado en aplicaciones' },
     problem_card3_desc:  { en: 'Google Calendar for scheduling. QuickBooks for invoicing. A spreadsheet for pricing. Group texts for your team. Nothing talks to each other.', es: 'Google Calendar para la agenda. QuickBooks para facturar. Una hoja de c\u00e1lculo para precios. Mensajes grupales para tu equipo. Nada se comunica entre s\u00ed.' },
 
+    value_label:      { en: 'What You Get',           es: 'Lo que obtienes' },
+    value_title:      { en: 'Everything you\u2019d pay for separately \u2014 in one price.', es: 'Todo lo que pagar\u00edas por separado \u2014 en un solo precio.' },
+    value_sub:        { en: 'Here\u2019s what you get with TimelyOps, and what it would cost to piece this together from other tools.', es: 'Esto es lo que obtienes con TimelyOps, y lo que costar\u00eda conseguirlo por separado con otras herramientas.' },
+    value_lbl:        { en: 'Value',                  es: 'Valor' },
+    value1_title:     { en: 'AI booking agent \u2014 answers leads 24/7 by phone, SMS, and web', es: 'Agente de reservas con IA \u2014 atiende consultas 24/7 por tel\u00e9fono, SMS y web' },
+    value1_desc:      { en: 'Books new clients automatically in any language. Works while you sleep, while you\u2019re on a job, all weekend.', es: 'Agenda clientes nuevos autom\u00e1ticamente en cualquier idioma. Trabaja mientras duermes, mientras haces un trabajo, todo el fin de semana.' },
+    value1_val:       { en: '$79/mo',                 es: '$79/mes' },
+    value2_title:     { en: 'Complete operations platform \u2014 scheduling, quoting, invoicing, payments, worker management', es: 'Plataforma de operaciones completa \u2014 agenda, cotizaciones, facturas, pagos, gesti\u00f3n de trabajadores' },
+    value2_desc:      { en: 'Everything connected. Quote a job, schedule it, complete it, get paid \u2014 no switching apps, no re-entering data.', es: 'Todo conectado. Cotiza un trabajo, agend\u00e1lo, compl\u00e9talo, cobra \u2014 sin cambiar de app, sin volver a ingresar datos.' },
+    value2_val:       { en: '$149/mo',                es: '$149/mes' },
+    value3_title:     { en: 'Personal onboarding \u2014 we import your clients, configure your pricing, and train your team', es: 'Incorporaci\u00f3n personal \u2014 importamos tus clientes, configuramos tus precios y capacitamos a tu equipo' },
+    value3_desc:      { en: 'We do the setup work for you. Waived for founding customers \u2014 normally $500.', es: 'Nosotros hacemos el trabajo de configuraci\u00f3n por ti. Exonerado para clientes fundadores \u2014 normalmente $500.' },
+    value3_val:       { en: '$500 \u2014 waived',     es: '$500 \u2014 incluido' },
+    value4_title:     { en: 'Auto-generated booking page with your business link', es: 'P\u00e1gina de reservas generada autom\u00e1ticamente con tu enlace de negocio' },
+    value4_desc:      { en: 'Share one link \u2014 by text, WhatsApp, or email. Prospects book directly without calling you.', es: 'Comparte un enlace \u2014 por texto, WhatsApp o correo. Los prospectos reservan directamente sin llamarte.' },
+    value4_val:       { en: '$29/mo',                 es: '$29/mes' },
+    value5_title:     { en: 'English + Spanish bilingual \u2014 your whole team uses it in their language', es: 'Ingl\u00e9s + Espa\u00f1ol biling\u00fce \u2014 todo tu equipo lo usa en su idioma' },
+    value5_desc:      { en: 'Full bilingual interface, switchable anytime. No separate translation add-on needed.', es: 'Interfaz biling\u00fce completa, cambiable en cualquier momento. Sin complemento de traducci\u00f3n adicional.' },
+    value5_val:       { en: '$49/mo',                 es: '$49/mes' },
+    value6_title:     { en: 'Works on any phone, tablet, or computer \u2014 no app download needed', es: 'Funciona en cualquier celular, tablet o computadora \u2014 sin descargar ninguna app' },
+    value6_desc:      { en: 'Your team opens a browser link. That\u2019s it. Nothing to install, nothing to update.', es: 'Tu equipo abre un enlace del navegador. Eso es todo. Nada que instalar, nada que actualizar.' },
+    value6_val:       { en: 'Included',               es: 'Incluido' },
+    value_total_label: { en: 'Total value:',          es: 'Valor total:' },
+    value_total_amount: { en: '$806/mo + $500 setup', es: '$806/mes + $500 de configuraci\u00f3n' },
+    value_your_label: { en: 'Your price',             es: 'Tu precio' },
+    value_your_amount: { en: '$99/mo. Setup: $0.',    es: '$99/mes. Configuraci\u00f3n: $0.' },
+    value_your_note:  { en: 'Founding customers only \u2014 setup fee waived, price locked for 12 months.', es: 'Solo para clientes fundadores \u2014 tarifa de configuraci\u00f3n exonerada, precio asegurado por 12 meses.' },
+
     how_label:        { en: 'How It Works',           es: 'C\u00f3mo funciona' },
     how_title:        { en: 'One connected flow \u2014 quote to payment in five taps', es: 'Un flujo conectado \u2014 de cotizaci\u00f3n a cobro en cinco toques' },
     how_sub:          { en: 'Every step flows into the next. No re-entering data, no switching apps. Your whole business runs from one screen.', es: 'Cada paso lleva al siguiente. Sin volver a ingresar datos, sin cambiar de app. Todo tu negocio desde una sola pantalla.' },
@@ -1307,26 +1176,9 @@
     step6_title:      { en: 'Invoice generated',      es: 'Factura generada' },
     step6_desc:       { en: 'A branded invoice is ready to download or send via WhatsApp, text, or email. One tap, done.', es: 'Una factura con tu marca est\u00e1 lista para descargar o enviar por WhatsApp, texto o correo. Un toque, listo.' },
 
-    features_label:   { en: 'Features',              es: 'Funciones' },
-    features_title:   { en: 'Built for cleaning. Not adapted from plumbing software.', es: 'Hecho para limpieza. No adaptado de otro rubro.' },
-    features_sub:     { en: 'Eight tools that cover everything your cleaning business needs \u2014 from your first lead to your last payment of the day.', es: 'Ocho herramientas que cubren todo lo que tu negocio de limpieza necesita \u2014 desde el primer contacto hasta el \u00faltimo pago del d\u00eda.' },
-
-    feat1_title:      { en: 'AI booking agent',       es: 'Agente de reservas con IA' },
-    feat1_desc:       { en: 'Your business answers leads 24/7 \u2014 even at 9pm on a Saturday. The AI agent takes inquiries by phone, SMS, or web, checks your availability, quotes a price, and books the job. Included on all plans.', es: 'Tu negocio atiende consultas las 24 horas \u2014 hasta un s\u00e1bado a las 9pm. El agente con IA recibe solicitudes por tel\u00e9fono, SMS o web, revisa tu disponibilidad, cotiza y agenda el trabajo. Incluido en todos los planes.' },
-    feat2_title:      { en: 'Smart scheduling',       es: 'Agenda inteligente' },
-    feat2_desc:       { en: 'Recurring jobs, team calendars, and worker assignment. When someone calls in sick, see who\u2019s available and reassign in seconds.', es: 'Trabajos recurrentes, calendarios del equipo y asignaci\u00f3n de trabajadores. Si alguien se enferma, ve qui\u00e9n est\u00e1 disponible y reasigna en segundos.' },
-    feat3_title:      { en: 'Instant quoting',        es: 'Cotizaciones al instante' },
-    feat3_desc:       { en: 'Select the client, pick the service, and the price auto-fills from your pricing matrix. Send a professional quote by text or email. Client approves with one tap.', es: 'Selecciona el cliente, elige el servicio y el precio se rellena solo. Env\u00eda una cotizaci\u00f3n profesional por texto o correo. El cliente aprueba con un solo toque.' },
-    feat4_title:      { en: 'Invoicing + PDF',        es: 'Facturas + PDF' },
-    feat4_desc:       { en: 'Create invoices from completed jobs with one click. Download branded PDFs and send via WhatsApp, text, or email.', es: 'Crea facturas desde trabajos completados con un clic. Descarga PDFs con tu marca y env\u00edalo por WhatsApp, texto o correo.' },
-    feat5_title:      { en: 'On-site payment collection', es: 'Cobro en el lugar' },
-    feat5_desc:       { en: 'Worker finishes the job, taps Complete, and records the payment \u2014 cash, Venmo, Zelle, card. Receipt sent automatically.', es: 'El trabajador termina el trabajo, toca Completar y registra el pago \u2014 efectivo, Venmo, Zelle, tarjeta. El recibo se env\u00eda autom\u00e1ticamente.' },
-    feat6_title:      { en: 'Client profiles with property details', es: 'Perfiles de clientes con detalles de la propiedad' },
-    feat6_desc:       { en: 'Alarm codes, key access, parking instructions, pet details \u2014 everything your cleaners need, right on their job card. No more calling the office.', es: 'C\u00f3digos de alarma, acceso con llave, instrucciones de estacionamiento, mascotas \u2014 todo lo que tu limpiador necesita, directo en su tarjeta de trabajo. Sin tener que llamar a la oficina.' },
-    feat7_title:      { en: 'English + Spanish',      es: 'Ingl\u00e9s + Espa\u00f1ol' },
-    feat7_desc:       { en: 'Your whole team uses the app in the language they\u2019re comfortable with. Full bilingual interface, switchable anytime.', es: 'Todo tu equipo usa la app en el idioma con el que se sienten c\u00f3modos. Interfaz biling\u00fce completa, cambiable en cualquier momento.' },
-    feat8_title:      { en: 'Works on any device',    es: 'Funciona en cualquier dispositivo' },
-    feat8_desc:       { en: 'Phone, tablet, or computer. No app store download needed \u2014 just open your browser.', es: 'Celular, tablet o computadora. Sin descargar nada de la tienda de apps \u2014 solo abre tu navegador.' },
+    guarantee_label:  { en: '30-Day Guarantee',       es: 'Garant\u00eda de 30 d\u00edas' },
+    guarantee_title:  { en: 'Try it risk-free for 30 days', es: 'Pru\u00e9balo sin riesgo por 30 d\u00edas' },
+    guarantee_body:   { en: 'Use TimelyOps for a full month. If it doesn\u2019t save you at least 5 hours a week on scheduling, invoicing, and chasing payments, email us and we\u2019ll refund every penny. No questions, no hassle.', es: 'Usa TimelyOps por un mes completo. Si no te ahorra al menos 5 horas por semana en agenda, facturas y cobros, esr\u00edbenos y te devolvemos cada centavo. Sin preguntas, sin complicaciones.' },
 
     pricing_label:    { en: 'Pricing',               es: 'Precios' },
     pricing_title:    { en: 'Simple, honest pricing', es: 'Precios simples y transparentes' },
@@ -1358,8 +1210,13 @@
     pricing_setup:    { en: '$500 one-time setup \u2014 Personal onboarding, data import, and training included.', es: '$500 de configuraci\u00f3n \u00fanica \u2014 Incorporaci\u00f3n personal, importaci\u00f3n de datos y capacitaci\u00f3n incluidas.' },
     pricing_discount: { en: 'Founding discount: 25% off for our first 10 customers, locked for 12 months.', es: 'Descuento fundador: 25% de descuento para nuestros primeros 10 clientes, asegurado por 12 meses.' },
 
+    proof_label:      { en: 'Early Access',           es: 'Acceso anticipado' },
+    proof_title:      { en: 'Built for cleaning businesses like yours', es: 'Hecho para negocios de limpieza como el tuyo' },
+    proof_quote:      { en: '\u201cWe\u2019re onboarding our first customers now. Ask us for a demo and see it for yourself.\u201d', es: '\u201cEstamos incorporando a nuestros primeros clientes ahora. P\u00eddenos una demostraci\u00f3n y comp\u00fuebalo t\u00fa mismo.\u201d' },
+    proof_cta:        { en: 'Ask for a demo',         es: 'Pedir una demostraci\u00f3n' },
+
     cta_title:        { en: 'Ready to stop juggling?', es: '\u00bfListo para dejar de hacer malabares?' },
-    cta_btn:          { en: 'Get started',            es: 'Comenzar' },
+    cta_btn:          { en: 'Get started free',       es: 'Empieza gratis' },
     cta_questions:    { en: 'Questions? Email info@timelyops.com \u2014 real person, real answers.', es: '\u00bfPreguntas? Esr\u00edbenos a info@timelyops.com \u2014 persona real, respuestas reales.' },
 
     footer_brand_p:   { en: 'Scheduling, quoting, invoicing, and payments for cleaning businesses. One app. Everything works together.', es: 'Agenda, cotizaciones, facturas y pagos para negocios de limpieza. Una sola app. Todo funciona junto.' },
@@ -1386,17 +1243,14 @@
 
   function applyLang(lang) {
     var t = TRANSLATIONS
-    // text-only elements
     document.querySelectorAll('[data-i18n]').forEach(function(el) {
       var key = el.getAttribute('data-i18n')
       if (t[key] && t[key][lang] !== undefined) el.textContent = t[key][lang]
     })
-    // elements that contain HTML (e.g. <br>)
     document.querySelectorAll('[data-i18n-html]').forEach(function(el) {
       var key = el.getAttribute('data-i18n-html')
       if (t[key] && t[key][lang] !== undefined) el.innerHTML = t[key][lang]
     })
-    // update the html lang attribute
     document.documentElement.lang = lang
   }
 
@@ -1427,13 +1281,11 @@
     document.getElementById('langTrigger').classList.remove('open')
   }
 
-  // Close on outside click
   document.addEventListener('mousedown', function(e) {
     var sw = document.getElementById('landingLangSwitcher')
     if (sw && !sw.contains(e.target)) closeLangDropdown()
   })
 
-  // Initialise from localStorage on page load
   ;(function() {
     var lang = localStorage.getItem('timelyops_language') || 'en'
     var found = LANGS.find(function(l) { return l.code === lang }) || LANGS[0]
