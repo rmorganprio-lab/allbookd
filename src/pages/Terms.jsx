@@ -181,6 +181,12 @@ export default function Terms() {
             A one-time implementation fee may apply for new customer onboarding, as specified at the time of sign-up.
           </p>
 
+          {/* 8A */}
+          <h2 className="text-xl font-bold text-stone-900 mt-8 mb-3">8A. {t('terms.guarantee_title')}</h2>
+          <p className="text-stone-600 leading-relaxed mb-4">
+            {t('terms.guarantee_body')}
+          </p>
+
           {/* 9 */}
           <h2 className="text-xl font-bold text-stone-900 mt-8 mb-3">9. Fair Use and Usage Limits</h2>
           <p className="text-stone-600 leading-relaxed mb-4">

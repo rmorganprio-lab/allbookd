@@ -1000,7 +1000,9 @@
     "account_cancelled_contact_suffix": "si desea reactivarla."
   },
   "terms": {
-    "title": "Términos de Servicio"
+    "title": "Términos de Servicio",
+    "guarantee_title": "Garantía de devolución de 30 días",
+    "guarantee_body": "Si no está satisfecho con el Servicio dentro de los primeros 30 días de su suscripción de pago, puede solicitar un reembolso completo enviando un correo a info@timelyops.com. Las solicitudes de reembolso deben realizarse dentro de los 30 días calendario a partir de su primer pago de suscripción. Esta garantía aplica únicamente a su primer período de suscripción."
   },
   "privacy": {
     "title": "Política de Privacidad"

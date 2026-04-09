@@ -1000,7 +1000,9 @@
     "account_cancelled_contact_suffix": "if you'd like to reactivate."
   },
   "terms": {
-    "title": "Terms of Service"
+    "title": "Terms of Service",
+    "guarantee_title": "30-Day Money-Back Guarantee",
+    "guarantee_body": "If you are not satisfied with the Service within the first 30 days of your paid subscription, you may request a full refund by emailing info@timelyops.com. Refund requests must be made within 30 calendar days of your first subscription payment. This guarantee applies to your first subscription period only."
   },
   "privacy": {
     "title": "Privacy Policy"
