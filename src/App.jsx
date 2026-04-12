@@ -177,9 +177,16 @@ function App() {
       if (!error && data) {
         if (!data.auth_linked) {
           // Row found by auth id but auth_linked flag not set — call Edge Function to finalize
-          const { data: { user: authUser } } = await supabase.auth.getUser()
-          if (authUser?.phone) {
-            await supabase.functions.invoke('link-auth-user', { body: { phone: authUser.phone } })
+          const { data: { session: currentSession } } = await supabase.auth.getSession()
+          if (currentSession?.user?.phone) {
+            await fetch('https://vrssqhzzdhlqnptengju.supabase.co/functions/v1/link-auth-user', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${currentSession.access_token}`,
+              },
+              body: JSON.stringify({ phone: currentSession.user.phone }),
+            })
             const { data: refreshed } = await supabase
               .from('users')
               .select('*, organizations(*)')
@@ -200,13 +207,20 @@ function App() {
       }
 
       // User row not found by auth id — first-time phone OTP login
-      const { data: { user: authUser } } = await supabase.auth.getUser()
-      const phone = authUser?.phone
+      const { data: { session: currentSession } } = await supabase.auth.getSession()
+      const phone = currentSession?.user?.phone
 
       if (!phone) throw new Error('No phone on auth user, cannot link')
 
-      const { error: linkError } = await supabase.functions.invoke('link-auth-user', { body: { phone } })
-      if (linkError) throw new Error('Failed to link auth: ' + linkError.message)
+      const linkRes = await fetch('https://vrssqhzzdhlqnptengju.supabase.co/functions/v1/link-auth-user', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${currentSession.access_token}`,
+        },
+        body: JSON.stringify({ phone }),
+      })
+      if (!linkRes.ok) throw new Error('Failed to link auth: ' + (await linkRes.text()))
 
       const { data: linked, error: refetchErr } = await supabase
         .from('users')
