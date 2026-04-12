@@ -29,7 +29,7 @@ serve(async (req) => {
       auth: { autoRefreshToken: false, persistSession: false },
     })
 
-    // Verify JWT
+    // Verify JWT and get the caller's auth.uid()
     const { data: { user: authUser }, error: authError } = await anonClient.auth.getUser(
       authHeader.replace('Bearer ', '')
     )
@@ -40,75 +40,59 @@ serve(async (req) => {
       })
     }
 
-    // Load caller profile — use adminClient to bypass RLS
-    const { data: callerUser } = await adminClient
-      .from('users')
-      .select('is_platform_admin, org_id, role')
-      .eq('id', authUser.id)
-      .single()
-
-    if (!callerUser) {
-      return new Response(JSON.stringify({ error: 'Caller profile not found' }), {
-        status: 403,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      })
-    }
-
     const body = await req.json()
-    const { email, name, org_id } = body
+    const { phone } = body
 
-    if (!email) {
-      return new Response(JSON.stringify({ error: 'Missing required field: email' }), {
+    if (!phone) {
+      return new Response(JSON.stringify({ error: 'Missing required field: phone' }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       })
     }
 
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      return new Response(JSON.stringify({ error: 'Invalid email format' }), {
-        status: 400,
+    // Find the unlinked users row matching this phone number
+    const { data: existingUser, error: lookupError } = await adminClient
+      .from('users')
+      .select('id')
+      .eq('phone', phone)
+      .eq('auth_linked', false)
+      .maybeSingle()
+
+    if (lookupError) {
+      return new Response(JSON.stringify({ error: lookupError.message }), {
+        status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       })
     }
 
-    // Authorization: platform admin OR ceo/manager in the same org
-    const isPlatformAdmin = !!callerUser.is_platform_admin
-    const isOrgManager =
-      ['ceo', 'manager'].includes(callerUser.role) &&
-      org_id != null &&
-      callerUser.org_id === org_id
-
-    if (!isPlatformAdmin && !isOrgManager) {
-      return new Response(JSON.stringify({ error: 'Forbidden: must be platform admin or a manager in the target org' }), {
-        status: 403,
+    if (!existingUser) {
+      return new Response(JSON.stringify({ error: 'No unlinked user found for this phone number' }), {
+        status: 404,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       })
     }
 
-    // Send invite via Supabase Auth admin API
-    const { data: inviteData, error: inviteError } = await adminClient.auth.admin.inviteUserByEmail(
-      email.toLowerCase().trim(),
-      {
-        redirectTo: 'https://timelyops.com',
-        data: { name, org_id: org_id ?? null },
-      }
-    )
+    // Update the row: set id to auth.uid() and mark as linked
+    const { error: updateError } = await adminClient
+      .from('users')
+      .update({ id: authUser.id, auth_linked: true })
+      .eq('id', existingUser.id)
 
-    if (inviteError) {
-      return new Response(JSON.stringify({ error: inviteError.message }), {
-        status: 400,
+    if (updateError) {
+      return new Response(JSON.stringify({ error: updateError.message }), {
+        status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       })
     }
 
     return new Response(
-      JSON.stringify({ success: true, auth_id: inviteData.user.id }),
+      JSON.stringify({ success: true }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
 
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown error'
-    console.error('[invite-user] Error:', message)
+    console.error('[link-auth-user] Error:', message)
     return new Response(JSON.stringify({ error: message }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

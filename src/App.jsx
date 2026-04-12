@@ -175,44 +175,38 @@ function App() {
         .single()
 
       if (!error && data) {
+        if (!data.auth_linked) {
+          // Row found by auth id but auth_linked flag not set — call Edge Function to finalize
+          const { data: { user: authUser } } = await supabase.auth.getUser()
+          if (authUser?.phone) {
+            await supabase.functions.invoke('link-auth-user', { body: { phone: authUser.phone } })
+            const { data: refreshed } = await supabase
+              .from('users')
+              .select('*, organizations(*)')
+              .eq('id', authId)
+              .single()
+            if (refreshed) {
+              i18n.changeLanguage(refreshed.organizations?.settings?.language || 'en')
+              setUser(refreshed)
+              resolveLoading()
+              return
+            }
+          }
+        }
         i18n.changeLanguage(data.organizations?.settings?.language || 'en')
         setUser(data)
         resolveLoading()
         return
       }
 
-      // First-time OTP login — link auth UUID to existing users row via phone or email
+      // User row not found by auth id — first-time phone OTP login
       const { data: { user: authUser } } = await supabase.auth.getUser()
       const phone = authUser?.phone
-      const email = authUser?.email
 
-      let existing = null
+      if (!phone) throw new Error('No phone on auth user, cannot link')
 
-      if (phone) {
-        const { data: byPhone } = await supabase
-          .from('users')
-          .select('*, organizations(*)')
-          .eq('phone', phone)
-          .maybeSingle()
-        existing = byPhone
-      }
-
-      if (!existing && email) {
-        const { data: byEmail } = await supabase
-          .from('users')
-          .select('*, organizations(*)')
-          .eq('email', email)
-          .maybeSingle()
-        existing = byEmail
-      }
-
-      if (!existing) throw new Error('No matching user for phone or email')
-
-      const { error: updateErr } = await supabase
-        .from('users')
-        .update({ id: authId, auth_linked: true })
-        .eq('id', existing.id)
-      if (updateErr) throw updateErr
+      const { error: linkError } = await supabase.functions.invoke('link-auth-user', { body: { phone } })
+      if (linkError) throw new Error('Failed to link auth: ' + linkError.message)
 
       const { data: linked, error: refetchErr } = await supabase
         .from('users')

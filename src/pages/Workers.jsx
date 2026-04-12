@@ -143,22 +143,7 @@ export default function Workers({ user }) {
     }
 
     if (modal === 'add') {
-      let workerId = crypto.randomUUID()
-      let authLinked = false
-
-      if (form.email) {
-        const { data: inviteResult, error: inviteError } = await supabase.functions.invoke('invite-user', {
-          body: { email: form.email, name: form.name, org_id: effectiveOrgId },
-        })
-        if (inviteError || inviteResult?.error) {
-          const msg = inviteResult?.error || inviteError?.message || 'Unknown error'
-          showToast(t('workers.toast_invite_failed') + ': ' + msg, 'error')
-          setSaving(false)
-          return
-        }
-        workerId = inviteResult.auth_id
-        authLinked = true
-      }
+      const workerId = crypto.randomUUID()
 
       const { error } = await supabase.from('users').insert({
         id: workerId,
@@ -169,7 +154,7 @@ export default function Workers({ user }) {
         role: form.role,
         availability: form.availability,
         skills: form.skills,
-        auth_linked: authLinked,
+        auth_linked: false,
         ...addressFields,
       })
       if (error) {
@@ -179,10 +164,21 @@ export default function Workers({ user }) {
         return
       }
 
-      if (form.email) {
-        showToast(t('workers.toast_invite_sent'))
+      if (form.phone) {
+        const orgName = user?.organizations?.name || adminViewOrg?.name || 'your team'
+        const { error: smsError } = await supabase.functions.invoke('send-sms', {
+          body: {
+            to: form.phone,
+            message: `You've been added to ${orgName} on TimelyOps. Log in at timelyops.com — enter your phone number to get started.`,
+          },
+        })
+        if (smsError) {
+          showToast(t('workers.toast_sms_failed'), 'warning')
+        } else {
+          showToast(t('workers.toast_sms_sent'))
+        }
       } else {
-        showToast(t('workers.toast_no_email_invite'))
+        showToast(t('workers.toast_added'))
       }
     } else {
       const { error } = await supabase

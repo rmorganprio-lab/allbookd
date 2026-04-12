@@ -50,22 +50,7 @@ function CreateUserModal({ onClose, onCreated, adminUser }) {
     e.preventDefault()
     setLoading(true)
 
-    let userId = crypto.randomUUID()
-    let authLinked = false
-
-    if (form.email.trim()) {
-      const { data: inviteResult, error: inviteError } = await supabase.functions.invoke('invite-user', {
-        body: { email: form.email.trim(), name: form.name.trim(), org_id: form.orgId || null },
-      })
-      if (inviteError || inviteResult?.error) {
-        const msg = inviteResult?.error || inviteError?.message || 'Unknown error'
-        showToast('Could not send invite: ' + msg, 'error')
-        setLoading(false)
-        return
-      }
-      userId = inviteResult.auth_id
-      authLinked = true
-    }
+    const userId = crypto.randomUUID()
 
     const { error } = await supabase.from('users').insert({
       id:          userId,
@@ -74,10 +59,26 @@ function CreateUserModal({ onClose, onCreated, adminUser }) {
       phone:       form.phone.trim() || null,
       role:        form.role,
       org_id:      form.orgId || null,
-      auth_linked: authLinked,
+      auth_linked: false,
     })
     if (error) { showToast(error.message, 'error'); setLoading(false); return }
-    showToast(authLinked ? 'User created — invite email sent' : 'User created')
+
+    if (form.phone.trim()) {
+      const { data: orgData } = form.orgId
+        ? await supabase.from('organizations').select('name').eq('id', form.orgId).single()
+        : { data: null }
+      const orgName = orgData?.name || 'your team'
+      const { error: smsError } = await supabase.functions.invoke('send-sms', {
+        body: {
+          to: form.phone.trim(),
+          message: `You've been added to ${orgName} on TimelyOps. Log in at timelyops.com — enter your phone number to get started.`,
+        },
+      })
+      showToast(smsError ? 'User created — couldn\'t send login text, send manually' : 'User created — login instructions sent by text')
+    } else {
+      showToast('User created')
+    }
+
     if (adminUser) {
       await logAudit({ supabase, user: adminUser, action: 'create', entityType: 'user', entityId: userId, changes: { name: form.name.trim(), role: form.role, org_id: form.orgId || null }, metadata: { source: 'admin_panel' } })
     }

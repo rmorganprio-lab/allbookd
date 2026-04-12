@@ -507,9 +507,9 @@
     "toast_failed_save": "Error al guardar cambios. Inténtalo de nuevo.",
     "toast_failed_delete": "Error al eliminar empleado. Inténtalo de nuevo.",
     "toast_failed_update": "Algo salió mal. Inténtalo de nuevo.",
-    "toast_invite_sent": "Empleado agregado — se envió el correo de invitación",
-    "toast_invite_failed": "No se pudo enviar el correo de invitación",
-    "toast_no_email_invite": "Empleado creado. Pídales que te contacten si no pueden iniciar sesión."
+    "toast_added": "Empleado agregado",
+    "toast_sms_sent": "Empleado agregado — instrucciones de inicio de sesión enviadas por texto",
+    "toast_sms_failed": "Empleado agregado — no se pudo enviar el texto de inicio de sesión, envíalo manualmente"
   },
   "clients": {
     "loading": "Cargando clientes...",
