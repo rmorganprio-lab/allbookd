@@ -506,7 +506,10 @@
     "toast_failed_load": "Failed to load workers. Please try again.",
     "toast_failed_save": "Failed to save changes. Please try again.",
     "toast_failed_delete": "Failed to delete worker. Please try again.",
-    "toast_failed_update": "Something went wrong. Please try again."
+    "toast_failed_update": "Something went wrong. Please try again.",
+    "toast_invite_sent": "Worker added — invite email sent",
+    "toast_invite_failed": "Could not send invite email",
+    "toast_no_email_invite": "Worker created. Ask them to contact you if they can't log in."
   },
   "clients": {
     "loading": "Loading clients...",

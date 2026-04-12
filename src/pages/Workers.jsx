@@ -143,10 +143,25 @@ export default function Workers({ user }) {
     }
 
     if (modal === 'add') {
-      // Create a manual worker (no auth account)
-      const newId = crypto.randomUUID()
+      let workerId = crypto.randomUUID()
+      let authLinked = false
+
+      if (form.email) {
+        const { data: inviteResult, error: inviteError } = await supabase.functions.invoke('invite-user', {
+          body: { email: form.email, name: form.name, org_id: effectiveOrgId },
+        })
+        if (inviteError || inviteResult?.error) {
+          const msg = inviteResult?.error || inviteError?.message || 'Unknown error'
+          showToast(t('workers.toast_invite_failed') + ': ' + msg, 'error')
+          setSaving(false)
+          return
+        }
+        workerId = inviteResult.auth_id
+        authLinked = true
+      }
+
       const { error } = await supabase.from('users').insert({
-        id: newId,
+        id: workerId,
         org_id: effectiveOrgId,
         name: form.name,
         phone: form.phone || null,
@@ -154,7 +169,7 @@ export default function Workers({ user }) {
         role: form.role,
         availability: form.availability,
         skills: form.skills,
-        auth_linked: false,
+        auth_linked: authLinked,
         ...addressFields,
       })
       if (error) {
@@ -162,6 +177,12 @@ export default function Workers({ user }) {
         showToast(t('workers.toast_failed_save'), 'error')
         setSaving(false)
         return
+      }
+
+      if (form.email) {
+        showToast(t('workers.toast_invite_sent'))
+      } else {
+        showToast(t('workers.toast_no_email_invite'))
       }
     } else {
       const { error } = await supabase

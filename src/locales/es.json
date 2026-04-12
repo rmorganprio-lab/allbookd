@@ -506,7 +506,10 @@
     "toast_failed_load": "Error al cargar empleados. Inténtalo de nuevo.",
     "toast_failed_save": "Error al guardar cambios. Inténtalo de nuevo.",
     "toast_failed_delete": "Error al eliminar empleado. Inténtalo de nuevo.",
-    "toast_failed_update": "Algo salió mal. Inténtalo de nuevo."
+    "toast_failed_update": "Algo salió mal. Inténtalo de nuevo.",
+    "toast_invite_sent": "Empleado agregado — se envió el correo de invitación",
+    "toast_invite_failed": "No se pudo enviar el correo de invitación",
+    "toast_no_email_invite": "Empleado creado. Pídales que te contacten si no pueden iniciar sesión."
   },
   "clients": {
     "loading": "Cargando clientes...",

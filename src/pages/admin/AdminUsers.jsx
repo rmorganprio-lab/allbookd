@@ -49,20 +49,37 @@ function CreateUserModal({ onClose, onCreated, adminUser }) {
   async function handleSubmit(e) {
     e.preventDefault()
     setLoading(true)
-    const newId = crypto.randomUUID()
+
+    let userId = crypto.randomUUID()
+    let authLinked = false
+
+    if (form.email.trim()) {
+      const { data: inviteResult, error: inviteError } = await supabase.functions.invoke('invite-user', {
+        body: { email: form.email.trim(), name: form.name.trim(), org_id: form.orgId || null },
+      })
+      if (inviteError || inviteResult?.error) {
+        const msg = inviteResult?.error || inviteError?.message || 'Unknown error'
+        showToast('Could not send invite: ' + msg, 'error')
+        setLoading(false)
+        return
+      }
+      userId = inviteResult.auth_id
+      authLinked = true
+    }
+
     const { error } = await supabase.from('users').insert({
-      id:          newId,
+      id:          userId,
       name:        form.name.trim(),
       email:       form.email.trim().toLowerCase() || null,
       phone:       form.phone.trim() || null,
       role:        form.role,
       org_id:      form.orgId || null,
-      auth_linked: false,
+      auth_linked: authLinked,
     })
     if (error) { showToast(error.message, 'error'); setLoading(false); return }
-    showToast('User created')
+    showToast(authLinked ? 'User created — invite email sent' : 'User created')
     if (adminUser) {
-      await logAudit({ supabase, user: adminUser, action: 'create', entityType: 'user', entityId: newId, changes: { name: form.name.trim(), role: form.role, org_id: form.orgId || null }, metadata: { source: 'admin_panel' } })
+      await logAudit({ supabase, user: adminUser, action: 'create', entityType: 'user', entityId: userId, changes: { name: form.name.trim(), role: form.role, org_id: form.orgId || null }, metadata: { source: 'admin_panel' } })
     }
     onCreated()
   }
