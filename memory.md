@@ -1,6 +1,6 @@
 # TimelyOps — Project Status Board
 
-Last updated: 2026-04-13 (landing page redesigned — value stack, comparison table, live founding-spots counter; founding-spots Edge Function not yet built)
+Last updated: 2026-04-13 (landing page testimonial updated — Sunnyvale, California owner quote; footer "The Netherlands" removed)
 
 ---
 
@@ -202,8 +202,10 @@ Deleting an invoice NULLs: `payments.invoice_id`, `jobs.invoice_id`
 
 ## Landing page notes (public/landing.html)
 - Fully static HTML — no React, no build step
-- Sections: announcement banner → nav → hero → value stack (animated) → stats → problem → how it works → comparison table → pricing → testimonial → final CTA → footer
-- **Value stack:** 9 rows animate in on scroll; running total counts up to $458/mo; price reveal card fades in after; savings calculated as $458 − $99 = $359/mo ($4,308/yr)
+- **Section order:** announcement banner → nav → hero → value stack (animated) → stats → problem → how it works → comparison table → pricing → testimonial → final CTA → footer
+- **Value stack:** 9 rows animate in on scroll via IntersectionObserver; running total counts up to $458/mo; price reveal card fades in after; savings = $458 − $99 = $359/mo ($4,308/yr); 78% savings callout
+- **Comparison table:** TimelyOps vs Jobber vs Housecall Pro vs ZenMaid
+- **Testimonial:** `"You can tell TimelyOps was made for how cleaning businesses work." — Owner · Residential Cleaning, Sunnyvale, California`
 - **Founding spots counter:** Fetches live from `founding-spots` Edge Function; falls back to "8 of 10" if fetch fails or function not deployed
 - **Vercel Analytics:** Loaded via `/_vercel/insights/script.js` script tag (same as React app uses `@vercel/analytics/react`)
 - **Banner dismiss:** Persisted in `localStorage('timelyops_banner_dismissed')`
@@ -294,7 +296,7 @@ Clicking a job card on the Dashboard calls `routerNavigate('/schedule', { state:
 
 ## Landing page (public/landing.html)
 
-Fully rewritten 2026-04-09 for cleaning-business-only positioning using a **Grand Slam Offer** framework.
+Fully rewritten 2026-04-09 for cleaning-business-only positioning using a **Grand Slam Offer** framework. Iteratively updated through 2026-04-13.
 
 **i18n system:** Plain JS `TRANSLATIONS` object with `data-i18n` / `data-i18n-html` attributes; `applyLang(lang)` applies on page load and language switch. Separate from the React `react-i18next` system used in the app.
 
@@ -302,19 +304,19 @@ Fully rewritten 2026-04-09 for cleaning-business-only positioning using a **Gran
 
 **Section order (top to bottom):**
 1. Announcement banner
-2. Nav (sticky, blur backdrop)
-3. Hero — "What if your cleaning business ran itself…" — guarantee-forward subhead; "Get started free" CTA (mailto)
-4. Stats bar
-5. Value stack (`id="value"`) — 6 items with value badges; dark reveal box: "Total value: $806/mo + $500 setup → Your price: $99/mo. Setup: $0."
-6. Guarantee — shield icon, "Try it risk-free for 30 days", full refund promise
-7. Problem — "Sound familiar?" — 3 pain-point cards
-8. How it works — 6-step pipeline in 2×3 grid
-9. Pricing — 2 tiers (Essentials $99/mo, Pro $149/mo)
-10. Social proof — placeholder card
+2. Nav (sticky, blur backdrop) — links to `#value`, `#how`, `#compare`
+3. Hero — "Get started free" CTA (mailto)
+4. Value stack (`id="value"`) — 9 rows animate in on scroll via IntersectionObserver; running total counts to $458/mo; price reveal card fades in ($99/mo, 78% savings = $359/mo)
+5. Stats bar
+6. Problem — "Sound familiar?" — 3 pain-point cards
+7. How it works (`id="how"`) — 6-step pipeline
+8. Comparison table (`id="compare"`) — TimelyOps vs Jobber vs Housecall Pro vs ZenMaid
+9. Pricing — Essentials $99/mo, Pro $149/mo
+10. Social proof — `"You can tell TimelyOps was made for how cleaning businesses work." — Owner · Residential Cleaning, Sunnyvale, California`
 11. Final CTA — "Get started free"
-12. Footer
+12. Footer — `© 2026 TimelyOps · Sign in`
 
-Nav `#features` link replaced with `#value` to match new section id.
+**Founding spots counter:** Calls `founding-spots` Edge Function (NOT YET BUILT); falls back to "8 of 10" silently.
 
 ---
 
@@ -365,4 +367,3 @@ All items below confirmed in live codebase and live Supabase DB via pg_policies 
 - [ ] Auto review requests (Pro tier) — feature slug in tiers.js, UI not yet built
 - [ ] QuickBooks sync (add-on)
 - [ ] Supply tracking (add-on)
-- [ ] Social proof section on landing page — currently a placeholder card; needs real customer quote
