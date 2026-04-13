@@ -102,7 +102,7 @@ supabase/functions/
   send-email/           — Resend email, all 4 email types
   send-sms/             — Twilio SMS
   quote-action/         — public token actions + get_receipt
-  admin-update-auth-user/ — update Supabase auth credentials
+  admin-update-auth-user/ — two actions: (1) update existing auth credentials (email/phone); (2) create_user: true — creates auth.users entry + links public.users row atomically using service role
   link-auth-user/       — first-time phone OTP login: updates users.id to auth.uid() and sets auth_linked = true (service role, JWT required)
   booking-agent/        — public AI booking agent (no JWT), uses claude-sonnet-4-20250514, 4 tools; responds in customer's language automatically
 public/

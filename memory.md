@@ -1,6 +1,6 @@
 # TimelyOps — Project Status Board
 
-Last updated: 2026-04-13 (added Vercel Analytics to app + landing.html; fixed link-auth-user session race condition; vercel.json routes / to landing.html)
+Last updated: 2026-04-13 (added Vercel Analytics; fixed auth linking race condition; vercel.json landing page routing; admin create-user now provisions auth.users immediately)
 
 ---
 
@@ -177,9 +177,12 @@ Deleting an invoice NULLs: `payments.invoice_id`, `jobs.invoice_id`
 **Stores:** Conversation in `booking_conversations` table. Created jobs have `source = 'web_booking'`, `status = 'pending_confirmation'`.
 **Env vars:** `ANTHROPIC_API_KEY`, `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_PHONE_NUMBER`, `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`
 
-### `admin-update-auth-user` (v1)
-**What:** Updates email/phone in `auth.users` using service role. Called from AdminUsers.jsx when a user's credentials change.
-**Security:** Server-side `is_platform_admin` check — frontend cannot bypass. Validates email format (`/^[^\s@]+@[^\s@]+\.[^\s@]+$/`) and phone format (E.164). Logs change to `audit_log`.
+### `admin-update-auth-user` (v2 — create_user branch added 2026-04-13)
+**What:** Two actions in one function:
+1. **Update existing auth user** — accepts `{ auth_user_id, email?, phone? }`, calls `auth.admin.updateUserById()`. Called from AdminUserDetail.jsx when credentials change.
+2. **Create new auth user** — accepts `{ create_user: true, user_id, phone }`. Calls `auth.admin.createUser({ phone, phone_confirm: true })`, then updates `public.users SET id = new_auth_uuid, auth_linked = true WHERE id = user_id` using service role. If the public.users update fails, the orphaned auth user is deleted. Called from AdminUsers.jsx new-user flow.
+**Security:** Server-side `is_platform_admin` check — frontend cannot bypass. E.164 phone validation on both branches. Logs to `audit_log`.
+**Phone normalization:** AdminUsers.jsx normalizes phone to E.164 before calling this function (strips formatting, prepends `+1` for 10-digit US numbers).
 **Env vars:** `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`
 
 ### `link-auth-user` (v1 — new 2026-04-12)
