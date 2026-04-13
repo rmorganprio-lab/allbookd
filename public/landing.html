@@ -866,27 +866,36 @@
 </footer>
 
 <script>
-  // ─── CONFIGURATION ─────────────────────────────────────────────────────────
-  // When you onboard a new founding customer, increment FOUNDING_SPOTS_TAKEN by 1.
-  // That's the only number you ever need to change here.
-  const FOUNDING_SPOTS_TOTAL = 10;
-  const FOUNDING_SPOTS_TAKEN = 2;  // ← UPDATE THIS as customers sign up (currently: Hilda + Jackie)
-  // ───────────────────────────────────────────────────────────────────────────
-
-  const SPOTS_REMAINING = FOUNDING_SPOTS_TOTAL - FOUNDING_SPOTS_TAKEN;
   const TOTAL_VALUE = 285; // Monthly: $149 (Jobber) + $19 (FreshBooks) + $20 (Square) + $97 (GHL)
   const OUR_PRICE = 99;
   const SAVINGS = TOTAL_VALUE - OUR_PRICE;
 
-  // Set spots text in both locations
-  document.getElementById('spotsText').textContent =
-    SPOTS_REMAINING + ' of ' + FOUNDING_SPOTS_TOTAL + ' founding spots remaining';
-  document.getElementById('spotsTextReveal').textContent =
-    SPOTS_REMAINING + ' of ' + FOUNDING_SPOTS_TOTAL + ' spots left.';
-
-  // Update savings display
+  // Update savings display (static — doesn't depend on spot count)
   document.getElementById('savingsAmount').textContent = '$' + SAVINGS + '/mo';
   document.getElementById('savingsYear').textContent = '$' + (SAVINGS * 12).toLocaleString();
+
+  // ─── LIVE SPOT COUNTER ────────────────────────────────────────────────────
+  // Fetches the real founding customer count from Supabase on every page load.
+  // No manual updates needed — onboarding a customer updates the DB and the
+  // counter reflects it automatically on the next page view.
+  function setSpotText(remaining, total) {
+    document.getElementById('spotsText').textContent =
+      remaining + ' of ' + total + ' founding spots remaining';
+    document.getElementById('spotsTextReveal').textContent =
+      remaining + ' of ' + total + ' spots left.';
+  }
+
+  // Show a sensible fallback immediately while the fetch is in flight
+  setSpotText(8, 10);
+
+  fetch('https://vrssqhzzdhlqnptengju.supabase.co/functions/v1/founding-spots')
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      if (typeof data.remaining === 'number') {
+        setSpotText(data.remaining, data.total);
+      }
+    })
+    .catch(function() { /* fallback text already showing — silently ignore */ });
 
   // Intersection observer — trigger animation once when section scrolls into view
   const valueSection = document.getElementById('value');
@@ -955,6 +964,5 @@
   });
 </script>
 
-<script defer src="/_vercel/insights/script.js"></script>
 </body>
 </html>
