@@ -1,3 +1,4 @@
+import { Analytics } from '@vercel/analytics/react'
 import { useState, useEffect, useRef } from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
@@ -325,6 +326,7 @@ function App() {
           <AppRoutes user={user} session={session} />
         </AdminOrgProvider>
       </ToastProvider>
+      <Analytics />
     </ErrorBoundary>
   )
 }
