@@ -16,6 +16,7 @@ The product name in branding is **TimelyOps**. The GitHub repo and Supabase proj
 - **PDF:** jsPDF
 - **Excel export:** XLSX (SheetJS)
 - **i18n:** react-i18next — `useTranslation()` hook, `t()` calls throughout; locale files at `src/locales/en.json` and `src/locales/es.json`
+- **Analytics:** `@vercel/analytics/react` — `<Analytics />` rendered in `App.jsx`; visitor data appears in Vercel dashboard automatically
 
 Not yet integrated (planned): Claude API (Growth tier AI agents), Stripe (online payments), QuickBooks.
 

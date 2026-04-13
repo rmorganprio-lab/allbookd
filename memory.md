@@ -1,6 +1,6 @@
 # TimelyOps — Project Status Board
 
-Last updated: 2026-04-12 (replaced email invite with SMS onboarding; fixed phone auth linking via link-auth-user Edge Function)
+Last updated: 2026-04-13 (added Vercel Analytics; fixed link-auth-user session race condition in App.jsx)
 
 ---
 
@@ -184,7 +184,7 @@ Deleting an invoice NULLs: `payments.invoice_id`, `jobs.invoice_id`
 
 ### `link-auth-user` (v1 — new 2026-04-12)
 **What:** Handles first-time phone OTP login. Accepts `{ phone }`. Finds the `users` row by phone where `auth_linked = false`, then updates its `id` to `auth.uid()` (from JWT) and sets `auth_linked = true`. Uses service role to bypass RLS — necessary because the existing row has a placeholder UUID as its `id`, not `auth.uid()`, so a frontend UPDATE would silently fail (RLS `USING (id = auth.uid())` filters it out).
-**Called from:** `App.jsx` `loadUser()` — on first login when user row is not found by id, or when row is found but `auth_linked = false`.
+**Called from:** `App.jsx` `loadUser(authId, session)` — on first login when user row is not found by id, or when row is found but `auth_linked = false`. The `session` object is passed directly from the caller (not re-fetched inside `loadUser`) to avoid a race condition where `supabase.auth.getSession()` can return null immediately after `onAuthStateChange` fires.
 **Security:** JWT auth required (manual `auth.getUser()` check). Returns 404 if no unlinked row matches the phone.
 **Replaces:** The old `invite-user` function (deleted) and the broken direct-update approach in App.jsx.
 **Env vars:** `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`
@@ -198,7 +198,7 @@ Deleting an invoice NULLs: `payments.invoice_id`, `jobs.invoice_id`
 | Supabase | DB, Auth, RLS, Edge Functions | `src/lib/supabase.js` (anon key), Edge Function env vars (service role) |
 | Resend | Transactional email | `RESEND_API_KEY` in Supabase Edge Function settings. Confirmed working in production — 5 emails delivered as of April 2026. |
 | Twilio | SMS delivery | `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_PHONE_NUMBER` in Supabase Edge Function settings |
-| Vercel | Hosting + CI/CD | Auto-deploy on push to `main` |
+| Vercel | Hosting + CI/CD + Analytics | Auto-deploy on push to `main`. Analytics active — `<Analytics />` in App.jsx via `@vercel/analytics/react` |
 | GitHub | Source control | `rmorganprio-lab/allbookd` |
 
 ---
