@@ -56,7 +56,7 @@ src/
     Payments.jsx
     Reports.jsx
     Settings.jsx
-    Login.jsx
+    Login.jsx           — phone OTP primary, email magic link fallback; emailRedirectTo: 'https://timelyops.com/login' set on signInWithOtp so magic links land on the React app, not the static landing page
     QuoteApproval.jsx   — public, no auth, /approve/:token
     InvoiceView.jsx     — public, no auth, /invoice/:token
     PaymentReceipt.jsx  — public, no auth, /receipt/:token

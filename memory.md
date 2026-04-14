@@ -1,6 +1,6 @@
 # TimelyOps — Project Status Board
 
-Last updated: 2026-04-13 (security hardening: DB function search_path fix + users INSERT RLS tightened)
+Last updated: 2026-04-14 (magic link emailRedirectTo fix; landing page Log in button added to nav)
 
 ---
 
@@ -209,6 +209,7 @@ Deleting an invoice NULLs: `payments.invoice_id`, `jobs.invoice_id`
 - **Founding spots counter:** Fetches live from `founding-spots` Edge Function; falls back to "8 of 10" if fetch fails or function not deployed
 - **Vercel Analytics:** Loaded via `/_vercel/insights/script.js` script tag (same as React app uses `@vercel/analytics/react`)
 - **Banner dismiss:** Persisted in `localStorage('timelyops_banner_dismissed')`
+- **Nav Log in button:** Desktop — outlined secondary button between text links and "Get started" CTA, links to `/login`. Mobile — always visible in nav bar (not in hamburger dropdown); compact style (`6px 14px` padding, `13px` font, `white-space: nowrap`); "Get started →" shortened to "Start" on mobile via span toggle; logo icon hidden on mobile to save space.
 
 ---
 
@@ -316,6 +317,7 @@ Fully rewritten 2026-04-09 for cleaning-business-only positioning using a **Gran
 11. Final CTA — "Get started free"
 12. Footer — `© 2026 TimelyOps · Sign in`
 
+**Nav:** Desktop — text links (Pricing, How it works, Compare) + outlined "Log in" + filled "Get started →" CTA. Mobile — logo + persistent "Log in" + "Start" (compact) + hamburger icon; hamburger dropdown has text links only.
 **Founding spots counter:** Calls `founding-spots` Edge Function (NOT YET BUILT); falls back to "8 of 10" silently.
 
 ---
@@ -325,6 +327,11 @@ Fully rewritten 2026-04-09 for cleaning-business-only positioning using a **Gran
 - **Audit log gaps** — `logAudit()` not wired to core page actions (client creates/edits, invoice creates, quote sends, payments). Only admin actions are logged.
 - **No automated reminders** — Professional tier feature. `needs_assignment_reminder` flag is stored on jobs but notification system not built. TODO comment in Schedule.jsx `handleSave`.
 - **No online payments** — Invoice view page shows balance but has no Stripe integration. Outstanding invoices require manual payment recording.
+
+## Auth notes
+
+- **Magic link redirect:** `signInWithOtp({ email, options: { emailRedirectTo: 'https://timelyops.com/login' } })` in Login.jsx. Without this, Supabase uses the default site URL (`timelyops.com/`) which serves `landing.html` — the React app never loads and the token hash is dropped. Token handling on arrival is done by `onAuthStateChange` in App.jsx (fires `SIGNED_IN` when Supabase client detects the hash fragment on page load).
+- **Phone OTP:** `signInWithOtp({ phone })` → `verifyOtp({ phone, token, type: 'sms' })`. On success, `onAuthStateChange` in App.jsx fires and calls `loadUser`.
 
 ## Worker onboarding flow (updated 2026-04-12)
 
