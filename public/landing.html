@@ -115,7 +115,10 @@
     .mobile-menu .mobile-login { color: var(--text); font-weight: 600; }
     .mobile-menu .mobile-cta { color: var(--teal); font-weight: 600; }
     @media (max-width: 640px) {
-      .nav-links { display: none; }
+      .nav-links { display: flex; gap: 8px; }
+      .nav-links > a:not(.nav-login):not(.nav-cta) { display: none; }
+      .nav-login { padding: 7px 12px; font-size: 13px; }
+      .nav-cta { padding: 7px 12px; font-size: 13px; }
       .nav-hamburger { display: flex; align-items: center; }
     }
 
@@ -492,7 +495,6 @@
     <a href="#value" onclick="closeMobileMenu()">Pricing</a>
     <a href="#how" onclick="closeMobileMenu()">How it works</a>
     <a href="#compare" onclick="closeMobileMenu()">Compare</a>
-    <a href="/login" class="mobile-login">Log in</a>
     <a href="mailto:info@timelyops.com" class="mobile-cta">Get started →</a>
   </div>
 </nav>
