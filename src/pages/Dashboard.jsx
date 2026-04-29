@@ -432,6 +432,7 @@ function StatusDot({ status }) {
 
 function JobCard({ job, isNext, tz, user, onUpdate, onJobClick }) {
   const { t } = useTranslation()
+  const { showToast } = useToast()
   const [step, setStep] = useState('idle') // idle | askPayment | paymentForm | done
   const [payAmount, setPayAmount] = useState(job.price ? String(job.price) : '')
   const currencySymbol = user?.organizations?.settings?.currency_symbol || '$'
@@ -440,12 +441,14 @@ function JobCard({ job, isNext, tz, user, onUpdate, onJobClick }) {
   const [saving, setSaving] = useState(false)
 
   async function handleArrive() {
-    await supabase.from('jobs').update({ status: 'in_progress', arrived_at: new Date().toISOString() }).eq('id', job.id)
+    const { error } = await supabase.from('jobs').update({ status: 'in_progress', arrived_at: new Date().toISOString() }).eq('id', job.id)
+    if (error) { showToast(t('dashboard.toast_update_failed'), 'error'); return }
     onUpdate?.()
   }
 
   async function handleComplete() {
-    await supabase.from('jobs').update({ status: 'completed', completed_at: new Date().toISOString() }).eq('id', job.id)
+    const { error } = await supabase.from('jobs').update({ status: 'completed', completed_at: new Date().toISOString() }).eq('id', job.id)
+    if (error) { showToast(t('dashboard.toast_update_failed'), 'error'); return }
     // Immediately ask about payment
     setStep('askPayment')
   }
@@ -462,7 +465,7 @@ function JobCard({ job, isNext, tz, user, onUpdate, onJobClick }) {
   async function handleRecordPayment() {
     if (!payAmount || Number(payAmount) <= 0) return
     setSaving(true)
-    await supabase.from('payments').insert({
+    const { error: payError } = await supabase.from('payments').insert({
       org_id: user.org_id,
       client_id: job.client_id,
       job_id: job.id,
@@ -471,6 +474,11 @@ function JobCard({ job, isNext, tz, user, onUpdate, onJobClick }) {
       date: todayInTimezone(user?.organizations?.settings?.timezone || 'America/Los_Angeles'),
       notes: `Payment for ${job.title}`,
     })
+    if (payError) {
+      showToast(t('dashboard.toast_payment_failed'), 'error')
+      setSaving(false)
+      return
+    }
     await supabase.from('client_timeline').insert({
       org_id: user.org_id,
       client_id: job.client_id,

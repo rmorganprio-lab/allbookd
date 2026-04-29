@@ -338,6 +338,9 @@ export default function BookingPage() {
             TimelyOps
           </a>
         </div>
+        <p className="mt-2 text-xs text-gray-500 text-center leading-snug">
+          {t('booking.sms_consent')}
+        </p>
       </div>
 
     </div>

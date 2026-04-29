@@ -10,7 +10,7 @@ import { logAudit } from '../lib/auditLog'
 import { reversePayment } from '../lib/financialActions'
 import { useTranslation } from 'react-i18next'
 
-// Legacy color map for known method names (case-insensitive fallback)
+// Color map for known payment method names (case-insensitive fallback)
 const METHOD_COLORS = {
   cash: 'bg-green-100 text-green-700',
   venmo: 'bg-blue-100 text-blue-700',

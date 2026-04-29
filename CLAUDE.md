@@ -41,6 +41,7 @@ Not yet integrated (planned): Claude API (Growth tier AI agents), Stripe (online
 - Don't over-engineer; Rich is building solo
 - Edge Functions for external service calls (Resend, Twilio) — never call third-party APIs from the frontend
 - Feature gating: `SubscriptionContext` + `<FeatureGate>` component + `hasFeature(slug)` — don't hard-code tier checks inline
+- **DB triggers own document numbers** — `quote_number` (`QT-XXXX`), `invoice_number` (`INV-XXXX`), and `credit_note_number` (`CN-XXXX`) are set by INSERT triggers using `org_sequences`. Any frontend-generated preview number is overwritten. After inserting a quote/invoice/credit note, always read the number back from `data.xxx_number` (the `.select().single()` result) — never use the locally-assembled object's value in timeline entries or audit logs.
 
 ## File structure
 ```

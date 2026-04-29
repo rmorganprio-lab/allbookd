@@ -30,7 +30,6 @@ export default function Invoices({ user }) {
   const vatNumber = user?.organizations?.vat_number || null
   const currencySymbol = user?.organizations?.settings?.currency_symbol || '$'
   const paymentMethods = user?.organizations?.settings?.payment_methods || ['Cash', 'Venmo', 'Zelle', 'Card', 'Check']
-  const orgId = user?.org_id
   const { adminViewOrg } = useAdminOrg()
   const effectiveOrgId = adminViewOrg?.id ?? user?.org_id
   const { showToast } = useToast()

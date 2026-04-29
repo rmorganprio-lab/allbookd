@@ -193,7 +193,10 @@ export default function Clients({ user }) {
           client_id: newClient.id,
           org_id: effectiveOrgId,
         })
-        if (propError) console.error('Failed to save client property:', propError)
+        if (propError) {
+          console.error('Failed to save client property:', propError)
+          showToast(t('clients.toast_failed_save'), 'error')
+        }
 
         const { error: timelineError } = await supabase.from('client_timeline').insert({
           org_id: effectiveOrgId,
@@ -224,14 +227,20 @@ export default function Clients({ user }) {
             .from('client_properties')
             .update(cleanProperty())
             .eq('id', existingProp.id)
-          if (propError) console.error('Failed to update client property:', propError)
+          if (propError) {
+            console.error('Failed to update client property:', propError)
+            showToast(t('clients.toast_failed_save'), 'error')
+          }
         } else {
           const { error: propError } = await supabase.from('client_properties').insert({
             ...cleanProperty(),
             client_id: selectedClient.id,
             org_id: effectiveOrgId,
           })
-          if (propError) console.error('Failed to insert client property:', propError)
+          if (propError) {
+            console.error('Failed to insert client property:', propError)
+            showToast(t('clients.toast_failed_save'), 'error')
+          }
         }
       }
     }

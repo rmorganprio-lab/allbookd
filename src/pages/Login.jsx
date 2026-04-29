@@ -147,6 +147,9 @@ export default function Login() {
               <p className="text-xs text-stone-400 mt-2">
                 {t('login.phone_hint')}
               </p>
+              <p className="text-xs text-gray-500 mt-2 leading-snug">
+                {t('booking.sms_consent')}
+              </p>
 
               {error && (
                 <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-xl text-red-600 text-sm">

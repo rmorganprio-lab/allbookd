@@ -319,7 +319,9 @@
     "payment_save": "Guardar pago",
     "payment_saving": "Guardando...",
     "confirm": "Confirmar",
-    "decline": "Rechazar"
+    "decline": "Rechazar",
+    "toast_update_failed": "No se pudo actualizar el estado del trabajo. Intenta de nuevo.",
+    "toast_payment_failed": "No se pudo registrar el pago. Intenta de nuevo."
   },
   "schedule": {
     "loading": "Cargando agenda...",
@@ -689,7 +691,8 @@
     "error_total": "El total debe ser mayor que 0.",
     "error_line_desc": "Línea {{n}}: la descripción es obligatoria.",
     "error_line_qty": "Línea {{n}}: la cantidad debe ser mayor que 0.",
-    "error_line_price": "Línea {{n}}: el precio no puede ser negativo."
+    "error_line_price": "Línea {{n}}: el precio no puede ser negativo.",
+    "toast_convert_failed": "No se pudo crear el trabajo. Intenta de nuevo."
   },
   "invoices": {
     "loading": "Cargando facturas...",
@@ -1024,6 +1027,7 @@
     "confirmed_body": "El equipo revisará tu solicitud y confirmará pronto.",
     "confirmed_body_org": "{{org}} revisará tu solicitud y confirmará pronto.",
     "error_generic": "Algo salió mal. Por favor intenta de nuevo.",
-    "error_connection": "Error de conexión. Por favor intenta de nuevo."
+    "error_connection": "Error de conexión. Por favor intenta de nuevo.",
+    "sms_consent": "Al proporcionar su número de teléfono, acepta recibir mensajes de texto de este negocio sobre su reserva. Se pueden aplicar tarifas de mensajes y datos. Responda STOP para cancelar."
   }
 }

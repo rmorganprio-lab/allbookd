@@ -1,6 +1,6 @@
 # TimelyOps — Project Status Board
 
-Last updated: 2026-04-14 (landing page value stack: Grade.us row removed, totals updated)
+Last updated: 2026-04-17 (codebase cleanup pass; DB trigger numbering documented)
 
 ---
 
@@ -105,14 +105,23 @@ id, org_id, service_type_id, bedrooms, bathrooms, frequency (`weekly`/`biweekly`
 ### `booking_conversations`
 id, org_id, channel (`web`/`sms`), messages (jsonb array of `{role, content, ts}`), state (jsonb — accumulated booking info), job_id (FK → jobs, nullable), contact_name, contact_phone, updated_at
 
+### `org_sequences`
+org_id, sequence_name (`quote`/`invoice`/`credit_note`), current_value
+
+**Purpose:** Per-org atomic counters for document numbering. Upserted by DB triggers on insert into `quotes`, `invoices`, and `credit_notes`. Never written to from the frontend.
+
 ### `quotes`
-id, org_id, client_id, quote_number, subtotal, tax_amount, total, status (`draft`/`sent`/`approved`/`declined`/`expired`), valid_until, sent_at, approved_at, notes, converted_job_id, created_at, approval_token, declined_at, decline_reason
+id, org_id, client_id, quote_number, quote_seq, subtotal, tax_amount, total, status (`draft`/`sent`/`approved`/`declined`/`expired`), valid_until, sent_at, approved_at, notes, converted_job_id, created_at, approval_token, declined_at, decline_reason
+
+**Document numbering:** `quote_number` and `quote_seq` are set by DB trigger `fn_set_quote_number` on INSERT — format `QT-XXXX`. The frontend `getNextQuoteNumber()` in Quotes.jsx is a preview-only fallback; the trigger always overrides it. After insert, always use `data.quote_number` from the `.select().single()` result — not any locally-generated value. Same pattern applies to invoices (`INV-XXXX`) and credit notes (`CN-XXXX`).
 
 ### `quote_line_items`
 id, quote_id, service_type_id, description, quantity, unit_price, total, sort_order, frequency
 
 ### `invoices`
-id, org_id, client_id, quote_id, invoice_number, subtotal, tax_amount, total, status (`draft`/`sent`/`paid`/`overdue`), issue_date, due_date, paid_date, notes, created_at, view_token
+id, org_id, client_id, quote_id, invoice_number, invoice_seq, subtotal, tax_amount, total, status (`draft`/`sent`/`paid`/`overdue`), issue_date, due_date, paid_date, notes, created_at, view_token
+
+**Document numbering:** `invoice_number` set by trigger `fn_set_invoice_number` on INSERT — format `INV-XXXX`. Trigger also enforces: issue_date locked after `sent_at` is set (`fn_lock_invoice_issue_date`); voided invoices cannot be un-voided (`fn_prevent_unvoid_invoice`).
 
 **RLS DELETE:** ceo only (inline subquery, platform admin bypass)
 
@@ -136,6 +145,13 @@ id, org_id, user_id, user_name, user_role, is_admin_action, action (`create`/`up
 - `user_org_id()` — returns caller's org_id from users table
 - `user_role()` — returns caller's role from users table
 - `is_platform_admin()` — returns caller's is_platform_admin flag; SECURITY DEFINER to bypass RLS on users table (prevents infinite recursion in RLS policies)
+
+### DB trigger functions (fire on INSERT)
+- `fn_set_quote_number` — sets `quote_number = 'QT-' || LPAD(seq, 4, '0')` and `quote_seq` via atomic upsert into `org_sequences`
+- `fn_set_invoice_number` — sets `invoice_number = 'INV-' || LPAD(seq, 4, '0')` and `invoice_seq`
+- `fn_set_credit_note_number` — sets `credit_note_number = 'CN-' || LPAD(seq, 4, '0')` and `credit_note_seq`
+- `fn_lock_invoice_issue_date` — (UPDATE) prevents changing `issue_date` after `sent_at` is set
+- `fn_prevent_unvoid_invoice` — (UPDATE) prevents clearing `voided_at` once set
 
 ### Platform admin RLS (migration 20260331000000_platform_admin_rls.sql — applied 2026-03-31)
 All 23 tables have a `tablename_platform_admin` policy: `FOR ALL USING (is_platform_admin())`. Tables with older inline-lookup policies (org_sequences, credit_notes, booking_conversations) were updated to use the function.
@@ -287,8 +303,11 @@ In Quotes.jsx `handleSave` (add mode), after the quote is saved, a fresh DB fetc
 ### ToastContext action button
 `showToast(message, type, { label, onClick })` — optional third arg adds an action button to the toast (used for "Copy link" fallback on failed receipt sends).
 
+### Document number ownership (DB triggers)
+Quote numbers (`QT-XXXX`), invoice numbers (`INV-XXXX`), and credit note numbers (`CN-XXXX`) are set by DB triggers on INSERT — never trust a frontend-generated number after an insert. Always read the number back from `data.xxx_number` in the `.select().single()` result. The frontend helper functions (e.g. `getNextQuoteNumber()`) are display-only previews; the trigger always overrides them.
+
 ### Audit log
-`src/lib/auditLog.js` → `logAudit()`. Currently wired to admin actions only. Core pages (clients, invoices, payments, quotes) do NOT yet call `logAudit()`.
+`src/lib/auditLog.js` → `logAudit()`. Wired to: quote create/update (Quotes.jsx), admin actions (AdminOrgs, AdminUsers, AdminUserDetail). Not yet wired to: client creates/edits, invoice creates, payment recording.
 
 ### Dashboard → Schedule job navigation
 Clicking a job card on the Dashboard calls `routerNavigate('/schedule', { state: { jobId: job.id } })`. Schedule reads `location.state?.jobId` via a `useRef` (prevents re-trigger on jobs reload), finds the job, switches to day view for that date, and calls `openView(job)` to open the detail modal directly.

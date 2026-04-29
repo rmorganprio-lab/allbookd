@@ -30,7 +30,6 @@ export default function Quotes({ user }) {
   const { t } = useTranslation()
   const tz = user?.organizations?.settings?.timezone || 'America/Los_Angeles'
   const currencySymbol = user?.organizations?.settings?.currency_symbol || '$'
-  const orgId = user?.org_id
   const { adminViewOrg } = useAdminOrg()
   const effectiveOrgId = adminViewOrg?.id ?? user?.org_id
   const { showToast } = useToast()
@@ -111,17 +110,6 @@ export default function Quotes({ user }) {
     return true
   })
 
-  // ── Helpers ──
-
-  function getNextQuoteNumber() {
-    const existing = quotes.map(q => {
-      const num = q.quote_number?.replace(/\D/g, '')
-      return num ? Number(num) : 0
-    })
-    const max = existing.length > 0 ? Math.max(...existing) : 0
-    return `QT-${String(max + 1).padStart(4, '0')}`
-  }
-
   // ── Auto-fill helpers ──
 
   function getClientProperty(clientId) {
@@ -146,7 +134,7 @@ export default function Quotes({ user }) {
       return num ? Number(num) : 0
     })
     const max = existing.length > 0 ? Math.max(...existing) : 0
-    return `Q-${String(max + 1).padStart(4, '0')}`
+    return `QT-${String(max + 1).padStart(4, '0')}`
   }
 
   // ── Modal openers ──
@@ -394,12 +382,13 @@ export default function Quotes({ user }) {
         return
       }
       quoteId = data?.id
+      const savedQuoteNumber = data?.quote_number
 
       // Timeline entry
       if (quoteId) {
         await supabase.from('client_timeline').insert({
           org_id: effectiveOrgId, client_id: clientId,
-          event_type: 'quote', summary: `Quote ${quoteData.quote_number} created for ${formatCurrency(formTotal, currencySymbol)}`,
+          event_type: 'quote', summary: `Quote ${savedQuoteNumber} created for ${formatCurrency(formTotal, currencySymbol)}`,
           created_by: user.id,
         })
         await logAudit({
@@ -407,7 +396,7 @@ export default function Quotes({ user }) {
           action: 'create',
           entityType: 'quote',
           entityId: quoteId,
-          changes: { quote_number: quoteData.quote_number, total: formTotal, status: formStatus },
+          changes: { quote_number: savedQuoteNumber, total: formTotal, status: formStatus },
         })
       }
     } else {
@@ -583,7 +572,13 @@ export default function Quotes({ user }) {
       frequency: scheduleFrequency,
     }
 
-    const { data: newJob } = await supabase.from('jobs').insert(jobData).select().single()
+    const { data: newJob, error: jobError } = await supabase.from('jobs').insert(jobData).select().single()
+
+    if (jobError) {
+      showToast(t('quotes.toast_convert_failed'), 'error')
+      setSaving(false)
+      return
+    }
 
     if (newJob) {
       if (scheduleWorker) {

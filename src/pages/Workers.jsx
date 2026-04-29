@@ -1,11 +1,5 @@
 import { useState, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
-
-function isValidEmail(v) { return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v) }
-function isValidPhone(v) {
-  const digits = v.replace(/\D/g, '')
-  return digits.length >= 7
-}
 import { supabase } from '../lib/supabase'
 import CSVImport from '../components/CSVImport'
 import { WORKER_TEMPLATE, validateWorkerRows, normalizePhone } from '../lib/csv'
@@ -13,6 +7,12 @@ import { useAdminOrg } from '../contexts/AdminOrgContext'
 import { useToast } from '../contexts/ToastContext'
 import { TIERS } from '../lib/tiers'
 import { useSubscription } from '../contexts/SubscriptionContext'
+
+function isValidEmail(v) { return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v) }
+function isValidPhone(v) {
+  const digits = v.replace(/\D/g, '')
+  return digits.length >= 7
+}
 
 export default function Workers({ user }) {
   const { t } = useTranslation()
@@ -28,7 +28,6 @@ export default function Workers({ user }) {
   const [errors, setErrors] = useState({})
   const [staffLimitBanner, setStaffLimitBanner] = useState(false)
 
-  const orgId = user?.org_id
   const { adminViewOrg } = useAdminOrg()
   const { showToast } = useToast()
   const effectiveOrgId = adminViewOrg?.id ?? user?.org_id

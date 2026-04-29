@@ -42,6 +42,7 @@ const COUNTRY_OPTIONS = [
   { code: 'IT', label: 'Italy' },
   { code: 'BE', label: 'Belgium' },
   { code: 'CH', label: 'Switzerland' },
+  { code: 'AT', label: 'Austria' },
   { code: 'NZ', label: 'New Zealand' },
   { code: 'Other', label: 'Other' },
 ]
@@ -303,9 +304,17 @@ export default function Settings({ user }) {
 
   async function doRemoveProfile(deleteServiceTypes) {
     const { profileId, matchingIds } = removeProfileConfirm
-    await supabase.from('organization_profiles').delete().eq('org_id', effectiveOrgId).eq('profile_id', profileId)
+    const { error: profileDeleteError } = await supabase.from('organization_profiles').delete().eq('org_id', effectiveOrgId).eq('profile_id', profileId)
+    if (profileDeleteError) {
+      showToast(t('settings.toast_save_failed'), 'error')
+      return
+    }
     if (deleteServiceTypes && matchingIds.length > 0) {
-      await supabase.from('service_types').delete().in('id', matchingIds)
+      const { error: stDeleteError } = await supabase.from('service_types').delete().in('id', matchingIds)
+      if (stDeleteError) {
+        showToast(t('settings.toast_save_failed'), 'error')
+        return
+      }
     }
     showToast(deleteServiceTypes ? t('settings.toast_profile_and_st_removed') : t('settings.toast_profile_removed'))
     setRemoveProfileConfirm(null)

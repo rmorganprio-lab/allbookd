@@ -319,7 +319,9 @@
     "payment_save": "Save Payment",
     "payment_saving": "Saving...",
     "confirm": "Confirm",
-    "decline": "Decline"
+    "decline": "Decline",
+    "toast_update_failed": "Failed to update job status. Please try again.",
+    "toast_payment_failed": "Failed to record payment. Please try again."
   },
   "schedule": {
     "loading": "Loading schedule...",
@@ -689,7 +691,8 @@
     "error_total": "Total must be greater than 0.",
     "error_line_desc": "Line {{n}}: description is required.",
     "error_line_qty": "Line {{n}}: quantity must be greater than 0.",
-    "error_line_price": "Line {{n}}: price cannot be negative."
+    "error_line_price": "Line {{n}}: price cannot be negative.",
+    "toast_convert_failed": "Failed to create job. Please try again."
   },
   "invoices": {
     "loading": "Loading invoices...",
@@ -1024,6 +1027,7 @@
     "confirmed_body": "The team will review your request and confirm shortly.",
     "confirmed_body_org": "{{org}} will review your request and confirm shortly.",
     "error_generic": "Something went wrong. Please try again.",
-    "error_connection": "Connection error. Please try again."
+    "error_connection": "Connection error. Please try again.",
+    "sms_consent": "By providing your phone number, you agree to receive text messages from this business regarding your booking. Msg & data rates may apply. Reply STOP to opt out."
   }
 }
